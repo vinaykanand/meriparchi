@@ -29,7 +29,6 @@ export default function LoginPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [shake, setShake] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const [isDevPanelOpen, setIsDevPanelOpen] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Automatically check system theme on mount
@@ -112,59 +111,6 @@ export default function LoginPage() {
   const triggerShake = () => {
     setShake(true);
     setTimeout(() => setShake(false), 500);
-  };
-
-  const handleQuickFill = (org: string, user: string, pass: string) => {
-    setOrgcode(org);
-    setUserid(user);
-    setPassword(pass);
-    addToast("Credentials pre-filled", "success");
-  };
-
-  const handleQuickFillAndLogin = async (org: string, user: string, pass: string) => {
-    setOrgcode(org);
-    setUserid(user);
-    setPassword(pass);
-    addToast("Logging in with demo credentials...", "success");
-    
-    // Short delay to let the state update reflect in UI before fetching
-    setTimeout(async () => {
-      setLoading(true);
-      try {
-        const response = await fetch("/api/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            orgcode: org,
-            userid: user,
-            password: pass,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          setUserData({
-            authtoken: data.authtoken,
-            orgcode: data.orgcode,
-            userid: data.userid,
-            isadmin: data.isadmin,
-          });
-          setIsLoggedIn(true);
-          addToast("Authentication Successful!", "success");
-        } else {
-          triggerShake();
-          addToast(data.message || "Invalid credentials", "error");
-        }
-      } catch (err: any) {
-        triggerShake();
-        addToast(err.message || "Unable to reach authorization server", "error");
-      } finally {
-        setLoading(false);
-      }
-    }, 100);
   };
 
   const handleSignOut = () => {
@@ -438,86 +384,6 @@ export default function LoginPage() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Interactive Developer / Tester Panel */}
-      <div className={`${styles.devPanel} ${!isDevPanelOpen ? styles.closedDevPanel : ""}`}>
-        <div 
-          className={styles.devPanelHeader} 
-          onClick={() => setIsDevPanelOpen(!isDevPanelOpen)}
-          title="Toggle developer credentials helpers"
-        >
-          <div className={styles.devPanelTitle}>
-            <span className={styles.devIndicator} />
-            <span>Developer Sandbox Panel</span>
-          </div>
-          <div className={styles.devToggleIcon}>
-            {isDevPanelOpen ? (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="18 15 12 9 6 15"></polyline>
-              </svg>
-            ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            )}
-          </div>
-        </div>
-
-        {isDevPanelOpen && (
-          <div className={styles.devPanelContent}>
-            <p className={styles.devInfoText}>
-              Test credentials discovered in database records. Click to quick-fill or sign in immediately:
-            </p>
-
-            <div 
-              className={styles.credentialCard}
-              onClick={() => handleQuickFill("ABC123", "admin", "admin@123")}
-              title="Click to fill form with these details"
-            >
-              <div className={styles.credRow}>
-                <span className={styles.credKey}>Org Code</span>
-                <span className={styles.credVal}>ABC123</span>
-              </div>
-              <div className={styles.credRow}>
-                <span className={styles.credKey}>User ID</span>
-                <span className={styles.credVal}>admin</span>
-              </div>
-              <div className={styles.credRow}>
-                <span className={styles.credKey}>Password</span>
-                <span className={styles.credVal}>admin@123</span>
-              </div>
-            </div>
-
-            <button 
-              className={styles.devActionBtn}
-              onClick={() => handleQuickFillAndLogin("ABC123", "admin", "admin@123")}
-            >
-              🚀 Auto Sign-In With Credentials
-            </button>
-
-            <p className={styles.devInfoText} style={{ borderTop: "1px solid var(--card-border)", paddingTop: "10px", marginTop: "4px" }}>
-              Test invalid states (triggers high-fidelity error shakes & premium banner notifications):
-            </p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-              <button 
-                className={styles.signOutBtn}
-                style={{ fontSize: "11px", padding: "8px" }}
-                onClick={() => handleQuickFillAndLogin("WRONG_ORG", "admin", "admin@123")}
-              >
-                Wrong Org
-              </button>
-              <button 
-                className={styles.signOutBtn}
-                style={{ fontSize: "11px", padding: "8px" }}
-                onClick={() => handleQuickFillAndLogin("ABC123", "admin", "wrong_pass")}
-              >
-                Wrong Pass
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Footer Branding */}
