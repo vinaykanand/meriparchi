@@ -21,11 +21,13 @@ export default function LoginPage() {
   const [orgcode, setOrgcode] = useState("");
   const [userid, setUserid] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
   
   // UI states
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isOtpRequired, setIsOtpRequired] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [shake, setShake] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
@@ -69,6 +71,11 @@ export default function LoginPage() {
       triggerShake();
       return;
     }
+    if (isOtpRequired && !otp.trim()) {
+      addToast("OTP is required", "error");
+      triggerShake();
+      return;
+    }
 
     setLoading(true);
 
@@ -82,20 +89,26 @@ export default function LoginPage() {
           orgcode: orgcode.trim(),
           userid: userid.trim(),
           password: password.trim(),
+          otp: isOtpRequired ? otp.trim() : undefined,
         }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setUserData({
-          authtoken: data.authtoken,
-          orgcode: data.orgcode,
-          userid: data.userid,
-          isadmin: data.isadmin,
-        });
-        setIsLoggedIn(true);
-        addToast("Authentication Successful!", "success");
+        if (data.otprequired) {
+          setIsOtpRequired(true);
+          addToast(data.message || "OTP sent to your registered device", "success");
+        } else {
+          setUserData({
+            authtoken: data.authtoken,
+            orgcode: data.orgcode,
+            userid: data.userid,
+            isadmin: data.isadmin,
+          });
+          setIsLoggedIn(true);
+          addToast("Authentication Successful!", "success");
+        }
       } else {
         triggerShake();
         addToast(data.message || "Invalid credentials", "error");
@@ -116,7 +129,9 @@ export default function LoginPage() {
   const handleSignOut = () => {
     setIsLoggedIn(false);
     setUserData(null);
-    setPassword(""); // Clear password for security
+    setIsOtpRequired(false);
+    setPassword("");
+    setOtp("");
     addToast("Logged out successfully", "success");
   };
 
@@ -217,128 +232,194 @@ export default function LoginPage() {
           {!isLoggedIn ? (
             /* SIGN IN VIEW */
             <>
-              <h2 className={styles.headerTitle}>Sign in with Parchi</h2>
-              <p className={styles.headerSubtitle}>
-                Enter your organization details and user credentials to access your secure portal.
-              </p>
-
-              <form className={styles.form} onSubmit={handleLogin}>
-                {/* Org Code Field */}
-                <div className={styles.inputGroup}>
-                  <label htmlFor="orgcode" className={styles.inputLabel}>
-                    Organization Code
-                  </label>
-                  <div className={styles.inputWrapper}>
-                    <div className={styles.inputIcon}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-                        <line x1="9" y1="22" x2="9" y2="16"></line>
-                        <line x1="15" y1="22" x2="15" y2="16"></line>
-                        <line x1="9" y1="16" x2="15" y2="16"></line>
-                        <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01"></path>
-                      </svg>
-                    </div>
-                    <input
-                      id="orgcode"
-                      type="text"
-                      className={styles.inputField}
-                      placeholder="e.g. ABC123"
-                      value={orgcode}
-                      onChange={(e) => setOrgcode(e.target.value)}
-                      disabled={loading}
-                      autoComplete="organization"
-                    />
+              {isOtpRequired ? (
+                /* OTP STEP */
+                <div className={styles.otpStep}>
+                  <div className={styles.otpIconWrapper}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
                   </div>
-                </div>
-
-                {/* User ID Field */}
-                <div className={styles.inputGroup}>
-                  <label htmlFor="userid" className={styles.inputLabel}>
-                    User ID
-                  </label>
-                  <div className={styles.inputWrapper}>
-                    <div className={styles.inputIcon}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                      </svg>
-                    </div>
-                    <input
-                      id="userid"
-                      type="text"
-                      className={styles.inputField}
-                      placeholder="e.g. admin"
-                      value={userid}
-                      onChange={(e) => setUserid(e.target.value)}
-                      disabled={loading}
-                      autoComplete="username"
-                    />
-                  </div>
-                </div>
-
-                {/* Password Field */}
-                <div className={styles.inputGroup}>
-                  <label htmlFor="password" className={styles.inputLabel}>
-                    Password
-                  </label>
-                  <div className={styles.inputWrapper}>
-                    <div className={styles.inputIcon}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                      </svg>
-                    </div>
-                    <input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      className={styles.inputField}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={loading}
-                      autoComplete="current-password"
-                    />
-                    <button
-                      type="button"
-                      className={styles.eyeBtn}
-                      onClick={() => setShowPassword(!showPassword)}
-                      disabled={loading}
-                      tabIndex={-1}
-                      title={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? (
+                  <h2 className={styles.headerTitle} style={{fontSize: '22px'}}>Verification Required</h2>
+                  <p className={styles.headerSubtitle} style={{marginBottom: '24px'}}>
+                    Please enter the one-time password sent to your device.
+                  </p>
+                  
+                  <form 
+                    style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}
+                    onSubmit={handleLogin}
+                  >
+                    <div className={styles.inputWrapper}>
+                      <div className={styles.inputIcon}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                         </svg>
+                      </div>
+                      <input
+                        id="otp"
+                        type="text"
+                        className={styles.inputField}
+                        placeholder="Enter 4-digit code"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        disabled={loading}
+                        autoComplete="one-time-code"
+                        autoFocus
+                      />
+                    </div>
+                    
+                    <button type="submit" className={styles.submitBtn} disabled={loading}>
+                      {loading ? (
+                        <>
+                          <div className={styles.spinner} />
+                          <span>Verifying...</span>
+                        </>
                       ) : (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                          <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
+                        <span>Verify & Login</span>
                       )}
                     </button>
-                  </div>
+                    
+                    <button 
+                      type="button" 
+                      className={styles.cancelBtn} 
+                      onClick={() => {
+                        setIsOtpRequired(false);
+                        setOtp("");
+                      }}
+                      disabled={loading}
+                    >
+                      Cancel
+                    </button>
+                  </form>
                 </div>
+              ) : (
+                /* LOGIN STEP */
+                <>
+                  <h2 className={styles.headerTitle}>Sign in with Parchi</h2>
+                  <p className={styles.headerSubtitle}>
+                    Enter your organization details and user credentials to access your secure portal.
+                  </p>
 
-                {/* Submit button */}
-                <button type="submit" className={styles.submitBtn} disabled={loading}>
-                  {loading ? (
-                    <>
-                      <div className={styles.spinner} />
-                      <span>Verifying identity...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Sign In</span>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                      </svg>
-                    </>
-                  )}
-                </button>
-              </form>
+                  <form className={styles.form} onSubmit={handleLogin}>
+                    {/* Org Code Field */}
+                    <div className={styles.inputGroup}>
+                      <label htmlFor="orgcode" className={styles.inputLabel}>
+                        Organization Code
+                      </label>
+                      <div className={styles.inputWrapper}>
+                        <div className={styles.inputIcon}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                            <line x1="9" y1="22" x2="9" y2="16"></line>
+                            <line x1="15" y1="22" x2="15" y2="16"></line>
+                            <line x1="9" y1="16" x2="15" y2="16"></line>
+                            <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01"></path>
+                          </svg>
+                        </div>
+                        <input
+                          id="orgcode"
+                          type="text"
+                          className={styles.inputField}
+                          placeholder="e.g. ABC123"
+                          value={orgcode}
+                          onChange={(e) => setOrgcode(e.target.value)}
+                          disabled={loading}
+                          autoComplete="organization"
+                        />
+                      </div>
+                    </div>
+
+                    {/* User ID Field */}
+                    <div className={styles.inputGroup}>
+                      <label htmlFor="userid" className={styles.inputLabel}>
+                        User ID
+                      </label>
+                      <div className={styles.inputWrapper}>
+                        <div className={styles.inputIcon}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                          </svg>
+                        </div>
+                        <input
+                          id="userid"
+                          type="text"
+                          className={styles.inputField}
+                          placeholder="e.g. admin"
+                          value={userid}
+                          onChange={(e) => setUserid(e.target.value)}
+                          disabled={loading}
+                          autoComplete="username"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password Field */}
+                    <div className={styles.inputGroup}>
+                      <label htmlFor="password" className={styles.inputLabel}>
+                        Password
+                      </label>
+                      <div className={styles.inputWrapper}>
+                        <div className={styles.inputIcon}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                          </svg>
+                        </div>
+                        <input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          className={styles.inputField}
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          disabled={loading}
+                          autoComplete="current-password"
+                        />
+                        <button
+                          type="button"
+                          className={styles.eyeBtn}
+                          onClick={() => setShowPassword(!showPassword)}
+                          disabled={loading}
+                          tabIndex={-1}
+                          title={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                              <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                          ) : (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Submit button */}
+                    <button type="submit" className={styles.submitBtn} disabled={loading}>
+                      {loading ? (
+                        <>
+                          <div className={styles.spinner} />
+                          <span>Authenticating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Sign In</span>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                          </svg>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </>
+              )}
             </>
           ) : (
             /* SIGNED IN / SUCCESS STATE */

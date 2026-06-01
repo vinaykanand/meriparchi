@@ -145,6 +145,8 @@
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
 }
 
 .shake {
@@ -555,12 +557,65 @@
   color: var(--text-primary);
 }
 
+/* OTP Step */
+.otpStep {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  animation: fadeInStep 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInStep {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.otpIconWrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(0, 113, 227, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--btn-bg);
+  margin-bottom: 24px;
+}
+
+.darkMode .otpIconWrapper {
+  background: rgba(0, 113, 227, 0.2);
+}
+
+.cancelBtn {
+  background: transparent;
+  border: 1px solid var(--input-border);
+  color: var(--text-primary);
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 12px;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+  background: var(--input-bg);
+}
+
 @media (max-width: 600px) {
   .loginCard {
     padding: 32px 24px;
   }
   .headerTitle {
     font-size: 24px;
-  }
   }
 }
