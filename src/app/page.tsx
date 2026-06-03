@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./login.module.css";
 
 interface Toast {
@@ -33,11 +34,27 @@ export default function LoginPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Automatically check system theme on mount
+  const router = useRouter();
+
+  // Automatically check system theme and session on mount
   useEffect(() => {
     const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     setTheme(isDark ? "dark" : "light");
-  }, []);
+
+    const saved = localStorage.getItem("parchi_session");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.authtoken) {
+          if (data.isadmin) {
+            router.push("/dashboard/admin");
+          } else {
+            router.push("/dashboard/user");
+          }
+        }
+      } catch (e) {}
+    }
+  }, [router]);
 
   const addToast = (message: string, type: "success" | "error") => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -100,14 +117,25 @@ export default function LoginPage() {
           setIsOtpRequired(true);
           addToast(data.message || "OTP sent to your registered device", "success");
         } else {
-          setUserData({
+          const sessionObj = {
             authtoken: data.authtoken,
             orgcode: data.orgcode,
             userid: data.userid,
             isadmin: data.isadmin,
-          });
+          };
+          localStorage.setItem("parchi_session", JSON.stringify(sessionObj));
+          setUserData(sessionObj);
           setIsLoggedIn(true);
           addToast("Authentication Successful!", "success");
+
+          // Automatically redirect user based on role
+          setTimeout(() => {
+            if (data.isadmin) {
+              router.push("/dashboard/admin");
+            } else {
+              router.push("/dashboard/user");
+            }
+          }, 1200);
         }
       } else {
         triggerShake();
@@ -127,6 +155,7 @@ export default function LoginPage() {
   };
 
   const handleSignOut = () => {
+    localStorage.removeItem("parchi_session");
     setIsLoggedIn(false);
     setUserData(null);
     setIsOtpRequired(false);
