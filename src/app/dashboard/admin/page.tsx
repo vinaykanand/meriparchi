@@ -24,10 +24,31 @@ interface Toast {
   type: "success" | "error";
 }
 
+interface LedgerSummaryRow {
+  txn_date: string;
+  totalamount: string;
+  discount: string;
+  netamount: string;
+  paymentmade: string;
+}
+
+interface SlipDetailItem {
+  slipno: string;
+  slip_date: string;
+  item: string;
+  remarks: string;
+  qty: string;
+  rate: string;
+  itemamount: string;
+  totalamount: string;
+  discount: string;
+  netamount: string;
+}
+
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
-  const [activeTab, setActiveTab] = useState<"overview" | "create" | "users" | "settings">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "create" | "lookup" | "users" | "settings">("overview");
 
   // Session details
   const [session, setSession] = useState<{
@@ -52,22 +73,39 @@ export default function AdminDashboard() {
   const [enableotp, setEnableotp] = useState(false);
   const [savingCompany, setSavingCompany] = useState(false);
 
-  // Ledger: Slip entry state
+  // Ledger: Slip & Payment entry state
   const [slipPhone, setSlipPhone] = useState("");
   const [slipName, setSlipName] = useState("");
   const [slipAddress, setSlipAddress] = useState("");
   const [slipDiscount, setSlipDiscount] = useState("0");
   const [slipItems, setSlipItems] = useState<SlipItemInput[]>([{ item: "", remarks: "", qty: "1", rate: "0" }]);
   const [savingSlip, setSavingSlip] = useState(false);
+  const [previousBalance, setPreviousBalance] = useState<number>(0);
+  const [paymentMade, setPaymentMade] = useState<string>("0");
+  const [loadingCustomer, setLoadingCustomer] = useState(false);
 
-  // Ledger: Payment entry state
-  const [payPhone, setPayPhone] = useState("");
-  const [payAmount, setPayAmount] = useState("");
-  const [payNarration, setPayNarration] = useState("");
-  const [savingPayment, setSavingPayment] = useState(false);
+  // Ledger lookup tab state
+  const [lookupPhone, setLookupPhone] = useState("");
+  const [searchedLookupPhone, setSearchedLookupPhone] = useState("");
+  const [loadingLookupLedger, setLoadingLookupLedger] = useState(false);
+  const [lookupLedgerSummary, setLookupLedgerSummary] = useState<LedgerSummaryRow[]>([]);
+  const [hasLookupSearched, setHasLookupSearched] = useState(false);
+  const [lookupDetailDate, setLookupDetailDate] = useState<string | null>(null);
+  const [loadingLookupDetails, setLoadingLookupDetails] = useState(false);
+  const [lookupSlipDetails, setLookupSlipDetails] = useState<SlipDetailItem[]>([]);
+  const [closingAccount, setClosingAccount] = useState(false);
 
   // Global Toast state
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // Autocomplete and recent lookup states for admin
+  const [searchSuggestions, setSearchSuggestions] = useState<{ phone: string; name: string; address: string }[]>([]);
+  const [showSlipSuggestions, setShowSlipSuggestions] = useState(false);
+  const [showLookupSuggestions, setShowLookupSuggestions] = useState(false);
+  const [recentSlips, setRecentSlips] = useState<any[]>([]);
+  const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [recentAccounts, setRecentAccounts] = useState<any[]>([]);
+  const [loadingRecent, setLoadingRecent] = useState(false);
 
   const addToast = (message: string, type: "success" | "error") => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -75,6 +113,23 @@ export default function AdminDashboard() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);
+  };
+
+  const fetchRecentData = async (orgcode: string) => {
+    setLoadingRecent(true);
+    try {
+      const res = await fetch(`/api/ledger?orgcode=${orgcode}&recent=true`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRecentSlips(data.recentSlips || []);
+        setRecentPayments(data.recentPayments || []);
+        setRecentAccounts(data.recentAccounts || []);
+      }
+    } catch (err) {
+      console.error("Failed to load recent activity:", err);
+    } finally {
+      setLoadingRecent(false);
+    }
   };
 
   useEffect(() => {
@@ -101,6 +156,7 @@ export default function AdminDashboard() {
           localStorage.setItem("parchi_session", JSON.stringify(sessionObj));
           setSession(sessionObj);
           setOrgname(data.orgcode + " Enterprise");
+          fetchRecentData(sessionObj.orgcode);
           setLoading(false);
         } else {
           // Unauthenticated, clear local storage and redirect
@@ -116,6 +172,93 @@ export default function AdminDashboard() {
     };
     checkAuth();
   }, []);
+
+  // Global click listener to close suggestions
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setShowSlipSuggestions(false);
+      setShowLookupSuggestions(false);
+    };
+    window.addEventListener("click", handleGlobalClick);
+    return () => window.removeEventListener("click", handleGlobalClick);
+  }, []);
+
+  // Autocomplete fetch effect for slip phone input
+  useEffect(() => {
+    if (!session || !slipPhone.trim() || slipPhone.trim().length < 2) {
+      setSearchSuggestions([]);
+      return;
+    }
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/ledger?orgcode=${session.orgcode}&search=${slipPhone.trim()}`);
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setSearchSuggestions(data.accounts || []);
+        }
+      } catch (err) {
+        console.error("Error fetching suggestions:", err);
+      }
+    }, 200);
+    return () => clearTimeout(delayDebounce);
+  }, [slipPhone, session]);
+
+  // Autocomplete fetch effect for lookup phone input
+  useEffect(() => {
+    if (!session || !lookupPhone.trim() || lookupPhone.trim().length < 2) {
+      setSearchSuggestions([]);
+      return;
+    }
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/ledger?orgcode=${session.orgcode}&search=${lookupPhone.trim()}`);
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setSearchSuggestions(data.accounts || []);
+        }
+      } catch (err) {
+        console.error("Error fetching suggestions:", err);
+      }
+    }, 200);
+    return () => clearTimeout(delayDebounce);
+  }, [lookupPhone, session]);
+
+  const handleSelectSlipSuggestion = (phone: string, name: string, address: string) => {
+    setSlipPhone(phone);
+    if (name) setSlipName(name);
+    if (address) setSlipAddress(address);
+    setSearchSuggestions([]);
+    setShowSlipSuggestions(false);
+  };
+
+  const handleSelectLookupSuggestion = (phone: string, name: string, address: string) => {
+    setLookupPhone(phone);
+    setSearchedLookupPhone(phone);
+    setSearchSuggestions([]);
+    setShowLookupSuggestions(false);
+    triggerLookupPhoneSearch(phone);
+  };
+
+  const triggerLookupPhoneSearch = async (phoneToSearch: string) => {
+    if (!session) return;
+    setLoadingLookupLedger(true);
+    setHasLookupSearched(true);
+    setSearchedLookupPhone(phoneToSearch);
+
+    try {
+      const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&phone=${phoneToSearch}`);
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setLookupLedgerSummary(data.summary || []);
+      } else {
+        addToast(data.message || "Failed to search ledger", "error");
+      }
+    } catch (err: any) {
+      addToast(err.message || "Database connection error", "error");
+    } finally {
+      setLoadingLookupLedger(false);
+    }
+  };
 
   // Fetch users when on users tab
   useEffect(() => {
@@ -320,7 +463,46 @@ export default function AdminDashboard() {
     return { total, net };
   };
 
-  const handleSaveSlip = async (e: React.FormEvent) => {
+  const fetchCustomerDetails = async (phone: string) => {
+    if (!session || !phone.trim() || phone.trim().length < 5) return;
+    setLoadingCustomer(true);
+    try {
+      const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&phone=${phone.trim()}`);
+      const data = await response.json();
+      if (response.ok && data.success) {
+        let slipSum = 0;
+        let paySum = 0;
+        if (data.summary) {
+          data.summary.forEach((row: any) => {
+            slipSum += parseFloat(row.netamount) || 0;
+            paySum += parseFloat(row.paymentmade) || 0;
+          });
+        }
+        setPreviousBalance(Math.max(0, slipSum - paySum));
+
+        if (data.customer) {
+          if (data.customer.name) setSlipName(data.customer.name);
+          if (data.customer.address) setSlipAddress(data.customer.address);
+        }
+      } else {
+        setPreviousBalance(0);
+      }
+    } catch (err) {
+      console.error("Error fetching customer details:", err);
+    } finally {
+      setLoadingCustomer(false);
+    }
+  };
+
+  useEffect(() => {
+    if (slipPhone.trim().length === 10) {
+      fetchCustomerDetails(slipPhone.trim());
+    } else {
+      setPreviousBalance(0);
+    }
+  }, [slipPhone]);
+
+  const handleSaveSlipAndPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session) return;
     if (!slipPhone.trim()) {
@@ -334,11 +516,33 @@ export default function AdminDashboard() {
       return;
     }
 
-    setSavingSlip(true);
-    const { total } = getSlipTotals();
-    const disc = parseFloat(slipDiscount) || 0;
+    const hasNegativeQtyOrRate = slipItems.some(
+      (it) => (parseFloat(it.qty) || 0) < 0 || (parseFloat(it.rate) || 0) < 0
+    );
+    if (hasNegativeQtyOrRate) {
+      addToast("Quantity and Rate must be non-negative", "error");
+      return;
+    }
 
-    // Format items array into JSON elements matching database expectation
+    const { total, net } = getSlipTotals();
+    const disc = parseFloat(slipDiscount) || 0;
+    if (disc < 0) {
+      addToast("Discount must be non-negative", "error");
+      return;
+    }
+    if (disc > total) {
+      addToast("Discount cannot be more than Total amount", "error");
+      return;
+    }
+
+    const payAmt = parseFloat(paymentMade) || 0;
+    if (payAmt < 0) {
+      addToast("Payment amount must be non-negative", "error");
+      return;
+    }
+
+    setSavingSlip(true);
+
     const formattedItems = slipItems.map((it) => ({
       item: it.item.trim(),
       remarks: it.remarks.trim(),
@@ -364,11 +568,36 @@ export default function AdminDashboard() {
       const data = await response.json();
       if (response.ok && data.success) {
         addToast(data.message || "Slip saved successfully", "success");
+
+        if (payAmt > 0) {
+          const payResponse = await fetch("/api/ledger", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "payment",
+              orgcode: session.orgcode,
+              phone: slipPhone.trim(),
+              amount: payAmt,
+              narration: `Payment made with Slip No ${data.slipno || ""}`.trim(),
+            }),
+          });
+          const payData = await payResponse.json();
+          if (payResponse.ok && payData.success) {
+            addToast(payData.message || "Payment logged successfully", "success");
+          } else {
+            addToast(payData.message || "Slip created, but failed to log payment", "error");
+          }
+        }
+
+        // Clear states
         setSlipPhone("");
         setSlipName("");
         setSlipAddress("");
         setSlipDiscount("0");
+        setPaymentMade("0");
+        setPreviousBalance(0);
         setSlipItems([{ item: "", remarks: "", qty: "1", rate: "0" }]);
+        fetchRecentData(session.orgcode);
       } else {
         addToast(data.message || "Failed to save slip", "error");
       }
@@ -379,41 +608,95 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSavePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLookupSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!session) return;
-    if (!payPhone.trim() || !payAmount.trim()) {
-      addToast("Customer phone and amount are required", "error");
+    if (!lookupPhone.trim()) {
+      addToast("Please enter a customer phone number", "error");
       return;
     }
 
-    setSavingPayment(true);
+    setLoadingLookupLedger(true);
+    setHasLookupSearched(true);
+    setSearchedLookupPhone(lookupPhone.trim());
 
     try {
-      const response = await fetch("/api/ledger", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "payment",
-          orgcode: session.orgcode,
-          phone: payPhone.trim(),
-          amount: parseFloat(payAmount) || 0,
-          narration: payNarration.trim(),
-        }),
-      });
+      const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&phone=${lookupPhone.trim()}`);
       const data = await response.json();
       if (response.ok && data.success) {
-        addToast(data.message || "Payment logged successfully", "success");
-        setPayPhone("");
-        setPayAmount("");
-        setPayNarration("");
+        setLookupLedgerSummary(data.summary || []);
       } else {
-        addToast(data.message || "Failed to log payment", "error");
+        addToast(data.message || "Failed to search ledger", "error");
       }
     } catch (err: any) {
-      addToast(err.message || "Network error", "error");
+      addToast(err.message || "Database connection error", "error");
     } finally {
-      setSavingPayment(false);
+      setLoadingLookupLedger(false);
+    }
+  };
+
+  const loadLookupSlipDetails = async (dateString: string) => {
+    if (!session || !searchedLookupPhone) return;
+    const dateObj = new Date(dateString);
+    const formattedDate = dateObj.toISOString().split("T")[0];
+
+    setLookupDetailDate(dateString);
+    setLoadingLookupDetails(true);
+
+    try {
+      const response = await fetch(
+        `/api/ledger?orgcode=${session.orgcode}&phone=${searchedLookupPhone}&date=${formattedDate}`
+      );
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setLookupSlipDetails(data.details || []);
+      } else {
+        addToast(data.message || "Failed to load slip details", "error");
+      }
+    } catch (err: any) {
+      addToast(err.message || "Error reaching server", "error");
+    } finally {
+      setLoadingLookupDetails(false);
+    }
+  };
+
+  const handleCloseAccount = async () => {
+    if (!session || !searchedLookupPhone) return;
+    if (
+      !confirm(
+        "Are you absolutely sure you want to CLOSE this customer account?\n\nThis will PERMANENTLY delete all transaction slips, invoice items, and payment history for this phone number. This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    setClosingAccount(true);
+    try {
+      const response = await fetch(
+        `/api/ledger?orgcode=${session.orgcode}&phone=${searchedLookupPhone}`,
+        {
+          method: "DELETE",
+        }
+      );
+      const data = await response.json();
+      if (response.ok && data.success) {
+        addToast(
+          `Account closed successfully! Deleted ${data.deleted_slips} slips and ${data.deleted_payments} payments.`,
+          "success"
+        );
+        // Clear lookup states
+        setLookupPhone("");
+        setSearchedLookupPhone("");
+        setLookupLedgerSummary([]);
+        setHasLookupSearched(false);
+        fetchRecentData(session.orgcode);
+      } else {
+        addToast(data.message || "Failed to close account", "error");
+      }
+    } catch (err: any) {
+      addToast(err.message || "Server communication error", "error");
+    } finally {
+      setClosingAccount(false);
     }
   };
 
@@ -498,7 +781,10 @@ export default function AdminDashboard() {
               Overview
             </button>
             <button className={`${styles.navItem} ${activeTab === "create" ? styles.navActive : ""}`} onClick={() => setActiveTab("create")}>
-              Create Record
+              Slip & Payment Management
+            </button>
+            <button className={`${styles.navItem} ${activeTab === "lookup" ? styles.navActive : ""}`} onClick={() => setActiveTab("lookup")}>
+              Ledger Statements
             </button>
             <button className={`${styles.navItem} ${activeTab === "users" ? styles.navActive : ""}`} onClick={() => setActiveTab("users")}>
               Manage Users
@@ -575,91 +861,524 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* TAB 2: CREATE RECORD */}
+          {/* TAB 2: SLIP & PAYMENT MANAGEMENT */}
           {activeTab === "create" && (
             <div className={styles.tabContent}>
-              <h2 className={styles.pageTitle}>Log Ledger Operations</h2>
-              <p className={styles.pageSubtitle}>Log client transaction slips or records of credit payments.</p>
+              <h2 className={styles.pageTitle}>Slip & Payment Management</h2>
+              <p className={styles.pageSubtitle}>Log client transaction slips and record cash payments in a single transaction.</p>
 
-              <div className={styles.formSplitGrid}>
-                {/* Form A: Log Slip */}
-                <div className={styles.panel}>
-                  <h3>Create Transaction Slip</h3>
-                  <form onSubmit={handleSaveSlip} className={styles.form}>
-                    <div className={styles.inputGroup}>
+              <div className={styles.panel}>
+                <form onSubmit={handleSaveSlipAndPayment} className={styles.form}>
+                  {/* Customer Info Card */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className={styles.inputGroup} onClick={(e) => e.stopPropagation()}>
                       <label className={styles.label}>Customer Phone Number*</label>
-                      <input type="text" className={styles.input} placeholder="e.g. 9876543210" value={slipPhone} onChange={(e) => setSlipPhone(e.target.value)} />
-                    </div>
-
-                    <div className={styles.inputGroupRow}>
-                      <div className={styles.inputGroup}>
-                        <label className={styles.label}>Customer Name</label>
-                        <input type="text" className={styles.input} placeholder="e.g. John Doe" value={slipName} onChange={(e) => setSlipName(e.target.value)} />
+                      <div className="flex gap-2 relative">
+                        <input 
+                          type="text" 
+                          className={styles.input} 
+                          style={{ flex: 1 }}
+                          placeholder="Phone, name, or address" 
+                          value={slipPhone} 
+                          onChange={(e) => {
+                            setSlipPhone(e.target.value);
+                            setShowSlipSuggestions(true);
+                          }}
+                          onFocus={() => setShowSlipSuggestions(true)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fetchCustomerDetails(slipPhone)}
+                          disabled={loadingCustomer}
+                          className="px-3 py-2 text-xs font-medium rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                        >
+                          {loadingCustomer ? "..." : "Lookup"}
+                        </button>
+                        {showSlipSuggestions && searchSuggestions.length > 0 && (
+                          <div className={styles.suggestionsDropdown} style={{ top: "100%", left: 0, right: 0 }}>
+                            {searchSuggestions.map((item, idx) => (
+                              <div 
+                                key={idx} 
+                                className={styles.suggestionItem}
+                                onClick={() => handleSelectSlipSuggestion(item.phone, item.name, item.address)}
+                              >
+                                <div className={styles.suggestionName}>{item.name || "Unnamed Customer"}</div>
+                                <div className={styles.suggestionMeta}>
+                                  <span>📞 {item.phone}</span>
+                                  {item.address && <span style={{ marginLeft: "8px" }}>📍 {item.address}</span>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className={styles.inputGroup}>
-                        <label className={styles.label}>Address</label>
-                        <input type="text" className={styles.input} placeholder="City, State" value={slipAddress} onChange={(e) => setSlipAddress(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <div className={styles.itemTitleRow}>
-                      <span className={styles.label}>Slip Items List</span>
-                      <button type="button" className={styles.addItemBtn} onClick={addSlipItemField}>+ Add Item</button>
-                    </div>
-
-                    {slipItems.map((itemInput, idx) => (
-                      <div key={idx} className={styles.itemInputRow}>
-                        <input type="text" className={styles.input} style={{ flex: 2 }} placeholder="Item Name" value={itemInput.item} onChange={(e) => updateSlipItemField(idx, "item", e.target.value)} />
-                        <input type="text" className={styles.input} style={{ flex: 1.5 }} placeholder="Remarks" value={itemInput.remarks} onChange={(e) => updateSlipItemField(idx, "remarks", e.target.value)} />
-                        <input type="number" className={styles.input} style={{ flex: 1 }} placeholder="Qty" value={itemInput.qty} onChange={(e) => updateSlipItemField(idx, "qty", e.target.value)} />
-                        <input type="number" className={styles.input} style={{ flex: 1 }} placeholder="Rate" value={itemInput.rate} onChange={(e) => updateSlipItemField(idx, "rate", e.target.value)} />
-                        <button type="button" className={styles.removeItemBtn} onClick={() => removeSlipItemField(idx)}>×</button>
-                      </div>
-                    ))}
-
-                    <div className={styles.inputGroupRow} style={{ marginTop: "16px", alignItems: "flex-end" }}>
-                      <div className={styles.inputGroup}>
-                        <label className={styles.label}>Discount (₹)</label>
-                        <input type="number" className={styles.input} value={slipDiscount} onChange={(e) => setSlipDiscount(e.target.value)} />
-                      </div>
-                      <div className={styles.slipSummaryText}>
-                        <div>Subtotal: <strong>₹{slipTotalSum}</strong></div>
-                        <div>Discount: <strong>₹{parseFloat(slipDiscount) || 0}</strong></div>
-                        <div className={styles.netAmountVal}>Net Receivable: <strong>₹{slipNetSum}</strong></div>
-                      </div>
-                    </div>
-
-                    <button type="submit" className={styles.submitBtn} disabled={savingSlip}>
-                      {savingSlip ? "Saving Slip..." : "Publish Stored Slip"}
-                    </button>
-                  </form>
-                </div>
-
-                {/* Form B: Log Payment */}
-                <div className={styles.panel} style={{ alignSelf: "flex-start" }}>
-                  <h3>Log Cash Payment</h3>
-                  <form onSubmit={handleSavePayment} className={styles.form}>
-                    <div className={styles.inputGroup}>
-                      <label className={styles.label}>Customer Phone Number*</label>
-                      <input type="text" className={styles.input} placeholder="e.g. 9876543210" value={payPhone} onChange={(e) => setPayPhone(e.target.value)} />
                     </div>
 
                     <div className={styles.inputGroup}>
-                      <label className={styles.label}>Payment Amount (₹)*</label>
-                      <input type="number" className={styles.input} placeholder="e.g. 5000" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                      <label className={styles.label}>Customer Name</label>
+                      <input 
+                        type="text" 
+                        className={styles.input} 
+                        placeholder="e.g. John Doe" 
+                        value={slipName} 
+                        onChange={(e) => setSlipName(e.target.value)} 
+                      />
                     </div>
 
                     <div className={styles.inputGroup}>
-                      <label className={styles.label}>Narration / Notes</label>
-                      <textarea className={styles.textarea} placeholder="Cash receipt, Bank transfer notes, etc." value={payNarration} onChange={(e) => setPayNarration(e.target.value)} />
+                      <label className={styles.label}>Customer Address</label>
+                      <input 
+                        type="text" 
+                        className={styles.input} 
+                        placeholder="City, State" 
+                        value={slipAddress} 
+                        onChange={(e) => setSlipAddress(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Items List Table */}
+                  <div className="mb-6">
+                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">Slip Items List</span>
+                      <button 
+                        type="button" 
+                        className="px-3 py-1.5 text-xs font-semibold rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors"
+                        onClick={addSlipItemField}
+                      >
+                        + Add Item
+                      </button>
                     </div>
 
-                    <button type="submit" className={styles.submitBtn} style={{ background: "var(--accent-green)" }} disabled={savingPayment}>
-                      {savingPayment ? "Recording Payment..." : "Record Payment Entry"}
-                    </button>
-                  </form>
-                </div>
+                    <div className="w-full overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-black/20">
+                      <table className="w-full text-left text-sm min-w-[600px]">
+                        <thead className="bg-gray-50/50 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">
+                          <tr>
+                            <th className="px-4 py-2 w-[35%]">Item Name*</th>
+                            <th className="px-4 py-2 w-[25%]">Remark</th>
+                            <th className="px-4 py-2 w-[15%]">Qty</th>
+                            <th className="px-4 py-2 w-[15%]">Rate (₹)</th>
+                            <th className="px-4 py-2 w-[10%]">Amount (₹)</th>
+                            <th className="px-4 py-2 w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                          {slipItems.map((itemInput, idx) => {
+                            const qty = parseFloat(itemInput.qty) || 0;
+                            const rate = parseFloat(itemInput.rate) || 0;
+                            const amount = qty * rate;
+                            return (
+                              <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-white/5">
+                                <td className="px-3 py-2">
+                                  <input 
+                                    type="text" 
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded bg-transparent text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                                    placeholder="e.g. Paint" 
+                                    value={itemInput.item} 
+                                    onChange={(e) => updateSlipItemField(idx, "item", e.target.value)} 
+                                    required
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input 
+                                    type="text" 
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded bg-transparent text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                                    placeholder="Remarks" 
+                                    value={itemInput.remarks} 
+                                    onChange={(e) => updateSlipItemField(idx, "remarks", e.target.value)} 
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input 
+                                    type="number" 
+                                    min="0"
+                                    step="any"
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded bg-transparent text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                                    placeholder="1" 
+                                    value={itemInput.qty} 
+                                    onChange={(e) => updateSlipItemField(idx, "qty", e.target.value)} 
+                                    required
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input 
+                                    type="number" 
+                                    min="0"
+                                    step="any"
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded bg-transparent text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                                    placeholder="0" 
+                                    value={itemInput.rate} 
+                                    onChange={(e) => updateSlipItemField(idx, "rate", e.target.value)} 
+                                    required
+                                  />
+                                </td>
+                                <td className="px-4 py-2 font-mono font-semibold text-gray-700 dark:text-gray-300">
+                                  ₹{amount.toFixed(2)}
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <button 
+                                    type="button" 
+                                    disabled={slipItems.length === 1}
+                                    className="text-red-500 hover:text-red-700 font-bold text-lg disabled:opacity-30" 
+                                    onClick={() => removeSlipItemField(idx)}
+                                  >
+                                    ×
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Calculations & Payment made panel */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Total Amount (A)</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">₹{slipTotalSum.toFixed(2)}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Discount (B)</span>
+                        <div className="w-[120px]">
+                          <input 
+                            type="number" 
+                            min="0"
+                            step="any"
+                            className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded bg-transparent text-gray-900 dark:text-gray-100 text-right focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                            value={slipDiscount} 
+                            onChange={(e) => setSlipDiscount(e.target.value)} 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center border-t border-dashed border-gray-200 dark:border-gray-700 pt-3">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">Net Receivable (C = A - B)</span>
+                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">₹{slipNetSum.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-700/50 rounded-xl p-4 space-y-4">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Previous Outstanding Balance</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">₹{previousBalance.toFixed(2)}</span>
+                      </div>
+
+                      <div className={styles.inputGroup}>
+                        <label className={styles.label}>Payment Made (₹)</label>
+                        <input 
+                          type="number" 
+                          min="0"
+                          step="any"
+                          className={styles.input} 
+                          placeholder="Amount received (e.g. 500)" 
+                          value={paymentMade} 
+                          onChange={(e) => setPaymentMade(e.target.value)} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    className="w-full mt-6 py-3 px-4 rounded-xl text-white font-medium bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_4px_15px_rgba(59,130,246,0.3)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.4)]"
+                    disabled={savingSlip}
+                  >
+                    {savingSlip ? "Processing..." : "Commit Transaction Slip & Payment"}
+                  </button>
+                </form>
               </div>
+            </div>
+          )}
+
+          {/* TAB 5: LEDGER STATEMENTS LOOKUP */}
+          {activeTab === "lookup" && (
+            <div className={styles.tabContent}>
+              <h2 className={styles.pageTitle}>Look Up Ledger Account</h2>
+              <p className={styles.pageSubtitle}>Retrieve customer account statements, view invoice lists, and manage accounts.</p>
+
+              {/* Search Panel */}
+              <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+                <form onSubmit={handleLookupSearch} className="flex gap-3">
+                  <div className="relative flex-grow flex items-center">
+                    <span className="absolute left-4 text-gray-400">🔍</span>
+                    <input 
+                      type="text" 
+                      className="w-full pl-10 pr-4 py-3 text-sm border border-gray-300 dark:border-gray-700 rounded-xl bg-white/80 dark:bg-black/40 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-blue-500" 
+                      placeholder="Enter Client Phone Number, Name, or Address" 
+                      value={lookupPhone} 
+                      onChange={(e) => {
+                        setLookupPhone(e.target.value);
+                        setShowLookupSuggestions(true);
+                      }}
+                      onFocus={() => setShowLookupSuggestions(true)}
+                    />
+                    {showLookupSuggestions && searchSuggestions.length > 0 && (
+                      <div className={styles.suggestionsDropdown} style={{ top: "100%", left: 0, right: 0 }}>
+                        {searchSuggestions.map((item, idx) => (
+                          <div 
+                            key={idx} 
+                            className={styles.suggestionItem}
+                            onClick={() => handleSelectLookupSuggestion(item.phone, item.name, item.address)}
+                          >
+                            <div className={styles.suggestionName}>{item.name || "Unnamed Customer"}</div>
+                            <div className={styles.suggestionMeta}>
+                              <span>📞 {item.phone}</span>
+                              {item.address && <span style={{ marginLeft: "8px" }}>📍 {item.address}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    type="submit" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.2)] disabled:opacity-50"
+                    disabled={loadingLookupLedger}
+                  >
+                    {loadingLookupLedger ? "Searching..." : "Retrieve Statement"}
+                  </button>
+                </form>
+              </div>
+
+              {/* Recent activity when no search is performed yet */}
+              {!hasLookupSearched && (
+                <div className="flex flex-col gap-6 mt-6 animate-[fadeIn_0.4s_ease-out_forwards]">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Quick Lookup & Recent Transactions</h3>
+                  {loadingRecent ? (
+                    <div className="flex flex-col items-center justify-center p-12 gap-3 text-gray-500">
+                      <div className="w-8 h-8 border-4 border-gray-200 dark:border-gray-800 border-t-blue-500 rounded-full animate-spin"></div>
+                      <p>Loading recent activity...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      
+                      {/* Column 1: Recently Active Clients */}
+                      <div className="bg-white/80 dark:bg-[#1c1c1e]/70 border border-white/50 dark:border-white/10 rounded-2xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.5)]">
+                        <h4 className="text-sm font-semibold border-b border-gray-200 dark:border-gray-700 pb-2">Recently Active Clients</h4>
+                        <div className="flex flex-col gap-2 mt-2 max-h-[400px] overflow-y-auto pr-1">
+                          {recentAccounts.map((acc, idx) => (
+                            <div 
+                              key={idx} 
+                              onClick={() => handleSelectLookupSuggestion(acc.phone, acc.name, acc.address)}
+                              className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-black/20 hover:bg-blue-500/5 dark:hover:bg-white/5 cursor-pointer transition-all flex flex-col gap-1"
+                            >
+                              <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{acc.name || "Unnamed Client"}</div>
+                              <div className="text-xs text-gray-500 flex justify-between">
+                                <span>📞 {acc.phone}</span>
+                                <span>{acc.address ? `📍 ${acc.address}` : ""}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {recentAccounts.length === 0 && (
+                            <div className="text-center py-6 text-xs text-gray-500">No active accounts found.</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Column 2: Recently Generated Slips */}
+                      <div className="bg-white/80 dark:bg-[#1c1c1e]/70 border border-white/50 dark:border-white/10 rounded-2xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.5)] lg:col-span-2">
+                        <h4 className="text-sm font-semibold border-b border-gray-200 dark:border-gray-700 pb-2">Recently Generated Slips</h4>
+                        <div className="w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-black/20 mt-3">
+                          <table className="w-full text-left text-sm min-w-[500px]">
+                            <thead className="bg-gray-50/50 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">
+                              <tr>
+                                <th className="px-3 py-2">Slip No</th>
+                                <th className="px-3 py-2">Date</th>
+                                <th className="px-3 py-2">Client</th>
+                                <th className="px-3 py-2">Phone</th>
+                                <th className="px-3 py-2">Subtotal</th>
+                                <th className="px-3 py-2">Net Amt</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                              {recentSlips.map((slip, idx) => (
+                                <tr 
+                                  key={idx} 
+                                  onClick={() => {
+                                    setSearchedLookupPhone(slip.phone);
+                                    loadLookupSlipDetails(slip.date);
+                                  }}
+                                  className="hover:bg-blue-500/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                                >
+                                  <td className="px-3 py-2 font-semibold">#{slip.slipno}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-500">{new Date(slip.date).toLocaleDateString()}</td>
+                                  <td className="px-3 py-2">{slip.name || "—"}</td>
+                                  <td className="px-3 py-2 text-xs font-mono">{slip.phone}</td>
+                                  <td className="px-3 py-2 text-gray-500">₹{slip.totalamount}</td>
+                                  <td className="px-3 py-2 font-semibold text-blue-600 dark:text-blue-400">₹{slip.netamount}</td>
+                                </tr>
+                              ))}
+                              {recentSlips.length === 0 && (
+                                <tr>
+                                  <td colSpan={6} className="text-center py-8 text-xs text-gray-500">No transaction slips logged yet.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Column 3: Recently Logged Payments */}
+                      <div className="bg-white/80 dark:bg-[#1c1c1e]/70 border border-white/50 dark:border-white/10 rounded-2xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.5)] lg:col-span-3">
+                        <h4 className="text-sm font-semibold border-b border-gray-200 dark:border-gray-700 pb-2">Recent Credit Payments</h4>
+                        <div className="w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-black/20 mt-3">
+                          <table className="w-full text-left text-sm min-w-[500px]">
+                            <thead className="bg-gray-50/50 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">
+                              <tr>
+                                <th className="px-3 py-2">Txn Date</th>
+                                <th className="px-3 py-2">Customer Phone</th>
+                                <th className="px-3 py-2">Payment Amount</th>
+                                <th className="px-3 py-2">Narration</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                              {recentPayments.map((pay, idx) => (
+                                <tr 
+                                  key={idx}
+                                  onClick={() => {
+                                    handleSelectLookupSuggestion(pay.phone.toString(), "", "");
+                                  }}
+                                  className="hover:bg-blue-500/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                                >
+                                  <td className="px-3 py-2 text-xs text-gray-500">{new Date(pay.date).toLocaleDateString()}</td>
+                                  <td className="px-3 py-2 font-mono text-xs">{pay.phone}</td>
+                                  <td className="px-3 py-2 font-semibold text-green-600 dark:text-green-400">₹{pay.amount}</td>
+                                  <td className="px-3 py-2 text-xs text-gray-500">{pay.narration || "—"}</td>
+                                </tr>
+                              ))}
+                              {recentPayments.length === 0 && (
+                                <tr>
+                                  <td colSpan={4} className="text-center py-6 text-xs text-gray-500">No payment logs found.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Statement details view */}
+              {hasLookupSearched && (
+                <div className="flex flex-col gap-6 animate-[fadeIn_0.4s_ease-out_forwards]">
+                  {loadingLookupLedger ? (
+                    <div className="flex flex-col items-center justify-center p-12 gap-3 text-gray-500">
+                      <div className="w-8 h-8 border-4 border-gray-200 dark:border-gray-800 border-t-blue-500 rounded-full animate-spin"></div>
+                      <p>Fetching statement data...</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Account Metrics Grid */}
+                      {(() => {
+                        let slipSum = 0;
+                        let paySum = 0;
+                        lookupLedgerSummary.forEach((row) => {
+                          slipSum += parseFloat(row.netamount) || 0;
+                          paySum += parseFloat(row.paymentmade) || 0;
+                        });
+                        const outstanding = Math.max(0, slipSum - paySum);
+                        return (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white/80 dark:bg-[#1c1c1e]/70 border border-white/50 dark:border-white/10 rounded-2xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.5)]">
+                              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Total Debit Slips</div>
+                              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">₹{slipSum.toFixed(2)}</div>
+                            </div>
+                            <div className="bg-white/80 dark:bg-[#1c1c1e]/70 border border-white/50 dark:border-white/10 rounded-2xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.5)]">
+                              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Total Payments Logged</div>
+                              <div className="text-2xl font-bold text-green-600 dark:text-green-400">₹{paySum.toFixed(2)}</div>
+                            </div>
+                            <div className="bg-white/80 dark:bg-[#1c1c1e]/70 border border-white/50 dark:border-white/10 rounded-2xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.5)] border-l-4 border-l-red-500">
+                              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Outstanding Receivable</div>
+                              <div className="text-2xl font-bold text-red-600 dark:text-red-400">₹{outstanding.toFixed(2)}</div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Statement log table */}
+                      <div className="bg-white/80 dark:bg-[#1c1c1e]/70 border border-white/50 dark:border-white/10 rounded-2xl p-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_15px_40px_rgba(0,0,0,0.5)]">
+                        <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-3 mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Account Statement Log</h3>
+                          <span className="text-xs text-gray-500">Click a row to view item details</span>
+                        </div>
+
+                        <div className="w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-black/20">
+                          <table className="w-full text-left text-sm whitespace-nowrap">
+                            <thead className="bg-gray-50/50 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider font-medium">
+                              <tr>
+                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">Transaction Date</th>
+                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">Slip Subtotal</th>
+                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">Discount</th>
+                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">Net Slip Debit</th>
+                                <th className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">Credit Payment</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                              {lookupLedgerSummary.map((row, idx) => (
+                                <tr 
+                                  key={idx} 
+                                  onClick={() => loadLookupSlipDetails(row.txn_date)}
+                                  className="hover:bg-blue-500/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                                >
+                                  <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-400">
+                                    {new Date(row.txn_date).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                                    ₹{parseFloat(row.totalamount) || 0}
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-500 dark:text-gray-500">
+                                    ₹{parseFloat(row.discount) || 0}
+                                  </td>
+                                  <td className="px-4 py-3 font-semibold text-gray-900 dark:text-gray-100">
+                                    ₹{parseFloat(row.netamount) || 0}
+                                  </td>
+                                  <td className="px-4 py-3 font-semibold text-green-600 dark:text-green-400">
+                                    {parseFloat(row.paymentmade) > 0 ? `₹${parseFloat(row.paymentmade)}` : "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                              {lookupLedgerSummary.length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="text-center py-8 text-gray-500">
+                                    No ledger transaction records found for this phone number.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Danger Zone: Close Account */}
+                      <div className="bg-red-500/5 border border-red-500/20 dark:border-red-500/10 rounded-2xl p-6 shadow-[0_10px_30px_rgba(239,68,68,0.02)]">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                          <div>
+                            <h4 className="text-base font-semibold text-red-600 dark:text-red-400">Danger Zone: Close Ledger Account</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-[500px]">
+                              Closing this account will permanently delete all transaction history, slips, and payments associated with this phone number. This action is irreversible.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleCloseAccount}
+                            disabled={closingAccount}
+                            className="px-4 py-2.5 text-sm font-semibold rounded-xl text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 shadow-[0_4px_12px_rgba(220,38,38,0.2)] transition-all"
+                          >
+                            {closingAccount ? "Closing Account..." : "Close Account"}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -884,6 +1603,63 @@ export default function AdminDashboard() {
           )}
         </main>
       </div>
+
+      {/* Slip Details Modal */}
+      {lookupDetailDate && (
+        <div className={styles.modalOverlay} onClick={() => setLookupDetailDate(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Transaction Slip Details</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Date: {new Date(lookupDetailDate).toLocaleDateString()}</p>
+              </div>
+              <button className={styles.modalCloseBtn} onClick={() => setLookupDetailDate(null)}>×</button>
+            </div>
+
+            {loadingLookupDetails ? (
+              <div className={styles.spinnerWrapper}>
+                <div className={styles.spinner} />
+                <p>Loading items details...</p>
+              </div>
+            ) : (
+              <div className={styles.modalBody}>
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Item Name</th>
+                        <th>Remarks</th>
+                        <th>Qty</th>
+                        <th>Rate</th>
+                        <th>Total (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lookupSlipDetails.map((item, idx) => (
+                        <tr key={idx}>
+                          <td className={styles.boldCell}>{item.item}</td>
+                          <td style={{ color: "var(--text-secondary)" }}>{item.remarks || "—"}</td>
+                          <td>{item.qty}</td>
+                          <td>₹{item.rate}</td>
+                          <td className={styles.boldCell}>₹{item.itemamount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {lookupSlipDetails.length > 0 && (
+                  <div className={styles.modalSummaryBox}>
+                    <div>Gross Total: <strong>₹{lookupSlipDetails[0].totalamount}</strong></div>
+                    <div>Applied Discount: <strong>₹{lookupSlipDetails[0].discount}</strong></div>
+                    <div className={styles.modalNetVal}>Net Amount Issued: <strong>₹{lookupSlipDetails[0].netamount}</strong></div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

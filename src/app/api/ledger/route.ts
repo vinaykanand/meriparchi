@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { query } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
@@ -7,8 +8,67 @@ export async function GET(request: Request) {
     const orgcode = searchParams.get("orgcode");
     const phone = searchParams.get("phone");
     const date = searchParams.get("date");
+    const search = searchParams.get("search");
+    const recent = searchParams.get("recent");
 
-    if (!orgcode || !phone) {
+    if (!orgcode) {
+      return NextResponse.json(
+        { success: false, message: "Missing required orgcode parameter" },
+        { status: 400 }
+      );
+    }
+
+    // 1. Fuzzy Account Search
+    if (search !== null) {
+      const result = await query(
+        "SELECT phone, name, address FROM public.search_accounts($1, $2)",
+        [orgcode, search]
+      );
+      return NextResponse.json({ success: true, accounts: result.rows });
+    }
+
+    // 2. Recent Transactions / Accounts Lookup
+    if (recent === "true") {
+      // Recent slips
+      const slipsResult = await query(
+        `SELECT id, slipno, date, phone, name, address, totalamount, discount, netamount 
+         FROM public.slips 
+         WHERE orgcode = $1 
+         ORDER BY date DESC, id DESC 
+         LIMIT 15`,
+        [orgcode]
+      );
+      
+      // Recent payments
+      const paymentsResult = await query(
+        `SELECT id, phone, date, amount, narration 
+         FROM public.payments 
+         WHERE orgcode = $1 
+         ORDER BY date DESC, id DESC 
+         LIMIT 15`,
+        [orgcode]
+      );
+
+      // Recent active accounts
+      const accountsResult = await query(
+        `SELECT phone, name, address, MAX(date) as last_date 
+         FROM public.slips 
+         WHERE orgcode = $1 
+         GROUP BY phone, name, address 
+         ORDER BY last_date DESC 
+         LIMIT 15`,
+        [orgcode]
+      );
+
+      return NextResponse.json({
+        success: true,
+        recentSlips: slipsResult.rows,
+        recentPayments: paymentsResult.rows,
+        recentAccounts: accountsResult.rows
+      });
+    }
+
+    if (!phone) {
       return NextResponse.json(
         { success: false, message: "Missing required parameters" },
         { status: 400 }
