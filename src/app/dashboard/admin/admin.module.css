@@ -560,6 +560,39 @@
   font-size: 13px;
 }
 
+.userRow {
+  transition: background-color 0.2s;
+}
+
+.userRowClickable {
+  cursor: pointer;
+}
+
+.userRowClickable:hover {
+  background: rgba(0, 113, 227, 0.05);
+}
+
+.darkMode .userRowClickable:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.userRowDisabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.lockedText {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.editText {
+  color: var(--btn-bg);
+  font-weight: 500;
+  font-size: 13px;
+}
+
 /* Badges */
 .badge {
   font-size: 11px;

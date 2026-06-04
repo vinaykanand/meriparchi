@@ -1,39 +1,37 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { cookies } from "next/headers";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const orgcode = searchParams.get("orgcode");
     const phone = searchParams.get("phone");
-    const date = searchParams.get("date"); // optional: YYYY-MM-DD
+    const date = searchParams.get("date");
 
     if (!orgcode || !phone) {
       return NextResponse.json(
-        { success: false, message: "Missing required parameters: orgcode, phone" },
+        { success: false, message: "Missing required parameters" },
         { status: 400 }
       );
     }
 
+    let url = `https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/ledger?orgcode=${orgcode}&phone=${phone}`;
     if (date) {
-      // Fetch details by date
-      const res = await query(
-        "SELECT * FROM public.get_account_details_by_date($1, $2, $3::date)",
-        [orgcode, phone, date]
-      );
-      return NextResponse.json({ success: true, details: res.rows });
-    } else {
-      // Fetch general account summary
-      const res = await query(
-        "SELECT * FROM public.get_account_summary($1, $2)",
-        [orgcode, phone]
-      );
-      return NextResponse.json({ success: true, summary: res.rows });
+      url += `&date=${date}`;
     }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: error.message || "Internal Server Error" },
+      { success: false, message: error.message || "Server Error" },
       { status: 500 }
     );
   }
@@ -42,77 +40,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { type, orgcode } = body;
 
-    if (!type || !orgcode) {
-      return NextResponse.json(
-        { success: false, message: "Missing required parameters: type, orgcode" },
-        { status: 400 }
-      );
-    }
+    const response = await fetch("https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/ledger", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
-    if (type === "slip") {
-      const { phone, name, address, totalamount, discount, items } = body;
-      if (!phone || !items || !Array.isArray(items)) {
-        return NextResponse.json(
-          { success: false, message: "Missing required fields for slip creation: phone, items" },
-          { status: 400 }
-        );
-      }
-
-      const res = await query(
-        "SELECT public.save_slip($1, $2, $3, $4, $5::numeric, $6::numeric, $7::json) AS result",
-        [
-          orgcode,
-          phone,
-          name || "",
-          address || "",
-          totalamount || 0,
-          discount || 0,
-          JSON.stringify(items),
-        ]
-      );
-
-      const data = res.rows[0]?.result;
-      if (!data || !data.success) {
-        return NextResponse.json(
-          data || { success: false, message: "Failed to save slip" },
-          { status: 400 }
-        );
-      }
-      return NextResponse.json(data);
-    } else if (type === "payment") {
-      const { id, phone, amount, narration } = body;
-      if (!phone || amount === undefined) {
-        return NextResponse.json(
-          { success: false, message: "Missing required fields for payment: phone, amount" },
-          { status: 400 }
-        );
-      }
-
-      // Convert phone to numeric, id to bigint (defaults to null if new payment)
-      const res = await query(
-        "SELECT public.save_payment($1, $2::bigint, $3::numeric, $4::numeric, $5) AS result",
-        [orgcode, id || null, phone, amount, narration || ""]
-      );
-
-      const data = res.rows[0]?.result;
-      if (!data || !data.success) {
-        return NextResponse.json(
-          data || { success: false, message: "Failed to save payment" },
-          { status: 400 }
-        );
-      }
-      return NextResponse.json(data);
-    } else {
-      return NextResponse.json(
-        { success: false, message: "Invalid type. Must be 'slip' or 'payment'" },
-        { status: 400 }
-      );
-    }
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: error.message || "Internal Server Error" },
+      { success: false, message: error.message || "Server Error" },
       { status: 500 }
     );
   }
@@ -121,44 +62,33 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const cookieStore = await cookies();
+    const authtoken = cookieStore.get("authtoken")?.value;
     const orgcode = searchParams.get("orgcode");
     const phone = searchParams.get("phone");
 
-    if (!orgcode || !phone) {
+    if (!authtoken || !orgcode || !phone) {
       return NextResponse.json(
-        { success: false, message: "Missing required parameters: orgcode, phone" },
+        { success: false, message: "Missing required parameters" },
         { status: 400 }
       );
     }
 
-    const cookieStore = await cookies();
-    const authtoken = cookieStore.get("authtoken")?.value;
-
-    if (!authtoken) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized: Missing authtoken session" },
-        { status: 401 }
-      );
-    }
-
-    const res = await query(
-      "SELECT public.closeaccount($1::uuid, $2, $3) AS result",
-      [authtoken, orgcode, phone]
+    const response = await fetch(
+      `https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/ledger?authtoken=${authtoken}&orgcode=${orgcode}&phone=${phone}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
     );
 
-    const data = res.rows[0]?.result;
-
-    if (!data || !data.success) {
-      return NextResponse.json(
-        data || { success: false, message: "Failed to close account" },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(data);
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: error.message || "Internal Server Error" },
+      { success: false, message: error.message || "Server Error" },
       { status: 500 }
     );
   }

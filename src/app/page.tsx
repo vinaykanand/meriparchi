@@ -116,6 +116,7 @@ export default function LoginPage() {
         if (data.otprequired) {
           setIsOtpRequired(true);
           addToast(data.message || "OTP sent to your registered device", "success");
+          setLoading(false);
         } else {
           const sessionObj = {
             authtoken: data.authtoken,
@@ -125,26 +126,25 @@ export default function LoginPage() {
           };
           localStorage.setItem("parchi_session", JSON.stringify(sessionObj));
           setUserData(sessionObj);
-          setIsLoggedIn(true);
+          // Do not set isLoggedIn(true) to avoid showing the success card
           addToast("Authentication Successful!", "success");
 
-          // Automatically redirect user based on role
-          setTimeout(() => {
-            if (data.isadmin) {
-              router.push("/dashboard/admin");
-            } else {
-              router.push("/dashboard/user");
-            }
-          }, 1200);
+          // Automatically redirect user based on role immediately
+          if (data.isadmin) {
+            router.push("/dashboard/admin");
+          } else {
+            router.push("/dashboard/user");
+          }
+          return; // Return early so setLoading(false) is not called
         }
       } else {
         triggerShake();
         addToast(data.message || "Invalid credentials", "error");
+        setLoading(false);
       }
     } catch (err: any) {
       triggerShake();
       addToast(err.message || "Unable to reach authorization server", "error");
-    } finally {
       setLoading(false);
     }
   };
@@ -156,6 +156,8 @@ export default function LoginPage() {
 
   const handleSignOut = () => {
     localStorage.removeItem("parchi_session");
+    document.cookie = "authtoken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    document.cookie = "orgcode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     setIsLoggedIn(false);
     setUserData(null);
     setIsOtpRequired(false);
@@ -458,39 +460,8 @@ export default function LoginPage() {
               </div>
               <h2 className={styles.headerTitle}>Login Successful</h2>
               <p className={styles.headerSubtitle}>
-                Welcome back, {userData?.userid}! You have successfully authenticated using Parchi Single Sign-On.
+                Welcome back, {userData?.userid}! Redirecting to your dashboard...
               </p>
-
-              <div className={styles.sessionDetails}>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>User ID</span>
-                  <span className={styles.detailValue}>{userData?.userid}</span>
-                </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Organization</span>
-                  <span className={styles.detailValue}>{userData?.orgcode}</span>
-                </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Authorization Role</span>
-                  <span className={styles.detailValue}>
-                    {userData?.isadmin ? (
-                      <span className={`${styles.badge} ${styles.badgeAdmin}`}>Administrator</span>
-                    ) : (
-                      <span className={styles.badge}>Standard User</span>
-                    )}
-                  </span>
-                </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Session Token</span>
-                  <span className={styles.detailValue} title={userData?.authtoken}>
-                    {userData?.authtoken}
-                  </span>
-                </div>
-              </div>
-
-              <button className={styles.signOutBtn} onClick={handleSignOut}>
-                Disconnect Session (Sign Out)
-              </button>
             </div>
           )}
         </div>

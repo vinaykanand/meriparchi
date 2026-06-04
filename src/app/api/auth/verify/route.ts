@@ -1,23 +1,23 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-export async function PUT(request: Request) {
+export async function GET() {
   try {
     const cookieStore = await cookies();
     const authtoken = cookieStore.get("authtoken")?.value;
 
     if (!authtoken) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, message: "Missing token" },
+        { status: 401 }
+      );
     }
 
-    const body = await request.json();
-    
-    const response = await fetch("https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/company", {
-      method: "PUT",
+    const response = await fetch(`https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/verify?authtoken=${authtoken}`, {
+      method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ ...body, authtoken }),
     });
 
     const data = await response.json();

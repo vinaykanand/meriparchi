@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
   try {
@@ -14,12 +15,22 @@ export async function POST(request: Request) {
 
     const data = await response.json();
 
-    // Forward the status code and JSON data
-    const nextResponse = NextResponse.json(data, { status: response.status });
-    
-    if (response.ok && data.success && data.authtoken) {
-      nextResponse.cookies.set("authtoken", data.authtoken, {
-        httpOnly: false, // Allows frontend to access it if needed
+    if (!response.ok || !data.success) {
+      return NextResponse.json(data || { success: false, message: "Login failed" }, { status: response.status });
+    }
+
+    // Set the cookie if authtoken is present in the login response
+    if (data.authtoken) {
+      const cookieStore = await cookies();
+      cookieStore.set("authtoken", data.authtoken, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+      });
+      cookieStore.set("orgcode", data.orgcode || body.orgcode, {
+        httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
@@ -27,7 +38,7 @@ export async function POST(request: Request) {
       });
     }
 
-    return nextResponse;
+    return NextResponse.json(data, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message || "Server Error" },

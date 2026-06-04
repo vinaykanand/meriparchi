@@ -77,10 +77,6 @@ DECLARE
     v_logged_user public.users%ROWTYPE;
     v_result json;
 BEGIN
-
-    ---------------------------------------------------
-    -- Validate logged-in user
-    ---------------------------------------------------
     SELECT *
     INTO v_logged_user
     FROM public.users
@@ -88,126 +84,39 @@ BEGIN
       AND orgcode = p_orgcode;
 
     IF NOT FOUND THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Invalid auth token'
-        );
+        RETURN json_build_object('success', false, 'message', 'Invalid auth token');
     END IF;
 
-    ---------------------------------------------------
-    -- Check active
-    ---------------------------------------------------
     IF COALESCE(v_logged_user.isactive, false) = false THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'User is disabled'
-        );
+        RETURN json_build_object('success', false, 'message', 'User is disabled');
     END IF;
 
-    ---------------------------------------------------
-    -- Only admin can list users
-    ---------------------------------------------------
     IF COALESCE(v_logged_user.isadmin, false) = false THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Only admin user can view users'
-        );
+        RETURN json_build_object('success', false, 'message', 'Only admin user can view users');
     END IF;
 
-    ---------------------------------------------------
-    -- Get users list
-    ---------------------------------------------------
     SELECT json_agg(
         json_build_object(
             'userid', userid,
             'isadmin', isadmin,
             'isactive', isactive,
+            'otp', otp,
             'created_at', created_at
-        )
+        ) ORDER BY userid
     )
     INTO v_result
     FROM public.users
-    WHERE orgcode = p_orgcode
-    ORDER BY userid;
+    WHERE orgcode = p_orgcode;
 
     RETURN json_build_object(
         'success', true,
         'users', COALESCE(v_result, '[]'::json)
     );
-
 EXCEPTION
     WHEN OTHERS THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', SQLERRM
-        );
+        RETURN json_build_object('success', false, 'message', SQLERRM);
 END;
 $function$
-
-```
-
-## Function: `validate_user`
-```sql
-CREATE OR REPLACE FUNCTION public.validate_user(p_orgcode character varying, p_userid character varying, p_password character varying)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$DECLARE
-    v_user public.users%ROWTYPE;
-BEGIN
-
-    -- Check company exists
-    IF NOT EXISTS (
-        SELECT 1
-        FROM public.company
-        WHERE orgcode = p_orgcode
-    ) THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Invalid Organization Code'
-        );
-    END IF;
-
-    -- Check user exists
-    SELECT *
-    INTO v_user
-    FROM public.users
-    WHERE orgcode = p_orgcode
-      AND userid = p_userid;
-
-    IF NOT FOUND THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'User does not exist'
-        );
-    END IF;
-
-    -- Check active
-    IF COALESCE(v_user.isactive, false) = false THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'User is disabled'
-        );
-    END IF;
-
-    -- Check password
-    IF v_user.password <> p_password THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Invalid password'
-        );
-    END IF;
-
-    -- Success
-    RETURN json_build_object(
-        'success', true,
-        'message', 'Login successful',
-        'authtoken', v_user.authtoken,
-        'orgcode', v_user.orgcode,
-        'userid', v_user.userid,
-        'isadmin', v_user.isadmin
-    );
-
-END;$function$
 
 ```
 
@@ -435,149 +344,6 @@ BEGIN
         'deleted_slips', v_slip_count,
         'deleted_payments', v_payment_count,
         'phone', p_phone
-    );
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', SQLERRM
-        );
-END;
-$function$
-
-```
-
-## Function: `generate_user_otp`
-```sql
-CREATE OR REPLACE FUNCTION public.generate_user_otp()
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-
-    ---------------------------------------------------
-    -- Generate random 4 digit OTP
-    -- Only for:
-    --   enableotp = true
-    --   non-admin users
-    ---------------------------------------------------
-    UPDATE public.users u
-    SET otp = FLOOR(1000 + RANDOM() * 9000)::int
-    FROM public.company c
-    WHERE c.orgcode = u.orgcode
-      AND COALESCE(c.enableotp, false) = true
-      AND COALESCE(u.isadmin, false) = false
-      and u.userid <> 'admin';
-
-END;
-$function$
-
-```
-
-## Function: `save_user`
-```sql
-CREATE OR REPLACE FUNCTION public.save_user(p_authtoken uuid, p_orgcode character varying, p_userid character varying, p_password character varying, p_isadmin boolean, p_isactive boolean)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_logged_user public.users%ROWTYPE;
-BEGIN
-
-    ---------------------------------------------------
-    -- Validate logged-in user using authtoken
-    ---------------------------------------------------
-    SELECT *
-    INTO v_logged_user
-    FROM public.users
-    WHERE authtoken = p_authtoken
-      AND orgcode = p_orgcode;
-
-    IF NOT FOUND THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Invalid auth token'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Check user active
-    ---------------------------------------------------
-    IF COALESCE(v_logged_user.isactive, false) = false THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Logged in user is disabled'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Only admin can add/modify users
-    ---------------------------------------------------
-    IF COALESCE(v_logged_user.isadmin, false) = false THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Only admin user can manage users'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Update existing user
-    ---------------------------------------------------
-    IF EXISTS (
-        SELECT 1
-        FROM public.users
-        WHERE orgcode = p_orgcode
-          AND userid = p_userid
-    ) THEN
-
-        UPDATE public.users
-        SET
-            password = p_password,
-            isadmin = p_isadmin,
-            isactive = p_isactive,
-            otp = CASE
-                      WHEN p_isadmin = false
-                      THEN FLOOR(1000 + RANDOM() * 9000)::int
-                      ELSE NULL
-                  END
-        WHERE orgcode = p_orgcode
-          AND userid = p_userid;
-
-        RETURN json_build_object(
-            'success', true,
-            'message', 'User updated successfully'
-        );
-
-    END IF;
-
-    ---------------------------------------------------
-    -- Insert new user
-    ---------------------------------------------------
-    INSERT INTO public.users (
-        orgcode,
-        userid,
-        password,
-        isadmin,
-        isactive,
-        otp
-    )
-    VALUES (
-        p_orgcode,
-        p_userid,
-        p_password,
-        p_isadmin,
-        p_isactive,
-        CASE
-            WHEN p_isadmin = false
-            THEN FLOOR(1000 + RANDOM() * 9000)::int
-            ELSE NULL
-        END
-    );
-
-    RETURN json_build_object(
-        'success', true,
-        'message', 'User created successfully'
     );
 
 EXCEPTION
@@ -919,133 +685,6 @@ $function$
 
 ```
 
-## Function: `validate_user`
-```sql
-CREATE OR REPLACE FUNCTION public.validate_user(p_orgcode character varying, p_userid character varying, p_password character varying, p_otp integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_company public.company%ROWTYPE;
-    v_user public.users%ROWTYPE;
-BEGIN
-
-    ---------------------------------------------------
-    -- Check Company
-    ---------------------------------------------------
-    SELECT *
-    INTO v_company
-    FROM public.company
-    WHERE orgcode = p_orgcode;
-
-    IF NOT FOUND THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Company does not exist'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Check User
-    ---------------------------------------------------
-    SELECT *
-    INTO v_user
-    FROM public.users
-    WHERE orgcode = p_orgcode
-      AND userid = p_userid;
-
-    IF NOT FOUND THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'User does not exist'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Check Active
-    ---------------------------------------------------
-    IF COALESCE(v_user.isactive, false) = false THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'User is disabled'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Check Password
-    ---------------------------------------------------
-    IF COALESCE(v_user.password, '') <> p_password THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Invalid password'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Admin Login
-    ---------------------------------------------------
-    IF COALESCE(v_user.isadmin, false) = true THEN
-        RETURN json_build_object(
-            'success', true,
-            'message', 'Login successful',
-            'authtoken', v_user.authtoken,
-            'isadmin', true
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- OTP Disabled
-    ---------------------------------------------------
-    IF COALESCE(v_company.enableotp, false) = false THEN
-        RETURN json_build_object(
-            'success', true,
-            'message', 'Login successful',
-            'authtoken', v_user.authtoken,
-            'isadmin', false
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- OTP Required
-    ---------------------------------------------------
-    IF p_otp IS NULL THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'OTP required'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- OTP Validation
-    ---------------------------------------------------
-    IF COALESCE(v_user.otp, 0) <> p_otp THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Invalid OTP'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Success
-    ---------------------------------------------------
-    RETURN json_build_object(
-        'success', true,
-        'message', 'Login successful',
-        'authtoken', v_user.authtoken,
-        'isadmin', false
-    );
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', SQLERRM
-        );
-END;
-$function$
-
-```
-
 ## Function: `login_user`
 ```sql
 CREATE OR REPLACE FUNCTION public.login_user(p_orgcode character varying, p_userid character varying, p_password character varying, p_otp integer DEFAULT NULL::integer)
@@ -1173,6 +812,204 @@ EXCEPTION
             'success', false,
             'message', SQLERRM
         );
+END;
+$function$
+
+```
+
+## Function: `search_accounts`
+```sql
+CREATE OR REPLACE FUNCTION public.search_accounts(p_orgcode character varying, p_search character varying)
+ RETURNS TABLE(phone character varying, name character varying, address character varying)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+
+    RETURN QUERY
+
+    SELECT DISTINCT
+        s.phone,
+        s.name,
+        s.address
+    FROM public.slips s
+    WHERE s.orgcode = p_orgcode
+      AND (
+            COALESCE(s.phone,'') ILIKE '%' || p_search || '%'
+         OR COALESCE(s.name,'') ILIKE '%' || p_search || '%'
+         OR COALESCE(s.address,'') ILIKE '%' || p_search || '%'
+      )
+    ORDER BY s.name;
+
+END;
+$function$
+
+```
+
+## Function: `save_user`
+```sql
+CREATE OR REPLACE FUNCTION public.save_user(p_authtoken uuid, p_orgcode character varying, p_userid character varying, p_password character varying, p_isadmin boolean, p_isactive boolean)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_logged_user public.users%ROWTYPE;
+BEGIN
+
+    ---------------------------------------------------
+    -- Validate logged-in user using authtoken
+    ---------------------------------------------------
+    SELECT *
+    INTO v_logged_user
+    FROM public.users
+    WHERE authtoken = p_authtoken
+      AND orgcode = p_orgcode;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'Invalid auth token'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Check user active
+    ---------------------------------------------------
+    IF COALESCE(v_logged_user.isactive, false) = false THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'Logged in user is disabled'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Only admin can add/modify users
+    ---------------------------------------------------
+    IF COALESCE(v_logged_user.isadmin, false) = false THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'Only admin user can manage users'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Update existing user
+    ---------------------------------------------------
+    IF EXISTS (
+        SELECT 1
+        FROM public.users
+        WHERE orgcode = p_orgcode
+          AND userid = p_userid
+    ) THEN
+
+        ---------------------------------------------------
+        -- Protection for 'admin' user
+        ---------------------------------------------------
+        IF p_userid = 'admin' THEN
+            RETURN json_build_object(
+                'success', false,
+                'message', 'The primary admin account cannot be modified.'
+            );
+        END IF;
+
+        UPDATE public.users
+        SET
+            password = p_password,
+            isadmin = p_isadmin,
+            isactive = p_isactive,
+            otp = CASE
+                      WHEN p_isadmin = false
+                      THEN FLOOR(1000 + RANDOM() * 9000)::int
+                      ELSE NULL
+                  END
+        WHERE orgcode = p_orgcode
+          AND userid = p_userid;
+
+        RETURN json_build_object(
+            'success', true,
+            'message', 'User updated successfully'
+        );
+
+    END IF;
+
+    ---------------------------------------------------
+    -- Insert new user
+    ---------------------------------------------------
+    INSERT INTO public.users (
+        orgcode,
+        userid,
+        password,
+        isadmin,
+        isactive,
+        otp
+    )
+    VALUES (
+        p_orgcode,
+        p_userid,
+        p_password,
+        p_isadmin,
+        p_isactive,
+        CASE
+            WHEN p_isadmin = false
+            THEN FLOOR(1000 + RANDOM() * 9000)::int
+            ELSE NULL
+        END
+    );
+
+    RETURN json_build_object(
+        'success', true,
+        'message', 'User created successfully'
+    );
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', SQLERRM
+        );
+END;
+$function$
+
+```
+
+## Function: `generate_user_otp`
+```sql
+CREATE OR REPLACE FUNCTION public.generate_user_otp(p_authtoken uuid, p_orgcode character varying, p_userids character varying[])
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_logged_user public.users%ROWTYPE;
+BEGIN
+    SELECT *
+    INTO v_logged_user
+    FROM public.users
+    WHERE authtoken = p_authtoken
+      AND orgcode = p_orgcode;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object('success', false, 'message', 'Invalid auth token');
+    END IF;
+
+    IF COALESCE(v_logged_user.isadmin, false) = false THEN
+        RETURN json_build_object('success', false, 'message', 'Only admin user can manage OTPs');
+    END IF;
+
+    UPDATE public.users u
+    SET otp = FLOOR(1000 + RANDOM() * 9000)::int
+    FROM public.company c
+    WHERE c.orgcode = u.orgcode
+      AND c.orgcode = p_orgcode
+      AND (p_userids IS NULL OR u.userid = ANY(p_userids))
+      AND COALESCE(c.enableotp, false) = true
+      AND COALESCE(u.isadmin, false) = false;
+
+    RETURN json_build_object(
+        'success', true,
+        'message', 'OTPs reset successfully'
+    );
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN json_build_object('success', false, 'message', SQLERRM);
 END;
 $function$
 

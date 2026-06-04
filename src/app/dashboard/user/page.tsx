@@ -38,7 +38,7 @@ interface Toast {
 }
 
 export default function UserDashboard() {
-  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
   // Session state
@@ -79,20 +79,40 @@ export default function UserDashboard() {
   };
 
   useEffect(() => {
-    setMounted(true);
     const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     setTheme(isDark ? "dark" : "light");
 
-    const savedSession = localStorage.getItem("parchi_session");
-    if (savedSession) {
+    const checkAuth = async () => {
       try {
-        setSession(JSON.parse(savedSession));
-      } catch (e) {
-        setSession({ orgcode: "DEMO123", userid: "operator", isadmin: false });
+        const res = await fetch("/api/auth/verify");
+        const data = await res.json();
+        if (res.ok && data.success) {
+          if (data.isadmin) {
+            // Redirect admin to admin dashboard
+            window.location.href = "/dashboard/admin";
+            return;
+          }
+          const sessionObj = {
+            orgcode: data.orgcode,
+            userid: data.userid,
+            isadmin: data.isadmin,
+          };
+          localStorage.setItem("parchi_session", JSON.stringify(sessionObj));
+          setSession(sessionObj);
+          setLoading(false);
+        } else {
+          // Unauthenticated, clear local storage and redirect
+          localStorage.removeItem("parchi_session");
+          document.cookie = "authtoken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+          document.cookie = "orgcode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+          window.location.href = "/";
+        }
+      } catch (err) {
+        localStorage.removeItem("parchi_session");
+        window.location.href = "/";
       }
-    } else {
-      setSession({ orgcode: "DEMO123", userid: "operator", isadmin: false });
-    }
+    };
+    checkAuth();
   }, []);
 
   const handleSearch = async (e?: React.FormEvent) => {
@@ -253,10 +273,18 @@ export default function UserDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("parchi_session");
+    document.cookie = "authtoken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    document.cookie = "orgcode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     window.location.href = "/";
   };
 
-  if (!mounted) return null;
+  if (loading) {
+    return (
+      <div className={`${styles.container} ${theme === "dark" ? styles.darkMode : ""}`} style={{ justifyContent: "center", alignItems: "center" }}>
+        <div className={styles.spinner} style={{ width: "48px", height: "48px" }} />
+      </div>
+    );
+  }
 
   const { slipSum, paySum, outstanding } = getAccountMetrics();
   const { total: slipTotalSum, net: slipNetSum } = getSlipTotals();
