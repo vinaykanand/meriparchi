@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     if (recent === "true") {
       // Recent slips
       const slipsResult = await query(
-        `SELECT id, slipno, date, phone, name, address, totalamount, discount, netamount 
+        `SELECT id, slipno, date, phone, name, address, totalamount, netamount 
          FROM public.slips 
          WHERE orgcode = $1 
          ORDER BY date DESC, id DESC 

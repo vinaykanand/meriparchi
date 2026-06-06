@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { query } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
@@ -15,16 +16,22 @@ export async function GET(request: Request) {
       );
     }
 
-    const response = await fetch(`https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/users?authtoken=${authtoken}&orgcode=${orgcode}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const result = await query(
+      "SELECT public.get_users($1, $2) as result",
+      [authtoken, orgcode]
+    );
 
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+    if (result.rows.length > 0 && result.rows[0].result) {
+      const data = result.rows[0].result;
+      return NextResponse.json(data, { status: data.success ? 200 : 400 });
+    }
+
+    return NextResponse.json(
+      { success: false, message: "Failed to fetch users" },
+      { status: 400 }
+    );
   } catch (error: any) {
+    console.error("Fetch Users Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Server Error" },
       { status: 500 }
@@ -42,18 +49,39 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    const { orgcode, userid, password, isadmin, isactive } = body;
 
-    const response = await fetch("https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/users", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ ...body, authtoken }),
-    });
+    if (!orgcode || !userid || !password) {
+      return NextResponse.json(
+        { success: false, message: "Missing required fields" },
+        { status: 400 }
+      );
+    }
 
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+    // Explicitly block editing the 'admin' user from the backend
+    if (userid.toLowerCase() === "admin") {
+      return NextResponse.json(
+        { success: false, message: "The primary 'admin' user cannot be modified." },
+        { status: 403 }
+      );
+    }
+
+    const result = await query(
+      "SELECT public.save_user($1, $2, $3, $4, $5, $6) as result",
+      [authtoken, orgcode, userid, password, isadmin, isactive]
+    );
+
+    if (result.rows.length > 0 && result.rows[0].result) {
+      const data = result.rows[0].result;
+      return NextResponse.json(data, { status: data.success ? 200 : 400 });
+    }
+
+    return NextResponse.json(
+      { success: false, message: "Failed to save user" },
+      { status: 400 }
+    );
   } catch (error: any) {
+    console.error("Save User Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Server Error" },
       { status: 500 }

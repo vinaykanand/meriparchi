@@ -122,7 +122,7 @@ $function$
 
 ## Function: `save_slip`
 ```sql
-CREATE OR REPLACE FUNCTION public.save_slip(p_orgcode character varying, p_phone character varying, p_name character varying, p_address character varying, p_totalamount numeric, p_discount numeric, p_items json)
+CREATE OR REPLACE FUNCTION public.save_slip(p_orgcode character varying, p_phone character varying, p_name character varying, p_address character varying, p_totalamount numeric, p_items json)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -137,36 +137,6 @@ BEGIN
     ---------------------------------------------------
     SELECT COALESCE(MAX(slipno), 0) + 1
     INTO v_slipno
-    FROM public.slips
-    WHERE orgcode = p_orgcode;
-
-    ---------------------------------------------------
-    -- Insert slip
-    ---------------------------------------------------
-    INSERT INTO public.slips (
-        orgcode,
-        slipno,
-        phone,
-        name,
-        address,
-        totalamount,
-        discount
-    )
-    VALUES (
-        p_orgcode,
-        v_slipno,
-        p_phone,
-        p_name,
-        p_address,
-        p_totalamount,
-        p_discount
-    )
-    RETURNING id
-    INTO v_slip_id;
-
-    ---------------------------------------------------
-    -- Insert slip items
-    ---------------------------------------------------
     FOR v_item IN
         SELECT * FROM json_array_elements(p_items)
     LOOP
@@ -553,8 +523,15 @@ $function$
 ## Function: `get_account_summary`
 ```sql
 CREATE OR REPLACE FUNCTION public.get_account_summary(p_orgcode character varying, p_phone character varying)
- RETURNS TABLE(txn_date date, totalamount numeric, discount numeric, netamount numeric, paymentmade numeric)
+ RETURNS TABLE(txn_date date, totalamount numeric, netamount numeric, paymentmade numeric)
  LANGUAGE plpgsql
+AS $function$
+BEGIN
+
+    RETURN QUERY
+
+    WITH slip_summary AS (
+        SELECT
 AS $function$
 BEGIN
 
@@ -564,11 +541,10 @@ BEGIN
         SELECT
             s.date::date AS txn_date,
             SUM(COALESCE(s.totalamount,0)) AS totalamount,
-            SUM(COALESCE(s.discount,0)) AS discount,
             SUM(COALESCE(s.netamount,0)) AS netamount
         FROM public.slips s
         WHERE s.orgcode = p_orgcode
-          AND s.phone = p_phone
+          AND s.phone = p_phone::numeric
         GROUP BY s.date::date
     ),
 
@@ -585,7 +561,6 @@ BEGIN
     SELECT
         COALESCE(s.txn_date, p.txn_date) AS txn_date,
         COALESCE(s.totalamount,0) AS totalamount,
-        COALESCE(s.discount,0) AS discount,
         COALESCE(s.netamount,0) AS netamount,
         COALESCE(p.paymentmade,0) AS paymentmade
     FROM slip_summary s
@@ -596,12 +571,8 @@ BEGIN
 END;
 $function$
 
-```
-
-## Function: `get_account_details_by_date`
-```sql
 CREATE OR REPLACE FUNCTION public.get_account_details_by_date(p_orgcode character varying, p_phone character varying, p_date date)
- RETURNS TABLE(slipno bigint, slip_date date, item character varying, remarks character varying, qty numeric, rate numeric, itemamount numeric, totalamount numeric, discount numeric, netamount numeric)
+ RETURNS TABLE(slipno bigint, slip_date date, item character varying, remarks character varying, qty numeric, rate numeric, itemamount numeric, totalamount numeric, netamount numeric)
  LANGUAGE plpgsql
 AS $function$
 BEGIN
@@ -617,23 +588,18 @@ BEGIN
         si.rate,
         si.amount,
         s.totalamount,
-        s.discount,
         s.netamount
     FROM public.slips s
     INNER JOIN public.slipitems si
         ON si.id = s.id
     WHERE s.orgcode = p_orgcode
-      AND s.phone = p_phone
+      AND s.phone = p_phone::numeric
       AND s.date::date = p_date
     ORDER BY s.slipno, si.item;
 
 END;
 $function$
 
-```
-
-## Function: `update_company`
-```sql
 CREATE OR REPLACE FUNCTION public.update_company(p_authtoken uuid, p_orgname character varying, p_isactive boolean, p_enableotp boolean)
  RETURNS json
  LANGUAGE plpgsql
@@ -683,10 +649,6 @@ EXCEPTION
 END;
 $function$
 
-```
-
-## Function: `login_user`
-```sql
 CREATE OR REPLACE FUNCTION public.login_user(p_orgcode character varying, p_userid character varying, p_password character varying, p_otp integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
@@ -815,33 +777,9 @@ EXCEPTION
 END;
 $function$
 
-```
-
-## Function: `search_accounts`
-```sql
 CREATE OR REPLACE FUNCTION public.search_accounts(p_orgcode character varying, p_search character varying)
  RETURNS TABLE(phone character varying, name character varying, address character varying)
  LANGUAGE plpgsql
-AS $function$
-BEGIN
-
-    RETURN QUERY
-
-    SELECT DISTINCT
-        s.phone,
-        s.name,
-        s.address
-    FROM public.slips s
-    WHERE s.orgcode = p_orgcode
-      AND (
-            COALESCE(s.phone,'') ILIKE '%' || p_search || '%'
-         OR COALESCE(s.name,'') ILIKE '%' || p_search || '%'
-         OR COALESCE(s.address,'') ILIKE '%' || p_search || '%'
-      )
-    ORDER BY s.name;
-
-END;
-$function$
 
 ```
 
@@ -969,6 +907,28 @@ EXCEPTION
 END;
 $function$
 
+```
+
+## Function: `search_customer_items`
+```sql
+CREATE OR REPLACE FUNCTION public.search_customer_items(p_orgcode character varying, p_phone character varying, p_search character varying)
+ RETURNS TABLE(item character varying, remarks character varying, rate numeric)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RETURN QUERY
+    SELECT DISTINCT ON (si.item) 
+        si.item, 
+        si.remarks, 
+        si.rate
+    FROM public.slips s
+    JOIN public.slipitems si ON s.id = si.id
+    WHERE s.orgcode = p_orgcode
+      AND s.phone = p_phone::numeric
+      AND si.item ILIKE '%' || p_search || '%'
+    ORDER BY si.item, s.date DESC;
+END;
+$function$;
 ```
 
 ## Function: `generate_user_otp`

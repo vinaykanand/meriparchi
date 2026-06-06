@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { query } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
@@ -14,24 +15,32 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+    const orgcode = body.orgcode;
+    const userids = body.userids || null;
 
-    const response = await fetch(
-      "https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/users-otp",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          authtoken,
-          ...body,
-        }),
-      }
+    if (!orgcode) {
+      return NextResponse.json(
+        { success: false, message: "Missing required parameters" },
+        { status: 400 }
+      );
+    }
+
+    const result = await query(
+      "SELECT public.generate_user_otp($1, $2, $3) as result",
+      [authtoken, orgcode, userids]
     );
 
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+    if (result.rows.length > 0 && result.rows[0].result) {
+      const data = result.rows[0].result;
+      return NextResponse.json(data, { status: data.success ? 200 : 400 });
+    }
+
+    return NextResponse.json(
+      { success: false, message: "Failed to reset OTPs" },
+      { status: 400 }
+    );
   } catch (error: any) {
+    console.error("OTP Reset Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Internal server error" },
       { status: 500 }

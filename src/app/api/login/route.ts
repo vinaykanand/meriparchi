@@ -1,22 +1,29 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { query } from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const { orgcode, userid, password, otp } = body;
 
-    const response = await fetch("https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    if (!orgcode || !userid || !password) {
+      return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
+    }
 
-    const data = await response.json();
+    const result = await query(
+      "SELECT public.login_user($1, $2, $3, $4) as result",
+      [orgcode, userid, password, otp || null]
+    );
 
-    if (!response.ok || !data.success) {
-      return NextResponse.json(data || { success: false, message: "Login failed" }, { status: response.status });
+    if (result.rows.length === 0) {
+      return NextResponse.json({ success: false, message: "Login failed" }, { status: 400 });
+    }
+
+    const data = result.rows[0].result;
+
+    if (!data || !data.success) {
+      return NextResponse.json(data || { success: false, message: "Login failed" }, { status: 400 });
     }
 
     // Set the cookie if authtoken is present in the login response
@@ -40,6 +47,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(data, { status: 200 });
   } catch (error: any) {
+    console.error("Login API Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Server Error" },
       { status: 500 }
