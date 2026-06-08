@@ -32,8 +32,8 @@ function UserDashboardContent({ children }: { children: React.ReactNode }) {
   };
 
   const navLinks = [
-    { name: "Overview", href: "/dashboard/user", icon: "📊" },
-    { name: "Slip & Payment", href: "/dashboard/user/slips", icon: "💳" },
+    { name: "Create Slip", href: "/dashboard/user/slips", icon: "📄" },
+    { name: "Log Payment", href: "/dashboard/user/payments", icon: "💵" },
     { name: "Lookup Ledger", href: "/dashboard/user/lookup", icon: "🔍" },
   ];
 

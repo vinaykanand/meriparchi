@@ -9,23 +9,19 @@ interface Toast {
   type: "success" | "error" | "info";
 }
 
-interface LedgerSummaryRow {
-  txn_date: string;
-  totalamount: string;
-  netamount: string;
-  paymentmade: string;
-}
-
-interface SlipDetailItem {
-  slipno: string;
-  slip_date: string;
-  item: string;
-  remarks: string;
-  qty: string;
-  rate: string;
-  itemamount: string;
-  totalamount: string;
-  netamount: string;
+interface LookupData {
+  customer: { name: string, phone: string, address: string };
+  kpis: {
+    outstanding: number;
+    slipsCount: number;
+    paymentsTotal: number;
+    paymentsCount: number;
+    returnsAmount: number;
+    returnsCount: number;
+  };
+  availableDates: string[];
+  slips: any[];
+  payments: any[];
 }
 
 export default function AdminLookupPage() {
@@ -34,11 +30,11 @@ export default function AdminLookupPage() {
   const [lookupPhone, setLookupPhone] = useState("");
   const [searchedLookupPhone, setSearchedLookupPhone] = useState("");
   const [loadingLookupLedger, setLoadingLookupLedger] = useState(false);
-  const [lookupLedgerSummary, setLookupLedgerSummary] = useState<LedgerSummaryRow[]>([]);
   const [hasLookupSearched, setHasLookupSearched] = useState(false);
-  const [lookupDetailDate, setLookupDetailDate] = useState<string | null>(null);
-  const [loadingLookupDetails, setLoadingLookupDetails] = useState(false);
-  const [lookupSlipDetails, setLookupSlipDetails] = useState<SlipDetailItem[]>([]);
+  
+  const [lookupData, setLookupData] = useState<LookupData | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+
   const [closingAccount, setClosingAccount] = useState(false);
 
   const [searchSuggestions, setSearchSuggestions] = useState<{phone: string, name: string, address: string}[]>([]);
@@ -48,6 +44,7 @@ export default function AdminLookupPage() {
   const [recentAccounts, setRecentAccounts] = useState<any[]>([]);
   const [recentSlips, setRecentSlips] = useState<any[]>([]);
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [recentReturns, setRecentReturns] = useState<any[]>([]);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -68,6 +65,7 @@ export default function AdminLookupPage() {
         setRecentAccounts(data.recentAccounts || []);
         setRecentSlips(data.recentSlips || []);
         setRecentPayments(data.recentPayments || []);
+        setRecentReturns(data.recentReturns || []);
       }
     } catch (e) {
       console.error("Failed to load recent data");
@@ -92,8 +90,8 @@ export default function AdminLookupPage() {
       try {
         const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&search=${lookupPhone.trim()}`);
         const data = await response.json();
-        if (response.ok && data.success && Array.isArray(data.summary)) {
-          setSearchSuggestions(data.summary.map((s: any) => ({
+        if (response.ok && data.success && Array.isArray(data.accounts)) {
+          setSearchSuggestions(data.accounts.map((s: any) => ({
             phone: s.phone,
             name: s.name,
             address: s.address
@@ -112,7 +110,7 @@ export default function AdminLookupPage() {
   const handleSelectLookupSuggestion = (phone: string, name: string, address: string) => {
     setLookupPhone(phone);
     setShowLookupSuggestions(false);
-    executeLookup(phone);
+    executeLookup(phone, "");
   };
 
   const handleLookupSearch = async (e: React.FormEvent) => {
@@ -121,21 +119,23 @@ export default function AdminLookupPage() {
       addToast("Please enter a phone number to search", "info");
       return;
     }
-    executeLookup(lookupPhone);
+    executeLookup(lookupPhone, "");
   };
 
-  const executeLookup = async (phone: string) => {
+  const executeLookup = async (phone: string, date: string) => {
     if (!session) return;
     setLoadingLookupLedger(true);
     try {
-      const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&phone=${phone.trim()}`);
+      let url = `/api/ledger?orgcode=${session.orgcode}&phone=${phone.trim()}`;
+      if (date) url += `&date=${date}`;
+      
+      const response = await fetch(url);
       const data = await response.json();
       if (response.ok && data.success) {
-        setLookupLedgerSummary(data.summary || []);
+        setLookupData(data);
         setSearchedLookupPhone(phone.trim());
         setHasLookupSearched(true);
-        setLookupDetailDate(null);
-        setLookupSlipDetails([]);
+        setSelectedDate(date);
       } else {
         addToast(data.message || "Failed to retrieve ledger", "error");
       }
@@ -146,29 +146,9 @@ export default function AdminLookupPage() {
     }
   };
 
-  const loadLookupSlipDetails = async (date: string) => {
-    if (!session || !searchedLookupPhone) return;
-    setLoadingLookupDetails(true);
-    setLookupDetailDate(date);
-    try {
-      const dateObj = new Date(date);
-      const formattedDate = dateObj.toISOString().split('T')[0];
-      const response = await fetch(
-        `/api/ledger?orgcode=${session.orgcode}&phone=${searchedLookupPhone}&date=${formattedDate}`
-      );
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setLookupSlipDetails(data.details || []);
-      } else {
-        addToast("Failed to load slip details", "error");
-        setLookupSlipDetails([]);
-      }
-    } catch (e) {
-      addToast("Error fetching details", "error");
-      setLookupSlipDetails([]);
-    } finally {
-      setLoadingLookupDetails(false);
-    }
+  const handleDateFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newDate = e.target.value;
+    executeLookup(searchedLookupPhone, newDate);
   };
 
   const handleCloseAccount = async () => {
@@ -302,8 +282,7 @@ export default function AdminLookupPage() {
                         <tr 
                           key={idx} 
                           onClick={() => {
-                            setSearchedLookupPhone(slip.phone);
-                            loadLookupSlipDetails(slip.date);
+                            handleSelectLookupSuggestion(slip.phone, slip.name, "");
                           }}
                           className="hover:bg-blue-500/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
                         >
@@ -363,6 +342,51 @@ export default function AdminLookupPage() {
                 </div>
               </div>
 
+              {/* Column 4: Recent Return Items */}
+              <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm lg:col-span-3">
+                <h4 className="text-sm font-semibold border-b border-slate-200 dark:border-slate-700 pb-2 text-red-600 dark:text-red-400">Recent Return Items</h4>
+                <div className="w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-black/20 mt-3">
+                  <table className="w-full text-left text-sm min-w-[500px]">
+                    <thead className="bg-slate-50/50 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-xs uppercase font-medium">
+                      <tr>
+                        <th className="px-3 py-2">Date</th>
+                        <th className="px-3 py-2">Customer</th>
+                        <th className="px-3 py-2">Item Name</th>
+                        <th className="px-3 py-2">Qty</th>
+                        <th className="px-3 py-2">Rate</th>
+                        <th className="px-3 py-2">Credit Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                      {recentReturns.map((ret, idx) => (
+                        <tr 
+                          key={idx}
+                          onClick={() => {
+                            handleSelectLookupSuggestion(ret.phone, ret.name, "");
+                          }}
+                          className="hover:bg-blue-500/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                        >
+                          <td className="px-3 py-2 text-xs text-slate-500">{new Date(ret.date).toLocaleDateString()}</td>
+                          <td className="px-3 py-2">
+                            <div className="font-medium">{ret.name || "—"}</div>
+                            <div className="text-xs font-mono text-slate-500">{ret.phone}</div>
+                          </td>
+                          <td className="px-3 py-2 font-semibold text-slate-700 dark:text-slate-300">{ret.item}</td>
+                          <td className="px-3 py-2 text-red-600 dark:text-red-400 font-medium">{ret.qty}</td>
+                          <td className="px-3 py-2">₹{ret.rate}</td>
+                          <td className="px-3 py-2 font-semibold text-green-600 dark:text-green-400">₹{Math.abs(ret.amount)}</td>
+                        </tr>
+                      ))}
+                      {recentReturns.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="text-center py-6 text-xs text-slate-500">No recent return items found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
             </div>
           )}
         </div>
@@ -371,123 +395,172 @@ export default function AdminLookupPage() {
       {/* Statement details view */}
       {hasLookupSearched && (
         <div className="flex flex-col gap-6 animate-fade-in">
+          <div className="flex items-center gap-4">
+            <button 
+              type="button"
+              onClick={() => {
+                setHasLookupSearched(false);
+                setLookupPhone("");
+                setSearchedLookupPhone("");
+                setLookupData(null);
+                setSelectedDate("");
+              }}
+              className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-semibold bg-white/80 dark:bg-slate-800/80 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm backdrop-blur-xl"
+            >
+              ← Go Back
+            </button>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              Account Statement for {lookupData?.customer?.name || searchedLookupPhone}
+            </h3>
+          </div>
+
           {loadingLookupLedger ? (
             <div className="flex flex-col items-center justify-center p-12 gap-3 text-slate-500">
               <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-800 border-t-blue-500 rounded-full animate-spin"></div>
               <p>Fetching statement data...</p>
             </div>
-          ) : (
+          ) : lookupData ? (
             <>
-              {/* Account Metrics Grid */}
-              {(() => {
-                let slipSum = 0;
-                let paySum = 0;
-                lookupLedgerSummary.forEach((row) => {
-                  slipSum += parseFloat(row.netamount) || 0;
-                  paySum += parseFloat(row.paymentmade) || 0;
-                });
-                const outstanding = Math.max(0, slipSum - paySum);
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
-                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Debit Slips</div>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">₹{slipSum.toFixed(2)}</div>
-                    </div>
-                    <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
-                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Payments Logged</div>
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">₹{paySum.toFixed(2)}</div>
-                    </div>
-                    <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm border-l-4 border-l-red-500">
-                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Outstanding Receivable</div>
-                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">₹{outstanding.toFixed(2)}</div>
-                    </div>
+              {/* KPIs Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Outstanding</div>
+                  <div className={`text-2xl font-bold ${lookupData.kpis.outstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                    ₹{lookupData.kpis.outstanding.toLocaleString()}
                   </div>
-                );
-              })()}
-
-              {/* Statement log table */}
-              <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
-                <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3 mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Account Statement Log</h3>
-                  <span className="text-xs text-slate-500">Click a row to view item details</span>
                 </div>
+                <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Slips</div>
+                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{lookupData.kpis.slipsCount}</div>
+                </div>
+                <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Payments</div>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">₹{lookupData.kpis.paymentsTotal.toLocaleString()}</div>
+                  <div className="text-xs text-slate-400 mt-1">{lookupData.kpis.paymentsCount} payments made</div>
+                </div>
+                <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Returns</div>
+                  <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">₹{lookupData.kpis.returnsAmount.toLocaleString()}</div>
+                  <div className="text-xs text-slate-400 mt-1">{lookupData.kpis.returnsCount} items returned</div>
+                </div>
+              </div>
 
-                <div className="w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-black/20">
+              {/* Date Filter Dropdown */}
+              <div className="flex items-center gap-3 bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">Overview for Date:</span>
+                <select 
+                  className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={selectedDate}
+                  onChange={handleDateFilterChange}
+                >
+                  <option value="">All Time History</option>
+                  {lookupData.availableDates.filter(d => d).map(d => {
+                    const [y, m, day] = d.split('-');
+                    const displayDate = new Date(Number(y), Number(m)-1, Number(day)).toLocaleDateString();
+                    return <option key={d} value={d}>{displayDate}</option>;
+                  })}
+                </select>
+              </div>
+
+              {/* SLIPS TABLE */}
+              <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm overflow-hidden">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">SLIPS</h3>
+                <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
                   <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-slate-50/50 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-medium">
+                    <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider text-xs">
                       <tr>
-                        <th className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">Transaction Date</th>
-                        <th className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">Slip Subtotal</th>
-                        <th className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">Net Slip Debit</th>
-                        <th className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">Credit Payment</th>
+                        <th className="px-4 py-3">Time</th>
+                        <th className="px-4 py-3">No</th>
+                        <th className="px-4 py-3">Phone</th>
+                        <th className="px-4 py-3">Name</th>
+                        <th className="px-4 py-3">Item</th>
+                        <th className="px-4 py-3">Qty</th>
+                        <th className="px-4 py-3">Rate</th>
+                        <th className="px-4 py-3">Amt</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                      {lookupLedgerSummary.map((row, idx) => (
-                        <React.Fragment key={idx}>
-                          <tr 
-                            onClick={() => loadLookupSlipDetails(row.txn_date)}
-                            className="hover:bg-blue-500/5 dark:hover:bg-white/5 cursor-pointer transition-colors"
-                          >
-                            <td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">
-                              {new Date(row.txn_date).toLocaleDateString()}
+                    <tbody className="bg-white dark:bg-slate-900">
+                      {(() => {
+                        const slipTotals: Record<string, number> = {};
+                        lookupData.slips.forEach(s => {
+                          slipTotals[s.no] = (slipTotals[s.no] || 0) + (parseFloat(s.amt) || 0);
+                        });
+
+                        return lookupData.slips.map((s, i) => {
+                          const isFirst = i === 0 || lookupData.slips[i - 1].no !== s.no;
+                          const isLast = i === lookupData.slips.length - 1 || lookupData.slips[i + 1].no !== s.no;
+                          
+                          return (
+                            <React.Fragment key={i}>
+                              <tr 
+                                className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isFirst && i !== 0 ? 'border-t-2 border-slate-200 dark:border-slate-700' : ''}`}
+                              >
+                            <td className="px-4 py-3 text-slate-500">
+                              {isFirst ? new Date(s.time).toLocaleDateString() : ""}
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-blue-600 dark:text-blue-400">
+                              {isFirst ? `#${s.no}` : ""}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-slate-500">
+                              {isFirst ? s.phone : ""}
                             </td>
                             <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
-                              ₹{parseFloat(row.totalamount) || 0}
+                              {isFirst ? (s.name || "—") : ""}
                             </td>
-                            <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">
-                              ₹{parseFloat(row.netamount) || 0}
-                            </td>
-                            <td className="px-4 py-3 font-semibold text-green-600 dark:text-green-400">
-                              {parseFloat(row.paymentmade) > 0 ? `₹${parseFloat(row.paymentmade)}` : "—"}
-                            </td>
-                          </tr>
-                          {lookupDetailDate === row.txn_date && (
-                            <tr className="bg-slate-50 dark:bg-slate-900/30">
-                              <td colSpan={4} className="p-4 border-b border-slate-200 dark:border-slate-700">
-                                <div className="pl-8 border-l-2 border-blue-500">
-                                  {loadingLookupDetails ? (
-                                    <div className="text-sm text-slate-500">Loading slip items...</div>
-                                  ) : (
-                                    <table className="w-full text-sm">
-                                      <thead>
-                                        <tr className="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
-                                          <th className="py-2 text-left">Item Name</th>
-                                          <th className="py-2 text-left">Remarks</th>
-                                          <th className="py-2 text-left">Qty</th>
-                                          <th className="py-2 text-left">Rate</th>
-                                          <th className="py-2 text-left">Amount</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {lookupSlipDetails.map((det, didx) => (
-                                          <tr key={didx} className="border-b border-slate-100 dark:border-slate-800 last:border-0">
-                                            <td className="py-2 text-slate-800 dark:text-slate-200 font-medium">{det.item}</td>
-                                            <td className="py-2 text-slate-500">{det.remarks}</td>
-                                            <td className="py-2 text-slate-700 dark:text-slate-300">{det.qty}</td>
-                                            <td className="py-2 text-slate-700 dark:text-slate-300">₹{det.rate}</td>
-                                            <td className="py-2 font-mono text-slate-900 dark:text-slate-100">₹{det.itemamount}</td>
-                                          </tr>
-                                        ))}
-                                        {lookupSlipDetails.length === 0 && (
-                                          <tr>
-                                            <td colSpan={5} className="py-4 text-center text-slate-500">No slip items found for this date.</td>
-                                          </tr>
-                                        )}
-                                      </tbody>
-                                    </table>
-                                  )}
-                                </div>
-                              </td>
+                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{s.item}</td>
+                            <td className={`px-4 py-3 font-semibold ${parseFloat(s.qty) < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{s.qty}</td>
+                              <td className="px-4 py-3 text-slate-500">₹{s.rate}</td>
+                              <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">₹{s.amt}</td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                      {lookupLedgerSummary.length === 0 && (
+                            {isLast && (
+                              <tr className="bg-slate-50 dark:bg-slate-800/30">
+                                <td colSpan={6} className="px-4 py-2.5 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                  Slip #{s.no} Total
+                                </td>
+                                <td colSpan={2} className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-700">
+                                  ₹{slipTotals[s.no].toFixed(2)}
+                                </td>
+                              </tr>
+                            )}
+                            </React.Fragment>
+                          );
+                        });
+                      })()}
+                      {lookupData.slips.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="text-center py-8 text-slate-500">
-                            No ledger transaction records found for this phone number.
-                          </td>
+                          <td colSpan={8} className="text-center py-6 text-slate-500">No slip items found for this selection.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* PAYMENTS TABLE */}
+              <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm overflow-hidden mt-2">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">PAYMENTS</h3>
+                <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider text-xs">
+                      <tr>
+                        <th className="px-4 py-3">Time</th>
+                        <th className="px-4 py-3">Phone</th>
+                        <th className="px-4 py-3">Narration</th>
+                        <th className="px-4 py-3">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
+                      {lookupData.payments.map((p, i) => (
+                        <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="px-4 py-3 text-slate-500">{new Date(p.time).toLocaleDateString()}</td>
+                          <td className="px-4 py-3 font-mono text-slate-500">{p.phone}</td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{p.narration || "—"}</td>
+                          <td className="px-4 py-3 font-bold text-green-600 dark:text-green-400">₹{p.amt}</td>
+                        </tr>
+                      ))}
+                      {lookupData.payments.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="text-center py-6 text-slate-500">No payments found for this selection.</td>
                         </tr>
                       )}
                     </tbody>
@@ -496,7 +569,7 @@ export default function AdminLookupPage() {
               </div>
 
               {/* Danger Zone: Close Account */}
-              <div className="bg-red-500/5 border border-red-500/20 dark:border-red-500/10 rounded-2xl p-6 shadow-sm">
+              <div className="bg-red-500/5 border border-red-500/20 dark:border-red-500/10 rounded-2xl p-6 shadow-sm mt-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
                     <h4 className="text-base font-semibold text-red-600 dark:text-red-400">Danger Zone: Close Ledger Account</h4>
@@ -514,8 +587,9 @@ export default function AdminLookupPage() {
                   </button>
                 </div>
               </div>
+
             </>
-          )}
+          ) : null}
         </div>
       )}
 

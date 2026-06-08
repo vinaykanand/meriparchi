@@ -60,11 +60,23 @@ export async function GET(request: Request) {
         [orgcode]
       );
 
+      // Recent return items (qty < 0)
+      const returnsResult = await query(
+        `SELECT i.item, i.qty, i.rate, i.amount, s.date, s.phone, s.name 
+         FROM public.slipitems i 
+         JOIN public.slips s ON i.id = s.id 
+         WHERE s.orgcode = $1 AND i.qty < 0 
+         ORDER BY s.date DESC, s.id DESC 
+         LIMIT 15`,
+        [orgcode]
+      );
+
       return NextResponse.json({
         success: true,
         recentSlips: slipsResult.rows,
         recentPayments: paymentsResult.rows,
-        recentAccounts: accountsResult.rows
+        recentAccounts: accountsResult.rows,
+        recentReturns: returnsResult.rows
       });
     }
 
@@ -75,20 +87,79 @@ export async function GET(request: Request) {
       );
     }
 
-    let url = `https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/ledger?orgcode=${orgcode}&phone=${phone}`;
-    if (date) {
-      url += `&date=${date}`;
-    }
+    // 3. Customer Ledger Dashboard
+    const customerResult = await query(
+      "SELECT name, phone, address FROM public.slips WHERE orgcode = $1 AND phone = $2 LIMIT 1",
+      [orgcode, phone]
+    );
 
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
+    const customer = customerResult.rows[0] || { phone };
+
+    const dateFilterSlip = date ? `AND to_char(s.date, 'YYYY-MM-DD') = $3` : "";
+    const dateFilterPay = date ? `AND to_char(date, 'YYYY-MM-DD') = $3` : "";
+
+    const slipsTotalResult = await query(
+      "SELECT SUM(netamount) as total, COUNT(*) as count FROM public.slips WHERE orgcode = $1 AND phone = $2",
+      [orgcode, phone]
+    );
+    const paymentsTotalResult = await query(
+      "SELECT SUM(amount) as total, COUNT(*) as count FROM public.payments WHERE orgcode = $1 AND phone = $2",
+      [orgcode, phone]
+    );
+    const returnsTotalResult = await query(
+      `SELECT SUM(ABS(i.amount)) as total, COUNT(*) as count 
+       FROM public.slipitems i 
+       JOIN public.slips s ON i.id = s.id 
+       WHERE s.orgcode = $1 AND s.phone = $2 AND i.qty < 0`,
+      [orgcode, phone]
+    );
+
+    const totalSlipsAmount = parseFloat(slipsTotalResult.rows[0]?.total || "0");
+    const totalPaymentsAmount = parseFloat(paymentsTotalResult.rows[0]?.total || "0");
+    const totalOutstanding = totalSlipsAmount - totalPaymentsAmount;
+    
+    const datesResult = await query(
+      `SELECT DISTINCT to_char(date, 'YYYY-MM-DD') as d FROM (
+         SELECT date FROM public.slips WHERE orgcode = $1 AND phone = $2
+         UNION
+         SELECT date FROM public.payments WHERE orgcode = $1 AND phone = $2
+       ) all_dates ORDER BY d DESC`,
+      [orgcode, phone]
+    );
+
+    const slipsQuery = `
+      SELECT s.date as time, s.slipno as no, s.phone, s.name, i.item, i.qty, i.rate, i.amount as amt 
+      FROM public.slips s 
+      JOIN public.slipitems i ON s.id = i.id 
+      WHERE s.orgcode = $1 AND s.phone = $2 ${dateFilterSlip}
+      ORDER BY s.date DESC, s.slipno DESC
+    `;
+    const params = date ? [orgcode, phone, date] : [orgcode, phone];
+    const slipsTableResult = await query(slipsQuery, params);
+
+    const paymentsQuery = `
+      SELECT date as time, phone, amount as amt, narration 
+      FROM public.payments 
+      WHERE orgcode = $1 AND phone = $2 ${dateFilterPay}
+      ORDER BY date DESC
+    `;
+    const paymentsTableResult = await query(paymentsQuery, params);
+
+    return NextResponse.json({
+      success: true,
+      customer,
+      kpis: {
+        outstanding: totalOutstanding,
+        slipsCount: parseInt(slipsTotalResult.rows[0]?.count || "0", 10),
+        paymentsTotal: totalPaymentsAmount,
+        paymentsCount: parseInt(paymentsTotalResult.rows[0]?.count || "0", 10),
+        returnsAmount: parseFloat(returnsTotalResult.rows[0]?.total || "0"),
+        returnsCount: parseInt(returnsTotalResult.rows[0]?.count || "0", 10)
       },
+      availableDates: datesResult.rows.map(r => r.d),
+      slips: slipsTableResult.rows,
+      payments: paymentsTableResult.rows
     });
-
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message || "Server Error" },

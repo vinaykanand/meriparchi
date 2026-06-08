@@ -55,8 +55,8 @@ export default function UserSlipsPage() {
       try {
         const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&search=${slipPhone.trim()}`);
         const data = await response.json();
-        if (response.ok && data.success && Array.isArray(data.summary)) {
-          setSearchSuggestions(data.summary.map((s: any) => ({
+        if (response.ok && data.success && Array.isArray(data.accounts)) {
+          setSearchSuggestions(data.accounts.map((s: any) => ({
             phone: s.phone,
             name: s.name,
             address: s.address
@@ -263,8 +263,8 @@ export default function UserSlipsPage() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in relative">
-      <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Slip & Payment Management</h2>
-      <p className="text-slate-500 text-sm mt-1 mb-4">Log client transaction slips and record cash payments in a single transaction.</p>
+      <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Create New Slip</h2>
+      <p className="text-slate-500 text-sm mt-1 mb-4">Log client transaction slips and billable items.</p>
 
       <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
         <form onSubmit={handleSaveSlipAndPayment} className="flex flex-col gap-6">

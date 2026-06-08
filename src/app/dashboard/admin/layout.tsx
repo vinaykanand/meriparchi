@@ -33,7 +33,8 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
 
   const navLinks = [
     { name: "Overview", href: "/dashboard/admin", icon: "📊" },
-    { name: "Slip & Payment", href: "/dashboard/admin/slips", icon: "💳" },
+    { name: "Create Slip", href: "/dashboard/admin/slips", icon: "📄" },
+    { name: "Log Payment", href: "/dashboard/admin/payments", icon: "💵" },
     { name: "Lookup Ledger", href: "/dashboard/admin/lookup", icon: "🔍" },
     { name: "Manage Users", href: "/dashboard/admin/users", icon: "👥" },
     { name: "Organization Settings", href: "/dashboard/admin/settings", icon: "⚙️" },

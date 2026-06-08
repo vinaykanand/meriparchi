@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { orgcode, userid, password, isadmin, isactive } = body;
 
-    if (!orgcode || !userid || !password) {
+    if (!orgcode || !userid) {
       return NextResponse.json(
         { success: false, message: "Missing required fields" },
         { status: 400 }
@@ -86,5 +86,41 @@ export async function POST(request: Request) {
       { success: false, message: error.message || "Server Error" },
       { status: 500 }
     );
+  }
+}
+
+export const PUT = POST;
+
+export async function DELETE(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const authtoken = cookieStore.get("authtoken")?.value;
+
+    if (!authtoken) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { orgcode, userid } = body;
+
+    if (!orgcode || !userid) {
+      return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
+    }
+
+    if (userid.toLowerCase() === "admin") {
+      return NextResponse.json({ success: false, message: "Cannot delete the primary admin user" }, { status: 403 });
+    }
+
+    const sessionCheck = await query("SELECT isadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true", [authtoken, orgcode]);
+    if (sessionCheck.rows.length === 0 || !sessionCheck.rows[0].isadmin) {
+      return NextResponse.json({ success: false, message: "Unauthorized: Admin access required" }, { status: 401 });
+    }
+
+    await query("DELETE FROM public.users WHERE orgcode = $1 AND userid = $2", [orgcode, userid]);
+
+    return NextResponse.json({ success: true, message: "User deleted successfully" });
+  } catch (error: any) {
+    console.error("Delete User Error:", error);
+    return NextResponse.json({ success: false, message: error.message || "Server Error" }, { status: 500 });
   }
 }

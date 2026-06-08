@@ -113,6 +113,34 @@ export default function AdminUsersPage() {
     setIsEditMode(false);
   };
 
+  const handleDeleteUser = async (user: User) => {
+    if (!session) return;
+    if (!confirm(`Are you sure you want to permanently delete user '${user.userid}'?`)) return;
+
+    try {
+      const response = await fetch("/api/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgcode: session.orgcode,
+          userid: user.userid,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        addToast("User deleted successfully", "success");
+        if (newUserId === user.userid) {
+          handleCancelEdit();
+        }
+        fetchUsers();
+      } else {
+        addToast(data.message || "Failed to delete user", "error");
+      }
+    } catch (error) {
+      addToast("Failed to process deletion", "error");
+    }
+  };
+
   const toggleUserSelection = (userid: string) => {
     setSelectedUsers(prev => 
       prev.includes(userid) 
@@ -256,11 +284,14 @@ export default function AdminUsersPage() {
                       <td className="px-4 py-3 font-mono text-gray-500 dark:text-gray-400 text-xs" onClick={() => !isAdminUser && handleEditUser(user)}>
                         {new Date(user.created_at).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3" onClick={() => !isAdminUser && handleEditUser(user)}>
+                      <td className="px-4 py-3">
                         {isAdminUser ? (
                           <span className="text-gray-500 italic text-xs">Locked</span>
                         ) : (
-                          <span className="text-blue-600 dark:text-blue-400 font-medium text-sm">✏️ Edit</span>
+                          <div className="flex gap-3">
+                            <button onClick={() => handleEditUser(user)} className="text-blue-600 dark:text-blue-400 font-medium text-sm hover:underline">✏️ Edit</button>
+                            <button onClick={() => handleDeleteUser(user)} className="text-red-600 dark:text-red-400 font-medium text-sm hover:underline">🗑️ Delete</button>
+                          </div>
                         )}
                       </td>
                     </tr>

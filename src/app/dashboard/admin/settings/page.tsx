@@ -15,6 +15,9 @@ export default function AdminSettingsPage() {
   const [orgname, setOrgname] = useState("");
   const [enableotp, setEnableotp] = useState(false);
   const [isactive, setIsactive] = useState(true);
+  const [otpresettime, setOtpresettime] = useState<number>(24);
+  const [opentime, setOpentime] = useState("09:00");
+  const [closetime, setClosetime] = useState("18:00");
   const [savingCompany, setSavingCompany] = useState(false);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -38,6 +41,9 @@ export default function AdminSettingsPage() {
             setOrgname(data.company.orgname || "");
             setEnableotp(data.company.enableotp || false);
             setIsactive(data.company.isactive !== false);
+            setOtpresettime(data.company.otpresettime || 24);
+            if (data.company.opentime) setOpentime(data.company.opentime.substring(0, 5));
+            if (data.company.closetime) setClosetime(data.company.closetime.substring(0, 5));
           }
         }
       } catch (e) {
@@ -60,6 +66,9 @@ export default function AdminSettingsPage() {
           orgname: orgname,
           enableotp: enableotp,
           isactive: isactive,
+          otpresettime: otpresettime,
+          opentime: opentime,
+          closetime: closetime,
         }),
       });
       const data = await response.json();
@@ -109,6 +118,40 @@ export default function AdminSettingsPage() {
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
             </label>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">OTP Reset Time (Hours)</label>
+            <input 
+              type="number" 
+              min="1"
+              max="24"
+              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+              value={otpresettime} 
+              onChange={(e) => setOtpresettime(parseInt(e.target.value) || 24)} 
+            />
+            <p className="text-xs text-slate-500 mt-1">Time window before unused OTPs expire (1-24 hrs).</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Opening Time</label>
+              <input 
+                type="time" 
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+                value={opentime} 
+                onChange={(e) => setOpentime(e.target.value)} 
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Closing Time</label>
+              <input 
+                type="time" 
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+                value={closetime} 
+                onChange={(e) => setClosetime(e.target.value)} 
+              />
+            </div>
           </div>
 
           <button 

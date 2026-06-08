@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     }
 
     const result = await query(
-      "SELECT orgcode, orgname, isactive, enableotp FROM public.company WHERE orgcode = $1",
+      "SELECT orgcode, orgname, isactive, enableotp, otpresettime, opentime, closetime FROM public.company WHERE orgcode = $1",
       [orgcode]
     );
 
@@ -38,18 +38,25 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    
-    const response = await fetch("https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/company", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ ...body, authtoken }),
-    });
+    const sessionCheck = await query("SELECT orgcode, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true", [authtoken]);
+    if (sessionCheck.rows.length === 0 || sessionCheck.rows[0].isadmin !== true) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
 
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+    const body = await request.json();
+    const { orgcode, orgname, enableotp, isactive, otpresettime, opentime, closetime } = body;
+
+    // Optional: verify that the user's orgcode matches the request orgcode
+    if (sessionCheck.rows[0].orgcode !== orgcode) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
+
+    await query(
+      "UPDATE public.company SET orgname = $1, enableotp = $2, isactive = $3, otpresettime = $4, opentime = $5, closetime = $6 WHERE orgcode = $7",
+      [orgname, enableotp, isactive, otpresettime, opentime, closetime, orgcode]
+    );
+
+    return NextResponse.json({ success: true, message: "Settings updated successfully" });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message || "Server Error" },
