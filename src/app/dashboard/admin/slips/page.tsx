@@ -80,6 +80,14 @@ export default function AdminSlipsPage() {
     fetchCustomerDetails(phone);
   };
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const phoneParam = urlParams.get('phone');
+    if (phoneParam && session && !slipPhone) {
+      handleSelectSlipSuggestion(phoneParam, "", "");
+    }
+  }, [session]);
+
   const fetchCustomerDetails = async (phone: string) => {
     if (!phone.trim() || !session) return;
     setLoadingCustomer(true);
@@ -155,6 +163,22 @@ export default function AdminSlipsPage() {
   const updateSlipItemField = (index: number, field: keyof SlipItemInput, value: string) => {
     const updated = [...slipItems];
     updated[index][field] = value;
+    
+    if (field === 'qty') {
+      const numValue = parseFloat(value);
+      if (numValue < 0) {
+        if (!updated[index].remarks.toLowerCase().includes("return")) {
+          updated[index].remarks = updated[index].remarks ? updated[index].remarks + " - Return" : "Return";
+        }
+      } else if (numValue > 0) {
+        if (updated[index].remarks === "Return") {
+          updated[index].remarks = "";
+        } else if (updated[index].remarks.endsWith(" - Return")) {
+          updated[index].remarks = updated[index].remarks.slice(0, -9);
+        }
+      }
+    }
+    
     setSlipItems(updated);
     if (field === "item") {
       setActiveItemRow(index);

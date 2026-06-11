@@ -70,6 +70,14 @@ export default function UserPaymentsPage() {
     fetchCustomerDetails(p);
   };
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const phoneParam = urlParams.get('phone');
+    if (phoneParam && session && !phone) {
+      handleSelectSuggestion(phoneParam, "", "");
+    }
+  }, [session]);
+
   const fetchCustomerDetails = async (p: string) => {
     if (!p.trim() || !session) return;
     setLoadingCustomer(true);

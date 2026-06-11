@@ -150,6 +150,7 @@ export async function GET(request: Request) {
       customer,
       kpis: {
         outstanding: totalOutstanding,
+        slipsTotal: totalSlipsAmount,
         slipsCount: parseInt(slipsTotalResult.rows[0]?.count || "0", 10),
         paymentsTotal: totalPaymentsAmount,
         paymentsCount: parseInt(paymentsTotalResult.rows[0]?.count || "0", 10),
@@ -198,11 +199,27 @@ export async function DELETE(request: Request) {
     const orgcode = searchParams.get("orgcode");
     const phone = searchParams.get("phone");
 
+    const body = await request.json().catch(() => ({}));
+    const password = body.password;
+
     if (!authtoken || !orgcode || !phone) {
       return NextResponse.json(
         { success: false, message: "Missing required parameters" },
         { status: 400 }
       );
+    }
+
+    if (!password) {
+      return NextResponse.json({ success: false, message: "Admin password is required to close an account." }, { status: 400 });
+    }
+
+    const sessionCheck = await query("SELECT isadmin, password FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true", [authtoken, orgcode]);
+    if (sessionCheck.rows.length === 0 || !sessionCheck.rows[0].isadmin) {
+      return NextResponse.json({ success: false, message: "Unauthorized: Admin access required" }, { status: 401 });
+    }
+
+    if (sessionCheck.rows[0].password !== password) {
+      return NextResponse.json({ success: false, message: "Invalid password" }, { status: 401 });
     }
 
     const response = await fetch(

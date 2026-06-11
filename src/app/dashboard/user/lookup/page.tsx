@@ -29,6 +29,7 @@ export default function UserLookupPage() {
 
   const [lookupPhone, setLookupPhone] = useState("");
   const [searchedLookupPhone, setSearchedLookupPhone] = useState("");
+  const [showReturnsOnly, setShowReturnsOnly] = useState(false);
   const [loadingLookupLedger, setLoadingLookupLedger] = useState(false);
   const [hasLookupSearched, setHasLookupSearched] = useState(false);
   
@@ -366,23 +367,37 @@ export default function UserLookupPage() {
       {/* Statement details view */}
       {hasLookupSearched && (
         <div className="flex flex-col gap-6 animate-fade-in">
-          <div className="flex items-center gap-4">
-            <button 
-              type="button"
-              onClick={() => {
-                setHasLookupSearched(false);
-                setLookupPhone("");
-                setSearchedLookupPhone("");
-                setLookupData(null);
-                setSelectedDate("");
-              }}
-              className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-semibold bg-white/80 dark:bg-slate-800/80 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm backdrop-blur-xl"
-            >
-              ← Go Back
-            </button>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-              Account Statement for {lookupData?.customer?.name || searchedLookupPhone}
-            </h3>
+          <div className="flex flex-col md:flex-row md:items-center gap-4 w-full">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <button 
+                type="button"
+                onClick={() => {
+                  setHasLookupSearched(false);
+                  setLookupPhone("");
+                  setSearchedLookupPhone("");
+                  setLookupData(null);
+                  setSelectedDate("");
+                  setShowReturnsOnly(false);
+                }}
+                className="flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-semibold bg-white/80 dark:bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm backdrop-blur-xl"
+              >
+                ← Back
+              </button>
+              <h3 className="text-lg md:text-xl font-bold text-slate-900 dark:text-slate-100 flex-1 truncate">
+                {lookupData?.customer?.name || searchedLookupPhone}
+              </h3>
+            </div>
+            
+            {lookupData && (
+              <div className="flex gap-2 w-full md:w-auto md:ml-auto">
+                <a href={`/dashboard/user/slips?phone=${searchedLookupPhone}`} className="flex-1 md:flex-none text-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">
+                  + Create Slip
+                </a>
+                <a href={`/dashboard/user/payments?phone=${searchedLookupPhone}`} className="flex-1 md:flex-none text-center px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors shadow-sm shadow-green-500/20">
+                  ₹ Log Payment
+                </a>
+              </div>
+            )}
           </div>
 
           {loadingLookupLedger ? (
@@ -393,7 +408,7 @@ export default function UserLookupPage() {
           ) : lookupData ? (
             <>
               {/* KPIs Row */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
                   <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Outstanding</div>
                   <div className={`text-2xl font-bold ${lookupData.kpis.outstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
@@ -402,7 +417,8 @@ export default function UserLookupPage() {
                 </div>
                 <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
                   <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Slips</div>
-                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{lookupData.kpis.slipsCount}</div>
+                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">₹{lookupData.kpis.slipsTotal.toLocaleString()}</div>
+                  <div className="text-xs text-slate-400 mt-1">{lookupData.kpis.slipsCount} slips generated</div>
                 </div>
                 <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
                   <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Total Payments</div>
@@ -416,21 +432,33 @@ export default function UserLookupPage() {
                 </div>
               </div>
 
-              {/* Date Filter Dropdown */}
-              <div className="flex items-center gap-3 bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">Overview for Date:</span>
-                <select 
-                  className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={selectedDate}
-                  onChange={handleDateFilterChange}
-                >
-                  <option value="">All Time History</option>
-                  {lookupData.availableDates.filter(d => d).map(d => {
-                    const [y, m, day] = d.split('-');
-                    const displayDate = new Date(Number(y), Number(m)-1, Number(day)).toLocaleDateString();
-                    return <option key={d} value={d}>{displayDate}</option>;
-                  })}
-                </select>
+              {/* Date & Returns Filter Dropdown */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">Overview for:</span>
+                  <select 
+                    className="flex-1 sm:flex-none w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={selectedDate}
+                    onChange={handleDateFilterChange}
+                  >
+                    <option value="">All Time History</option>
+                    {lookupData.availableDates.filter((d: any) => d).map((d: any) => {
+                      const [y, m, day] = d.split('-');
+                      const displayDate = new Date(Number(y), Number(m)-1, Number(day)).toLocaleDateString();
+                      return <option key={d} value={d}>{displayDate}</option>;
+                    })}
+                  </select>
+                </div>
+                
+                <label className="flex items-center gap-2 cursor-pointer w-full sm:w-auto sm:ml-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={showReturnsOnly}
+                    onChange={(e) => setShowReturnsOnly(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">Return Orders Only</span>
+                </label>
               </div>
 
               {/* SLIPS TABLE */}
@@ -442,24 +470,27 @@ export default function UserLookupPage() {
                       <tr>
                         <th className="px-4 py-3">Time</th>
                         <th className="px-4 py-3">No</th>
-                        <th className="px-4 py-3">Phone</th>
-                        <th className="px-4 py-3">Name</th>
                         <th className="px-4 py-3">Item</th>
-                        <th className="px-4 py-3">Qty</th>
-                        <th className="px-4 py-3">Rate</th>
-                        <th className="px-4 py-3">Amt</th>
+                        <th className="px-4 py-3 text-right">Qty</th>
+                        <th className="px-4 py-3 text-right">Rate</th>
+                        <th className="px-4 py-3 text-right">Amt</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-slate-900">
                       {(() => {
+                        let displaySlips = lookupData.slips;
+                        if (showReturnsOnly) {
+                          displaySlips = displaySlips.filter((s: any) => parseFloat(s.qty) < 0);
+                        }
+
                         const slipTotals: Record<string, number> = {};
-                        lookupData.slips.forEach(s => {
+                        displaySlips.forEach((s: any) => {
                           slipTotals[s.no] = (slipTotals[s.no] || 0) + (parseFloat(s.amt) || 0);
                         });
 
-                        return lookupData.slips.map((s, i) => {
-                          const isFirst = i === 0 || lookupData.slips[i - 1].no !== s.no;
-                          const isLast = i === lookupData.slips.length - 1 || lookupData.slips[i + 1].no !== s.no;
+                        return displaySlips.map((s: any, i: number) => {
+                          const isFirst = i === 0 || displaySlips[i - 1].no !== s.no;
+                          const isLast = i === displaySlips.length - 1 || displaySlips[i + 1].no !== s.no;
                           
                           return (
                             <React.Fragment key={i}>
@@ -472,34 +503,58 @@ export default function UserLookupPage() {
                             <td className="px-4 py-3 font-semibold text-blue-600 dark:text-blue-400">
                               {isFirst ? `#${s.no}` : ""}
                             </td>
-                            <td className="px-4 py-3 font-mono text-slate-500">
-                              {isFirst ? s.phone : ""}
-                            </td>
-                            <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
-                              {isFirst ? (s.name || "—") : ""}
-                            </td>
                             <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{s.item}</td>
-                            <td className={`px-4 py-3 font-semibold ${parseFloat(s.qty) < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{s.qty}</td>
-                              <td className="px-4 py-3 text-slate-500">₹{s.rate}</td>
-                              <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">₹{s.amt}</td>
+                            <td className={`px-4 py-3 font-semibold text-right ${parseFloat(s.qty) < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{s.qty}</td>
+                            <td className="px-4 py-3 text-slate-500 text-right">₹{s.rate}</td>
+                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100 text-right">₹{s.amt}</td>
+                          </tr>
+                          {isLast && (
+                            <tr className="bg-slate-50 dark:bg-slate-800/30 group">
+                              <td colSpan={5} className="px-4 py-2.5 text-right">
+                                <div className="flex items-center justify-end gap-4">
+                                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session.orgcode}&format=compact`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">🖨️ Thermal</a>
+                                    <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session.orgcode}&format=a4`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">📄 A4</a>
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                    Slip #{s.no} Total
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-700 text-right">
+                                ₹{slipTotals[s.no].toFixed(2)}
+                              </td>
                             </tr>
-                            {isLast && (
-                              <tr className="bg-slate-50 dark:bg-slate-800/30">
-                                <td colSpan={6} className="px-4 py-2.5 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                  Slip #{s.no} Total
-                                </td>
-                                <td colSpan={2} className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-700">
-                                  ₹{slipTotals[s.no].toFixed(2)}
-                                </td>
-                              </tr>
-                            )}
+                          )}
                             </React.Fragment>
                           );
                         });
                       })()}
-                      {lookupData.slips.length === 0 && (
+                      {(!lookupData.slips || lookupData.slips.length === 0) && (
                         <tr>
-                          <td colSpan={8} className="text-center py-6 text-slate-500">No slip items found for this selection.</td>
+                          <td colSpan={6} className="text-center py-6 text-slate-500">No slip items found for this selection.</td>
+                        </tr>
+                      )}
+                      {lookupData.slips && lookupData.slips.length > 0 && showReturnsOnly && !lookupData.slips.some((s: any) => parseFloat(s.qty) < 0) && (
+                        <tr>
+                          <td colSpan={6} className="text-center py-6 text-slate-500">No return orders found for this selection.</td>
+                        </tr>
+                      )}
+                      {lookupData.slips && lookupData.slips.length > 0 && (
+                        <tr className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-300 dark:border-slate-600">
+                          <td colSpan={5} className="px-4 py-4 text-right text-sm text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                            Grand Total (Slips)
+                          </td>
+                          <td className="px-4 py-4 text-right text-lg text-slate-900 dark:text-slate-100">
+                            ₹{(() => {
+                              let displaySlips = lookupData.slips;
+                              if (showReturnsOnly) {
+                                displaySlips = displaySlips.filter((s: any) => parseFloat(s.qty) < 0);
+                              }
+                              const grandTotal = displaySlips.reduce((acc: number, s: any) => acc + (parseFloat(s.amt) || 0), 0);
+                              return grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            })()}
+                          </td>
                         </tr>
                       )}
                     </tbody>
@@ -515,23 +570,34 @@ export default function UserLookupPage() {
                     <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider text-xs">
                       <tr>
                         <th className="px-4 py-3">Time</th>
-                        <th className="px-4 py-3">Phone</th>
                         <th className="px-4 py-3">Narration</th>
-                        <th className="px-4 py-3">Amount</th>
+                        <th className="px-4 py-3 text-right">Amount</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                       {lookupData.payments.map((p, i) => (
                         <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                           <td className="px-4 py-3 text-slate-500">{new Date(p.time).toLocaleDateString()}</td>
-                          <td className="px-4 py-3 font-mono text-slate-500">{p.phone}</td>
-                          <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{p.narration || "—"}</td>
-                          <td className="px-4 py-3 font-bold text-green-600 dark:text-green-400">₹{p.amt}</td>
+                          <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{p.narration || "—"}</td>
+                          <td className="px-4 py-3 font-bold text-green-600 dark:text-green-400 text-right">₹{p.amt}</td>
                         </tr>
                       ))}
                       {lookupData.payments.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="text-center py-6 text-slate-500">No payments found for this selection.</td>
+                          <td colSpan={3} className="text-center py-6 text-slate-500">No payments found for this selection.</td>
+                        </tr>
+                      )}
+                      {lookupData.payments && lookupData.payments.length > 0 && (
+                        <tr className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-300 dark:border-slate-600">
+                          <td colSpan={2} className="px-4 py-4 text-right text-sm text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                            Grand Total (Payments)
+                          </td>
+                          <td className="px-4 py-4 text-right text-lg text-green-600 dark:text-green-400">
+                            ₹{(() => {
+                              const grandTotal = lookupData.payments.reduce((acc: number, p: any) => acc + (parseFloat(p.amt) || 0), 0);
+                              return grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            })()}
+                          </td>
                         </tr>
                       )}
                     </tbody>
