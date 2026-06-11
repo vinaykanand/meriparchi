@@ -13,6 +13,7 @@ interface LookupData {
   customer: { name: string, phone: string, address: string };
   kpis: {
     outstanding: number;
+    slipsTotal: number;
     slipsCount: number;
     paymentsTotal: number;
     paymentsCount: number;
@@ -513,8 +514,8 @@ export default function UserLookupPage() {
                               <td colSpan={5} className="px-4 py-2.5 text-right">
                                 <div className="flex items-center justify-end gap-4">
                                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session.orgcode}&format=compact`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">🖨️ Thermal</a>
-                                    <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session.orgcode}&format=a4`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">📄 A4</a>
+                                    <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=compact`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">🖨️ Thermal</a>
+                                    <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=a4`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">📄 A4</a>
                                   </div>
                                   <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                                     Slip #{s.no} Total
