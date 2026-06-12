@@ -23,6 +23,7 @@ export default function UserSlipsPage() {
   const [slipName, setSlipName] = useState("");
   const [slipAddress, setSlipAddress] = useState("");
   const [slipItems, setSlipItems] = useState<SlipItemInput[]>([{ item: "", remarks: "", qty: "1", rate: "0" }]);
+  const [recentSlipsData, setRecentSlipsData] = useState<any[]>([]);
   const [savingSlip, setSavingSlip] = useState(false);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
   const [paymentMade, setPaymentMade] = useState<string>("0");
@@ -81,6 +82,22 @@ export default function UserSlipsPage() {
   };
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setSlipItems(prev => [...prev, { item: "", remarks: "", qty: "1", rate: "0" }]);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        const form = document.getElementById('slip-form') as HTMLFormElement;
+        if (form) form.requestSubmit();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const phoneParam = urlParams.get('phone');
     if (phoneParam && session && !slipPhone) {
@@ -95,19 +112,26 @@ export default function UserSlipsPage() {
       const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&phone=${phone.trim()}`);
       const data = await response.json();
       if (response.ok && data.success) {
-        let slipSum = 0;
-        let paySum = 0;
-        if (data.summary && Array.isArray(data.summary)) {
-          data.summary.forEach((row: any) => {
-            slipSum += parseFloat(row.netamount) || 0;
-            paySum += parseFloat(row.paymentmade) || 0;
-          });
-        }
-        setPreviousBalance(slipSum - paySum);
+        setPreviousBalance(data.kpis?.outstanding || 0);
 
         if (data.customer) {
           if (data.customer.name) setSlipName(data.customer.name);
           if (data.customer.address) setSlipAddress(data.customer.address);
+        }
+        
+        if (data.slips) {
+          const uniqueSlipsMap = new Map();
+          data.slips.forEach((s: any) => {
+            if (!uniqueSlipsMap.has(s.no)) {
+              uniqueSlipsMap.set(s.no, { ...s, totalAmt: parseFloat(s.amt) || 0 });
+            } else {
+              const existing = uniqueSlipsMap.get(s.no);
+              existing.totalAmt += parseFloat(s.amt) || 0;
+            }
+          });
+          setRecentSlipsData(Array.from(uniqueSlipsMap.values()).slice(0, 2));
+        } else {
+          setRecentSlipsData([]);
         }
         addToast("Customer history loaded", "success");
       }
@@ -291,7 +315,7 @@ export default function UserSlipsPage() {
       <p className="text-slate-500 text-sm mt-1 mb-4">Log client transaction slips and billable items.</p>
 
       <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
-        <form onSubmit={handleSaveSlipAndPayment} className="flex flex-col gap-6">
+        <form id="slip-form" onSubmit={handleSaveSlipAndPayment} onKeyDown={(e) => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') e.preventDefault(); }} className="flex flex-col gap-6">
           {/* Customer Info Card */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="flex flex-col gap-1 relative" onClick={(e) => e.stopPropagation()}>
@@ -364,13 +388,6 @@ export default function UserSlipsPage() {
           <div className="mb-6">
             <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">
               <span className="font-semibold text-gray-900 dark:text-gray-100">Slip Items List</span>
-              <button 
-                type="button" 
-                className="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                onClick={addSlipItemField}
-              >
-                + Add Item
-              </button>
             </div>
 
             <div className="w-full overflow-visible rounded-lg border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-black/20">
@@ -472,6 +489,16 @@ export default function UserSlipsPage() {
                 </tbody>
               </table>
             </div>
+            <div className="mt-4 flex justify-between items-center">
+              <span className="text-xs text-slate-500">Shortcut: <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">Alt</kbd> + <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">A</kbd> to add item</span>
+              <button 
+                type="button" 
+                className="px-4 py-2 text-sm font-bold rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm"
+                onClick={addSlipItemField}
+              >
+                + Add Item
+              </button>
+            </div>
           </div>
 
           {/* Calculations & Payment made panel */}
@@ -520,6 +547,32 @@ export default function UserSlipsPage() {
           </button>
         </form>
       </div>
+
+      {/* Recent Slips Preview */}
+      {recentSlipsData.length > 0 && (
+        <div className="mt-8 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+          <h3 className="font-bold text-slate-900 dark:text-slate-100 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Recent Slips for this Customer</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recentSlipsData.map((s: any, idx: number) => (
+              <div key={idx} className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col justify-between bg-slate-50 dark:bg-slate-900/50">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <div className="font-bold text-blue-600 dark:text-blue-400">Slip #{s.no}</div>
+                    <div className="text-xs text-slate-500">{new Date(s.time).toLocaleDateString()} {new Date(s.time).toLocaleTimeString()}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-slate-900 dark:text-slate-100">₹{s.totalAmt.toFixed(2)}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${slipPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=compact`} className="flex-1 text-center py-2 text-sm font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors shadow-sm">🖨️ Print Thermal</a>
+                  <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${slipPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=a4`} className="flex-1 text-center py-2 text-sm font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors shadow-sm">📄 Print A4</a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Toasts */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">

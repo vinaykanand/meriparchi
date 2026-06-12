@@ -85,15 +85,7 @@ export default function UserPaymentsPage() {
       const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&phone=${p.trim()}`);
       const data = await response.json();
       if (response.ok && data.success) {
-        let slipSum = 0;
-        let paySum = 0;
-        if (data.summary && Array.isArray(data.summary)) {
-          data.summary.forEach((row: any) => {
-            slipSum += parseFloat(row.netamount) || 0;
-            paySum += parseFloat(row.paymentmade) || 0;
-          });
-        }
-        setPreviousBalance(slipSum - paySum);
+        setPreviousBalance(data.kpis?.outstanding || 0);
 
         if (data.customer) {
           if (data.customer.name) setName(data.customer.name);

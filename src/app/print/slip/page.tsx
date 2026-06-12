@@ -83,6 +83,8 @@ function PrintSlipContent() {
           total,
           date: slipDate,
         });
+        
+        document.title = `${phone} - ${ledgerData.customer?.name || 'Customer'} - Slip ${slipno}`;
       } catch (err: any) {
         setError(err.message || "An error occurred");
       } finally {
@@ -121,8 +123,7 @@ function PrintSlipContent() {
           }
         `}} />
         <div className="text-center pb-2 border-b border-dashed border-black mb-2">
-          <h1 className="text-xl font-bold uppercase">{data.orgname}</h1>
-          <div className="text-xs mt-1">CASH MEMO</div>
+          <h1 className="text-xl font-bold uppercase">SLIP DETAILS</h1>
         </div>
         
         <div className="mb-2 text-xs">
@@ -179,8 +180,7 @@ function PrintSlipContent() {
       <div className="border-2 border-black p-6 relative min-h-[900px] flex flex-col">
         {/* Header */}
         <div className="text-center pb-4 border-b-2 border-black">
-          <h1 className="text-3xl font-bold uppercase tracking-wider">{data.orgname}</h1>
-          <div className="text-sm font-semibold tracking-widest mt-1 uppercase">Tax Invoice / Cash Memo</div>
+          <h1 className="text-3xl font-bold uppercase tracking-widest mt-2">Slip Details</h1>
         </div>
 
         {/* Details Section */}

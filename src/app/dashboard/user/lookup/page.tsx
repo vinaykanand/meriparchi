@@ -391,6 +391,9 @@ export default function UserLookupPage() {
             
             {lookupData && (
               <div className="flex gap-2 w-full md:w-auto md:ml-auto">
+                <a target="_blank" rel="noopener noreferrer" href={`/print/ledger?phone=${searchedLookupPhone}&orgcode=${session?.orgcode}`} className="flex-1 md:flex-none text-center px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors shadow-sm shadow-purple-500/20">
+                  🖨️ Print Ledger
+                </a>
                 <a href={`/dashboard/user/slips?phone=${searchedLookupPhone}`} className="flex-1 md:flex-none text-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">
                   + Create Slip
                 </a>
@@ -504,7 +507,10 @@ export default function UserLookupPage() {
                             <td className="px-4 py-3 font-semibold text-blue-600 dark:text-blue-400">
                               {isFirst ? `#${s.no}` : ""}
                             </td>
-                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{s.item}</td>
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-slate-900 dark:text-slate-100">{s.item}</div>
+                              {s.remarks && <div className="text-xs text-slate-500 mt-0.5">{s.remarks}</div>}
+                            </td>
                             <td className={`px-4 py-3 font-semibold text-right ${parseFloat(s.qty) < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{s.qty}</td>
                             <td className="px-4 py-3 text-slate-500 text-right">₹{s.rate}</td>
                             <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100 text-right">₹{s.amt}</td>
