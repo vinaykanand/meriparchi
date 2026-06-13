@@ -36,6 +36,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
     { name: "Create Slip", href: "/dashboard/admin/slips", icon: "📄" },
     { name: "Log Payment", href: "/dashboard/admin/payments", icon: "💵" },
     { name: "Lookup Ledger", href: "/dashboard/admin/lookup", icon: "🔍" },
+    { name: "Reports & Filters", href: "/dashboard/admin/reports", icon: "📈" },
     { name: "Manage Users", href: "/dashboard/admin/users", icon: "👥" },
     { name: "Organization Settings", href: "/dashboard/admin/settings", icon: "⚙️" },
   ];

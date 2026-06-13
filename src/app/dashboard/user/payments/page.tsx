@@ -81,6 +81,8 @@ export default function UserPaymentsPage() {
   const fetchCustomerDetails = async (p: string) => {
     if (!p.trim() || !session) return;
     setLoadingCustomer(true);
+    setPreviousBalance(0);
+    
     try {
       const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&phone=${p.trim()}`);
       const data = await response.json();
@@ -164,6 +166,7 @@ export default function UserPaymentsPage() {
                 value={phone} 
                 onChange={(e) => {
                   setPhone(e.target.value);
+                  setPreviousBalance(0);
                   setShowSuggestions(true);
                 }}
                 onFocus={() => setShowSuggestions(true)}

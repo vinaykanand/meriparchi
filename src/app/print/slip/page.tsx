@@ -34,6 +34,8 @@ function PrintSlipContent() {
     slips: any[];
     total: number;
     date: string;
+    kpis: any;
+    payments: any[];
   } | null>(null);
 
   useEffect(() => {
@@ -82,6 +84,8 @@ function PrintSlipContent() {
           slips: slipItems,
           total,
           date: slipDate,
+          kpis: ledgerData.kpis,
+          payments: ledgerData.payments || []
         });
         
         document.title = `${phone} - ${ledgerData.customer?.name || 'Customer'} - Slip ${slipno}`;
@@ -123,12 +127,12 @@ function PrintSlipContent() {
           }
         `}} />
         <div className="text-center pb-2 border-b border-dashed border-black mb-2">
-          <h1 className="text-xl font-bold uppercase">SLIP DETAILS</h1>
+          <h1 className="text-xl font-bold uppercase">SLIP DETAIL / ESTIMATE</h1>
         </div>
         
         <div className="mb-2 text-xs">
           <div><span className="font-bold">Slip No:</span> {slipno}</div>
-          <div><span className="font-bold">Date:</span> {new Date(data.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'})}</div>
+          <div><span className="font-bold">Date:</span> {new Date(data.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})} {new Date(data.date).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}</div>
           <div className="mt-1"><span className="font-bold">Name:</span> {data.customer?.name || "Cash Customer"}</div>
           <div><span className="font-bold">Mob:</span> {data.customer?.phone}</div>
         </div>
@@ -145,8 +149,9 @@ function PrintSlipContent() {
             <tbody>
               {data.slips.map((item, idx) => (
                 <tr key={idx}>
-                  <td className="py-1 align-top pr-1 whitespace-pre-wrap">{item.item}
-                    {item.remarks && <div className="text-[10px] text-gray-600 italic">({item.remarks})</div>}
+                  <td className="py-1 align-top pr-1 whitespace-pre-wrap">
+                    {item.item} <span className="text-[10px]">@ ₹{parseFloat(item.rate).toFixed(2)}</span>
+                    {item.remarks && <span className="text-[10px] text-gray-600 italic ml-1">- {item.remarks}</span>}
                   </td>
                   <td className="py-1 align-top text-right pr-1">{item.qty}</td>
                   <td className="py-1 align-top text-right">₹{item.amt}</td>
@@ -159,6 +164,12 @@ function PrintSlipContent() {
         <div className="flex justify-between items-center font-bold text-sm border-b border-dashed border-black pb-2 mb-2">
           <span>TOTAL:</span>
           <span>₹{data.total.toFixed(2)}</span>
+        </div>
+
+        <div className="border-b border-dashed border-black pb-2 mb-2 text-[10px]">
+          <div className="font-bold mb-1">Account Summary:</div>
+          <div className="flex justify-between"><span>Total Paid:</span> <span>₹{data.kpis?.paymentsTotal?.toFixed(2) || "0.00"}</span></div>
+          <div className="flex justify-between font-bold mt-0.5"><span>Net Outstanding:</span> <span>₹{data.kpis?.outstanding?.toFixed(2) || "0.00"}</span></div>
         </div>
 
         <div className="text-center text-xs mt-4">
@@ -180,7 +191,7 @@ function PrintSlipContent() {
       <div className="border-2 border-black p-6 relative min-h-[900px] flex flex-col">
         {/* Header */}
         <div className="text-center pb-4 border-b-2 border-black">
-          <h1 className="text-3xl font-bold uppercase tracking-widest mt-2">Slip Details</h1>
+          <h1 className="text-3xl font-bold uppercase tracking-widest mt-2">Slip Detail / Estimate</h1>
         </div>
 
         {/* Details Section */}
@@ -215,8 +226,8 @@ function PrintSlipContent() {
                 <tr key={idx}>
                   <td className="border-2 border-black border-t-0 px-3 py-2 text-center">{idx + 1}</td>
                   <td className="border-2 border-black border-t-0 px-3 py-2">
-                    <div className="font-semibold">{item.item}</div>
-                    {item.remarks && <div className="text-xs text-gray-600 mt-0.5">{item.remarks}</div>}
+                    <span className="font-semibold">{item.item}</span>
+                    {item.remarks && <span className="text-xs text-gray-600 italic ml-2">- {item.remarks}</span>}
                   </td>
                   <td className="border-2 border-black border-t-0 px-3 py-2 text-right">{item.qty}</td>
                   <td className="border-2 border-black border-t-0 px-3 py-2 text-right">{parseFloat(item.rate).toFixed(2)}</td>
@@ -245,9 +256,15 @@ function PrintSlipContent() {
               <div className="italic text-sm mt-1">{numberToWords(Math.round(data.total))}</div>
             </div>
             <div className="w-1/3">
-              <div className="flex justify-between border-2 border-black px-4 py-2 bg-gray-100">
+              <div className="flex justify-between border-2 border-black px-4 py-2 bg-gray-100 mb-2">
                 <span className="font-bold text-lg">Grand Total:</span>
                 <span className="font-bold text-lg">₹{data.total.toFixed(2)}</span>
+              </div>
+              <div className="border border-black p-2 text-xs">
+                <div className="font-bold mb-1 border-b border-gray-300 pb-1">Account Summary</div>
+                <div className="flex justify-between mb-0.5"><span>Total Billed:</span> <span>₹{data.kpis?.slipsTotal?.toFixed(2) || "0.00"}</span></div>
+                <div className="flex justify-between mb-0.5"><span>Total Paid:</span> <span className="text-green-700">₹{data.kpis?.paymentsTotal?.toFixed(2) || "0.00"}</span></div>
+                <div className="flex justify-between font-bold mt-1 pt-1 border-t border-gray-300"><span>Net Outstanding:</span> <span className={data.kpis?.outstanding > 0 ? "text-red-700" : ""}>₹{data.kpis?.outstanding?.toFixed(2) || "0.00"}</span></div>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 interface SlipItemInput {
@@ -22,7 +22,8 @@ export default function AdminSlipsPage() {
   const [slipPhone, setSlipPhone] = useState("");
   const [slipName, setSlipName] = useState("");
   const [slipAddress, setSlipAddress] = useState("");
-  const [slipItems, setSlipItems] = useState<SlipItemInput[]>([{ item: "", remarks: "", qty: "1", rate: "0" }]);
+  const [slipItems, setSlipItems] = useState<SlipItemInput[]>([{ item: "", remarks: "", qty: "0", rate: "0" }]);
+  const itemRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [recentSlipsData, setRecentSlipsData] = useState<any[]>([]);
   const [savingSlip, setSavingSlip] = useState(false);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
@@ -85,7 +86,11 @@ export default function AdminSlipsPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        setSlipItems(prev => [...prev, { item: "", remarks: "", qty: "1", rate: "0" }]);
+        setSlipItems(prev => {
+          const newLength = prev.length;
+          setTimeout(() => itemRefs.current[newLength]?.focus(), 50);
+          return [...prev, { item: "", remarks: "", qty: "0", rate: "0" }];
+        });
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
@@ -108,6 +113,9 @@ export default function AdminSlipsPage() {
   const fetchCustomerDetails = async (phone: string) => {
     if (!phone.trim() || !session) return;
     setLoadingCustomer(true);
+    setPreviousBalance(0);
+    setRecentSlipsData([]);
+    
     try {
       const response = await fetch(`/api/ledger?orgcode=${session.orgcode}&phone=${phone.trim()}`);
       const data = await response.json();
@@ -174,7 +182,11 @@ export default function AdminSlipsPage() {
   };
 
   const addSlipItemField = () => {
-    setSlipItems([...slipItems, { item: "", remarks: "", qty: "1", rate: "0" }]);
+    setSlipItems(prev => {
+      const newLength = prev.length;
+      setTimeout(() => itemRefs.current[newLength]?.focus(), 50);
+      return [...prev, { item: "", remarks: "", qty: "0", rate: "0" }];
+    });
   };
 
   const removeSlipItemField = (index: number) => {
@@ -294,7 +306,7 @@ export default function AdminSlipsPage() {
           }
         }
 
-        setSlipItems([{ item: "", remarks: "", qty: "1", rate: "0" }]);
+        setSlipItems([{ item: "", remarks: "", qty: "0", rate: "0" }]);
         setPaymentMade("0");
         fetchCustomerDetails(slipPhone);
       } else {
@@ -329,6 +341,8 @@ export default function AdminSlipsPage() {
                   value={slipPhone} 
                   onChange={(e) => {
                     setSlipPhone(e.target.value);
+                    setPreviousBalance(0);
+                    setRecentSlipsData([]);
                     setShowSlipSuggestions(true);
                   }}
                   onFocus={() => setShowSlipSuggestions(true)}
@@ -412,6 +426,7 @@ export default function AdminSlipsPage() {
                         <td className="px-3 py-2 relative">
                           <input 
                             type="text" 
+                            ref={(el) => { itemRefs.current[idx] = el; }}
                             className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow" 
                             placeholder="e.g. Paint" 
                             value={itemInput.item} 
