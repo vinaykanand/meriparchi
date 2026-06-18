@@ -128,7 +128,7 @@ export async function GET(request: Request) {
     );
 
     const slipsQuery = `
-      SELECT s.date as time, s.slipno as no, s.phone, s.name, i.item, i.qty, i.rate, i.amount as amt 
+      SELECT s.date as time, s.slipno as no, s.phone, s.name, i.item, i.qty, i.rate, i.amount as amt, i.remarks 
       FROM public.slips s 
       JOIN public.slipitems i ON s.id = i.id 
       WHERE s.orgcode = $1 AND s.phone = $2 ${dateFilterSlip}

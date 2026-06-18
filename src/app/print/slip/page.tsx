@@ -151,7 +151,7 @@ function PrintSlipContent() {
                 <tr key={idx}>
                   <td className="py-1 align-top pr-1 whitespace-pre-wrap">
                     {item.item} <span className="text-[10px]">@ ₹{parseFloat(item.rate).toFixed(2)}</span>
-                    {item.remarks && <span className="text-[10px] text-gray-600 italic ml-1">- {item.remarks}</span>}
+                    {item.remarks && <div className="text-[10px] text-gray-600 italic">- {item.remarks}</div>}
                   </td>
                   <td className="py-1 align-top text-right pr-1">{item.qty}</td>
                   <td className="py-1 align-top text-right">₹{item.amt}</td>
@@ -166,10 +166,26 @@ function PrintSlipContent() {
           <span>₹{data.total.toFixed(2)}</span>
         </div>
 
+        {data.payments && data.payments.length > 0 && (
+          <div className="border-b border-dashed border-black pb-2 mb-2 text-xs">
+            <div className="font-bold mb-1">Payment History:</div>
+            {data.payments.map((p: any, idx: number) => (
+              <div key={idx} className="flex justify-between mb-1">
+                <div className="flex flex-col">
+                  <span>{new Date(p.time).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}</span>
+                  {p.narration && <span className="text-[10px] italic text-gray-600">{p.narration}</span>}
+                </div>
+                <span>₹{parseFloat(p.amt).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="border-b border-dashed border-black pb-2 mb-2 text-[10px]">
           <div className="font-bold mb-1">Account Summary:</div>
+          <div className="flex justify-between"><span>Total Billed:</span> <span>₹{data.kpis?.slipsTotal?.toFixed(2) || "0.00"}</span></div>
           <div className="flex justify-between"><span>Total Paid:</span> <span>₹{data.kpis?.paymentsTotal?.toFixed(2) || "0.00"}</span></div>
-          <div className="flex justify-between font-bold mt-0.5"><span>Net Outstanding:</span> <span>₹{data.kpis?.outstanding?.toFixed(2) || "0.00"}</span></div>
+          <div className="flex justify-between font-bold mt-0.5 border-t border-dashed border-black pt-0.5"><span>Net Outstanding:</span> <span>₹{data.kpis?.outstanding?.toFixed(2) || "0.00"}</span></div>
         </div>
 
         <div className="text-center text-xs mt-4">
@@ -246,6 +262,30 @@ function PrintSlipContent() {
               ))}
             </tbody>
           </table>
+
+          {data.payments && data.payments.length > 0 && (
+            <div className="mt-4 mb-4">
+              <div className="font-bold text-sm mb-1 bg-gray-100 border-2 border-black border-b-0 px-2 py-1">Payment History</div>
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border-2 border-black px-3 py-1 w-32">Date</th>
+                    <th className="border-2 border-black px-3 py-1">Narration</th>
+                    <th className="border-2 border-black px-3 py-1 text-right w-32">Amount Paid (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.payments.map((p: any, idx: number) => (
+                    <tr key={idx}>
+                      <td className="border-2 border-black border-t-0 px-3 py-1">{new Date(p.time).toLocaleDateString('en-IN')}</td>
+                      <td className="border-2 border-black border-t-0 px-3 py-1">{p.narration || "-"}</td>
+                      <td className="border-2 border-black border-t-0 px-3 py-1 text-right text-green-700 font-semibold">{parseFloat(p.amt).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Footer / Total */}
@@ -269,16 +309,6 @@ function PrintSlipContent() {
             </div>
           </div>
 
-          <div className="flex justify-between mt-12 pt-4">
-            <div className="text-xs text-gray-500">
-              * Subject to local jurisdiction.<br/>
-              * E. & O. E.
-            </div>
-            <div className="text-center">
-              <div className="w-48 border-b-2 border-black mb-1"></div>
-              <div className="font-bold text-sm uppercase">Authorized Signatory</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

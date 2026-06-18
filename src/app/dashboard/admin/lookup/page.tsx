@@ -78,7 +78,14 @@ export default function AdminLookupPage() {
 
   useEffect(() => {
     if (session && !hasLookupSearched) {
-      fetchRecentData(session.orgcode);
+      const urlParams = new URLSearchParams(window.location.search);
+      const phoneParam = urlParams.get('phone');
+      if (phoneParam) {
+        setLookupPhone(phoneParam);
+        executeLookup(phoneParam, "");
+      } else {
+        fetchRecentData(session.orgcode);
+      }
     }
   }, [session, hasLookupSearched]);
 

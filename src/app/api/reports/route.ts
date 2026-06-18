@@ -44,19 +44,20 @@ export async function GET(request: Request) {
       
       const dbResult = await query(
         `WITH last_slips AS (
-           SELECT phone, MAX(name) as name, MAX(address) as address, MAX(date) as last_slip_date
+           SELECT phone, MAX(name) as name, MAX(address) as address, MAX(date) as last_slip_date, SUM(netamount) as total_slips
            FROM public.slips
            WHERE orgcode = $1
            GROUP BY phone
          ),
          last_payments AS (
-           SELECT phone, MAX(date) as last_payment_date
+           SELECT phone, MAX(date) as last_payment_date, SUM(amount) as total_payments
            FROM public.payments
            WHERE orgcode = $1
            GROUP BY phone
          )
          SELECT s.phone, s.name, s.address, s.last_slip_date, p.last_payment_date,
-                GREATEST(s.last_slip_date, p.last_payment_date) as last_activity
+                GREATEST(s.last_slip_date, p.last_payment_date) as last_activity,
+                (COALESCE(s.total_slips, 0) - COALESCE(p.total_payments, 0)) as outstanding
          FROM last_slips s
          LEFT JOIN last_payments p ON s.phone = p.phone
          WHERE GREATEST(s.last_slip_date, p.last_payment_date) < CURRENT_DATE - $2::interval
