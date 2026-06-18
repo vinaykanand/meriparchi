@@ -4,6 +4,17 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AuthProvider, { useAuth } from "@/components/providers/AuthProvider";
+import { 
+  ChartBarIcon, 
+  DocumentPlusIcon, 
+  BanknotesIcon, 
+  MagnifyingGlassIcon, 
+  PresentationChartLineIcon, 
+  UsersIcon, 
+  Cog6ToothIcon,
+  SunIcon,
+  MoonIcon
+} from "@heroicons/react/24/outline";
 
 function AdminDashboardContent({ children }: { children: React.ReactNode }) {
   const { session, logout } = useAuth();
@@ -32,13 +43,13 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
   };
 
   const navLinks = [
-    { name: "Overview", href: "/dashboard/admin", icon: "📊" },
-    { name: "Create Slip", href: "/dashboard/admin/slips", icon: "📄" },
-    { name: "Log Payment", href: "/dashboard/admin/payments", icon: "💵" },
-    { name: "Lookup Ledger", href: "/dashboard/admin/lookup", icon: "🔍" },
-    { name: "Reports & Filters", href: "/dashboard/admin/reports", icon: "📈" },
-    { name: "Manage Users", href: "/dashboard/admin/users", icon: "👥" },
-    { name: "Organization Settings", href: "/dashboard/admin/settings", icon: "⚙️" },
+    { name: "Overview", href: "/dashboard/admin", icon: <ChartBarIcon className="w-5 h-5" /> },
+    { name: "Create Slip", href: "/dashboard/admin/slips", icon: <DocumentPlusIcon className="w-5 h-5" /> },
+    { name: "Log Payment", href: "/dashboard/admin/payments", icon: <BanknotesIcon className="w-5 h-5" /> },
+    { name: "Lookup Ledger", href: "/dashboard/admin/lookup", icon: <MagnifyingGlassIcon className="w-5 h-5" /> },
+    { name: "Reports & Filters", href: "/dashboard/admin/reports", icon: <PresentationChartLineIcon className="w-5 h-5" /> },
+    { name: "Manage Users", href: "/dashboard/admin/users", icon: <UsersIcon className="w-5 h-5" /> },
+    { name: "Organization Settings", href: "/dashboard/admin/settings", icon: <Cog6ToothIcon className="w-5 h-5" /> },
   ];
 
   return (
@@ -62,7 +73,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
             <span className="font-semibold">{session?.userid}</span>
           </div>
           <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={toggleTheme} aria-label="Toggle Theme">
-            {theme === "dark" ? "☀️" : "🌙"}
+            {theme === "dark" ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
           </button>
           <button className="px-4 py-1.5 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent hover:border-red-200 dark:hover:border-red-800 transition-colors" onClick={logout}>
             Sign Out
@@ -85,7 +96,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                       ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm" 
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
                 >
-                  <span>{link.icon}</span>
+                  <span className="flex-shrink-0">{link.icon}</span>
                   {link.name}
                 </Link>
               );

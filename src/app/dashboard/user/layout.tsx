@@ -4,6 +4,13 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AuthProvider, { useAuth } from "@/components/providers/AuthProvider";
+import { 
+  DocumentPlusIcon, 
+  BanknotesIcon, 
+  MagnifyingGlassIcon,
+  SunIcon,
+  MoonIcon
+} from "@heroicons/react/24/outline";
 
 function UserDashboardContent({ children }: { children: React.ReactNode }) {
   const { session, logout } = useAuth();
@@ -32,9 +39,9 @@ function UserDashboardContent({ children }: { children: React.ReactNode }) {
   };
 
   const navLinks = [
-    { name: "Create Slip", href: "/dashboard/user/slips", icon: "📄" },
-    { name: "Log Payment", href: "/dashboard/user/payments", icon: "💵" },
-    { name: "Lookup Ledger", href: "/dashboard/user/lookup", icon: "🔍" },
+    { name: "Create Slip", href: "/dashboard/user/slips", icon: <DocumentPlusIcon className="w-5 h-5" /> },
+    { name: "Log Payment", href: "/dashboard/user/payments", icon: <BanknotesIcon className="w-5 h-5" /> },
+    { name: "Lookup Ledger", href: "/dashboard/user/lookup", icon: <MagnifyingGlassIcon className="w-5 h-5" /> },
   ];
 
   return (
@@ -58,7 +65,7 @@ function UserDashboardContent({ children }: { children: React.ReactNode }) {
             <span className="font-semibold">{session?.userid}</span>
           </div>
           <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={toggleTheme} aria-label="Toggle Theme">
-            {theme === "dark" ? "☀️" : "🌙"}
+            {theme === "dark" ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
           </button>
           <button className="px-4 py-1.5 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent hover:border-red-200 dark:hover:border-red-800 transition-colors" onClick={logout}>
             Sign Out
@@ -81,7 +88,7 @@ function UserDashboardContent({ children }: { children: React.ReactNode }) {
                       ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 shadow-sm" 
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
                 >
-                  <span>{link.icon}</span>
+                  <span className="flex-shrink-0">{link.icon}</span>
                   {link.name}
                 </Link>
               );

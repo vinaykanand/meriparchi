@@ -20,7 +20,7 @@ export default function AdminReportsPage() {
   const router = useRouter();
   
   const [filterType, setFilterType] = useState<string>("zero_outstanding");
-  const [days, setDays] = useState<number>(30);
+  const [days, setDays] = useState<number | "">(30);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ReportCustomer[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -64,7 +64,7 @@ export default function AdminReportsPage() {
     try {
       let url = `/api/reports?orgcode=${session.orgcode}&filter=${filterType}`;
       if (filterType === "no_activity") {
-        url += `&days=${days}`;
+        url += `&days=${days || 0}`;
       }
 
       const res = await fetch(url);
@@ -116,7 +116,10 @@ export default function AdminReportsPage() {
                 type="number"
                 min="1"
                 value={days}
-                onChange={(e) => setDays(parseInt(e.target.value) || 0)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDays(val === "" ? "" : parseInt(val));
+                }}
                 className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl bg-white/50 dark:bg-slate-900/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all dark:text-white"
               />
             </div>

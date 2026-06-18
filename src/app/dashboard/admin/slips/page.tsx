@@ -22,7 +22,7 @@ export default function AdminSlipsPage() {
   const [slipPhone, setSlipPhone] = useState("");
   const [slipName, setSlipName] = useState("");
   const [slipAddress, setSlipAddress] = useState("");
-  const [slipItems, setSlipItems] = useState<SlipItemInput[]>([{ item: "", remarks: "", qty: "0", rate: "0" }]);
+  const [slipItems, setSlipItems] = useState<SlipItemInput[]>([{ item: "", remarks: "", qty: "", rate: "" }]);
   const itemRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [recentSlipsData, setRecentSlipsData] = useState<any[]>([]);
   const [savingSlip, setSavingSlip] = useState(false);
@@ -89,7 +89,7 @@ export default function AdminSlipsPage() {
         setSlipItems(prev => {
           const newLength = prev.length;
           setTimeout(() => itemRefs.current[newLength]?.focus(), 50);
-          return [...prev, { item: "", remarks: "", qty: "0", rate: "0" }];
+          return [...prev, { item: "", remarks: "", qty: "", rate: "" }];
         });
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -175,7 +175,7 @@ export default function AdminSlipsPage() {
       ...updated[activeItemRow],
       item: suggestion.item,
       remarks: suggestion.remarks || "",
-      rate: suggestion.rate || "0"
+      rate: suggestion.rate || ""
     };
     setSlipItems(updated);
     setShowItemSuggestions(false);
@@ -185,7 +185,7 @@ export default function AdminSlipsPage() {
     setSlipItems(prev => {
       const newLength = prev.length;
       setTimeout(() => itemRefs.current[newLength]?.focus(), 50);
-      return [...prev, { item: "", remarks: "", qty: "0", rate: "0" }];
+      return [...prev, { item: "", remarks: "", qty: "", rate: "" }];
     });
   };
 
@@ -237,13 +237,13 @@ export default function AdminSlipsPage() {
     e.preventDefault();
     if (!session || !slipPhone.trim()) return;
 
-    const invalidItem = slipItems.some((it) => !it.item.trim());
-    if (invalidItem) {
-      addToast("Item name is required for all lines", "error");
+    const cleanedItems = slipItems.filter(it => it.item.trim() !== "");
+    if (cleanedItems.length === 0) {
+      addToast("At least one item is required for a slip.", "error");
       return;
     }
 
-    const hasNegativeRate = slipItems.some(
+    const hasNegativeRate = cleanedItems.some(
       (it) => (parseFloat(it.rate) || 0) < 0
     );
     if (hasNegativeRate) {
@@ -261,7 +261,7 @@ export default function AdminSlipsPage() {
 
     setSavingSlip(true);
 
-    const formattedItems = slipItems.map((it) => ({
+    const formattedItems = cleanedItems.map((it) => ({
       item: it.item.trim(),
       remarks: it.remarks ? it.remarks.trim() : "",
       qty: parseFloat(it.qty) || 0,
@@ -470,6 +470,11 @@ export default function AdminSlipsPage() {
                             placeholder="1" 
                             value={itemInput.qty} 
                             onChange={(e) => updateSlipItemField(idx, "qty", e.target.value)} 
+                            onKeyDown={(e) => {
+                              if (["e", "E", "+"].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
                             required
                           />
                         </td>
@@ -482,6 +487,17 @@ export default function AdminSlipsPage() {
                             placeholder="0" 
                             value={itemInput.rate} 
                             onChange={(e) => updateSlipItemField(idx, "rate", e.target.value)} 
+                            onKeyDown={(e) => {
+                              if (["e", "E", "+", "-"].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                              if (e.key === "Tab" && idx === slipItems.length - 1) {
+                                if (itemInput.item.trim() !== "") {
+                                  e.preventDefault();
+                                  addSlipItemField();
+                                }
+                              }
+                            }}
                             required
                           />
                         </td>
