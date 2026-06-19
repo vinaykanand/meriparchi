@@ -7,6 +7,7 @@ function PrintLedgerContent() {
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone");
   const orgcode = searchParams.get("orgcode");
+  const returnsOnly = searchParams.get("returnsOnly") === "true";
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -53,6 +54,8 @@ function PrintLedgerContent() {
           const amt = parseFloat(s.amt) || 0;
           const isReturn = qty < 0;
 
+          if (returnsOnly && !isReturn) return;
+
           const debit = isReturn ? 0 : Math.abs(amt);
           const credit = isReturn ? Math.abs(amt) : 0;
 
@@ -75,22 +78,24 @@ function PrintLedgerContent() {
           });
         });
 
-        (ledgerData.payments || []).forEach((p: any) => {
-          const credit = parseFloat(p.amt) || 0;
-          allTransactions.push({
-            type: 'payment',
-            date: new Date(p.time),
-            particulars: p.narration ? (
-              <>
-                <div className="font-bold">Payment clear</div>
-                <div className="font-light italic text-gray-600">{p.narration}</div>
-              </>
-            ) : <span className="font-bold">Payment clear</span>,
-            debit: 0,
-            credit,
-            sortKey: new Date(p.time).getTime() + 1 // Sort slightly after slips
+        if (!returnsOnly) {
+          (ledgerData.payments || []).forEach((p: any) => {
+            const credit = parseFloat(p.amt) || 0;
+            allTransactions.push({
+              type: 'payment',
+              date: new Date(p.time),
+              particulars: p.narration ? (
+                <>
+                  <div className="font-bold">Payment clear</div>
+                  <div className="font-light italic text-gray-600">{p.narration}</div>
+                </>
+              ) : <span className="font-bold">Payment clear</span>,
+              debit: 0,
+              credit,
+              sortKey: new Date(p.time).getTime() + 1 // Sort slightly after slips
+            });
           });
-        });
+        }
 
         allTransactions.sort((a, b) => a.sortKey - b.sortKey);
 
@@ -110,7 +115,7 @@ function PrintLedgerContent() {
           totals: { debit: totalDebit, credit: totalCredit }
         } as any);
         
-        document.title = `${phone} - ${ledgerData.customer?.name || 'Customer'} - Ledger`;
+        document.title = `${phone} - ${ledgerData.customer?.name || 'Customer'} - ${returnsOnly ? 'Returns Statement' : 'Ledger'}`;
       } catch (err: any) {
         setError(err.message || "An error occurred");
       } finally {
@@ -147,7 +152,9 @@ function PrintLedgerContent() {
       <div className="border-2 border-black p-6 print:border-none print:p-0">
         {/* Header */}
         <div className="text-center pb-4 border-b-2 border-black">
-          <h1 className="text-3xl font-bold uppercase tracking-widest mt-2">Ledger Statement</h1>
+          <h1 className="text-3xl font-bold uppercase tracking-widest mt-2">
+            {returnsOnly ? "Returns Statement" : "Ledger Statement"}
+          </h1>
         </div>
 
         {/* Details Section */}
@@ -159,9 +166,15 @@ function PrintLedgerContent() {
             {data.customer?.address && <div><span className="font-semibold">Address:</span> {data.customer?.address}</div>}
           </div>
           <div className="flex flex-col gap-1 w-1/2 pl-4 justify-center">
-            <div className="flex justify-between items-center"><span className="font-semibold text-gray-600">Total Billed:</span> <span className="font-bold text-slate-800">₹{data.kpis?.slipsTotal?.toFixed(2) || "0.00"}</span></div>
-            <div className="flex justify-between items-center"><span className="font-semibold text-gray-600">Total Paid:</span> <span className="font-bold text-green-700">₹{data.kpis?.paymentsTotal?.toFixed(2) || "0.00"}</span></div>
-            <div className="flex justify-between items-center mt-2 pt-2 border-t border-dashed border-gray-400"><span className="font-bold text-lg">Net Outstanding:</span> <span className={`font-bold text-lg ${data.kpis?.outstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>₹{data.kpis?.outstanding?.toFixed(2) || "0.00"}</span></div>
+            {returnsOnly ? (
+              <div className="flex justify-between items-center mt-2 pt-2"><span className="font-bold text-lg">Total Returns:</span> <span className="font-bold text-lg text-orange-600">₹{data.kpis?.returnsAmount?.toFixed(2) || "0.00"}</span></div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center"><span className="font-semibold text-gray-600">Total Billed:</span> <span className="font-bold text-slate-800">₹{data.kpis?.slipsTotal?.toFixed(2) || "0.00"}</span></div>
+                <div className="flex justify-between items-center"><span className="font-semibold text-gray-600">Total Paid:</span> <span className="font-bold text-green-700">₹{data.kpis?.paymentsTotal?.toFixed(2) || "0.00"}</span></div>
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-dashed border-gray-400"><span className="font-bold text-lg">Net Outstanding:</span> <span className={`font-bold text-lg ${data.kpis?.outstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>₹{data.kpis?.outstanding?.toFixed(2) || "0.00"}</span></div>
+              </>
+            )}
           </div>
         </div>
 
