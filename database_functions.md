@@ -122,7 +122,7 @@ $function$
 
 ## Function: `save_slip`
 ```sql
-CREATE OR REPLACE FUNCTION public.save_slip(p_orgcode character varying, p_phone character varying, p_name character varying, p_address character varying, p_totalamount numeric, p_items json)
+CREATE OR REPLACE FUNCTION public.save_slip(p_orgcode character varying, p_phone character varying, p_name character varying, p_address character varying, p_totalamount numeric, p_discount numeric, p_items json)
  RETURNS json
  LANGUAGE plpgsql
 AS $function$
@@ -137,6 +137,36 @@ BEGIN
     ---------------------------------------------------
     SELECT COALESCE(MAX(slipno), 0) + 1
     INTO v_slipno
+    FROM public.slips
+    WHERE orgcode = p_orgcode;
+
+    ---------------------------------------------------
+    -- Insert slip
+    ---------------------------------------------------
+    INSERT INTO public.slips (
+        orgcode,
+        slipno,
+        phone,
+        name,
+        address,
+        totalamount,
+        discount
+    )
+    VALUES (
+        p_orgcode,
+        v_slipno,
+        p_phone::numeric,
+        p_name,
+        p_address,
+        p_totalamount,
+        p_discount
+    )
+    RETURNING id
+    INTO v_slip_id;
+
+    ---------------------------------------------------
+    -- Insert slip items
+    ---------------------------------------------------
     FOR v_item IN
         SELECT * FROM json_array_elements(p_items)
     LOOP
@@ -179,70 +209,6 @@ $function$
 
 ```
 
-## Function: `close_account`
-```sql
-CREATE OR REPLACE FUNCTION public.close_account(p_orgcode character varying, p_phone character varying)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$DECLARE
-    v_slip_count integer;
-    v_payment_count integer;
-BEGIN
-
-    ---------------------------------------------------
-    -- Count slips
-    ---------------------------------------------------
-    SELECT COUNT(*)
-    INTO v_slip_count
-    FROM public.slips
-    WHERE orgcode = p_orgcode
-      AND phone = p_phone;
-
-    ---------------------------------------------------
-    -- Count payments
-    ---------------------------------------------------
-    SELECT COUNT(*)
-    INTO v_payment_count
-    FROM public.payments
-    WHERE orgcode = p_orgcode
-      AND phone = p_phone::numeric;
-
-    ---------------------------------------------------
-    -- Delete slips
-    -- Slipitems auto delete via CASCADE
-    ---------------------------------------------------
-    DELETE FROM public.slips
-    WHERE orgcode = p_orgcode
-      AND phone = p_phone;
-
-    ---------------------------------------------------
-    -- Delete payments
-    ---------------------------------------------------
-    DELETE FROM public.payments
-    WHERE orgcode = p_orgcode
-      AND phone = p_phone::numeric;
-
-    ---------------------------------------------------
-    -- Success response
-    ---------------------------------------------------
-    RETURN json_build_object(
-        'success', true,
-        'message', 'Account closed successfully',
-        'deleted_slips', v_slip_count,
-        'deleted_payments', v_payment_count,
-        'phone', p_phone
-    );
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', SQLERRM
-        );
-END;$function$
-
-```
-
 ## Function: `closeaccount`
 ```sql
 CREATE OR REPLACE FUNCTION public.closeaccount(p_authtoken uuid, p_orgcode character varying, p_phone character varying)
@@ -279,7 +245,7 @@ BEGIN
     INTO v_slip_count
     FROM public.slips
     WHERE orgcode = p_orgcode
-      AND phone = p_phone;
+      AND phone = p_phone::numeric;
 
     ---------------------------------------------------
     -- Count payments
@@ -296,7 +262,7 @@ BEGIN
     ---------------------------------------------------
     DELETE FROM public.slips
     WHERE orgcode = p_orgcode
-      AND phone = p_phone;
+      AND phone = p_phone::numeric;
 
     ---------------------------------------------------
     -- Delete payments
@@ -520,86 +486,8 @@ $function$
 
 ```
 
-## Function: `get_account_summary`
+## Function: `update_company`
 ```sql
-CREATE OR REPLACE FUNCTION public.get_account_summary(p_orgcode character varying, p_phone character varying)
- RETURNS TABLE(txn_date date, totalamount numeric, netamount numeric, paymentmade numeric)
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-
-    RETURN QUERY
-
-    WITH slip_summary AS (
-        SELECT
-AS $function$
-BEGIN
-
-    RETURN QUERY
-
-    WITH slip_summary AS (
-        SELECT
-            s.date::date AS txn_date,
-            SUM(COALESCE(s.totalamount,0)) AS totalamount,
-            SUM(COALESCE(s.netamount,0)) AS netamount
-        FROM public.slips s
-        WHERE s.orgcode = p_orgcode
-          AND s.phone = p_phone::numeric
-        GROUP BY s.date::date
-    ),
-
-    payment_summary AS (
-        SELECT
-            p.date::date AS txn_date,
-            SUM(COALESCE(p.amount,0)) AS paymentmade
-        FROM public.payments p
-        WHERE p.orgcode = p_orgcode
-          AND p.phone = p_phone::numeric
-        GROUP BY p.date::date
-    )
-
-    SELECT
-        COALESCE(s.txn_date, p.txn_date) AS txn_date,
-        COALESCE(s.totalamount,0) AS totalamount,
-        COALESCE(s.netamount,0) AS netamount,
-        COALESCE(p.paymentmade,0) AS paymentmade
-    FROM slip_summary s
-    FULL OUTER JOIN payment_summary p
-        ON s.txn_date = p.txn_date
-    ORDER BY txn_date;
-
-END;
-$function$
-
-CREATE OR REPLACE FUNCTION public.get_account_details_by_date(p_orgcode character varying, p_phone character varying, p_date date)
- RETURNS TABLE(slipno bigint, slip_date date, item character varying, remarks character varying, qty numeric, rate numeric, itemamount numeric, totalamount numeric, netamount numeric)
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-
-    RETURN QUERY
-
-    SELECT
-        s.slipno,
-        s.date::date,
-        si.item,
-        si.remarks,
-        si.qty,
-        si.rate,
-        si.amount,
-        s.totalamount,
-        s.netamount
-    FROM public.slips s
-    INNER JOIN public.slipitems si
-        ON si.id = s.id
-    WHERE s.orgcode = p_orgcode
-      AND s.phone = p_phone::numeric
-      AND s.date::date = p_date
-    ORDER BY s.slipno, si.item;
-
-END;
-$function$
-
 CREATE OR REPLACE FUNCTION public.update_company(p_authtoken uuid, p_orgname character varying, p_isactive boolean, p_enableotp boolean)
  RETURNS json
  LANGUAGE plpgsql
@@ -649,6 +537,10 @@ EXCEPTION
 END;
 $function$
 
+```
+
+## Function: `login_user`
+```sql
 CREATE OR REPLACE FUNCTION public.login_user(p_orgcode character varying, p_userid character varying, p_password character varying, p_otp integer DEFAULT NULL::integer)
  RETURNS json
  LANGUAGE plpgsql
@@ -656,13 +548,21 @@ AS $function$
 DECLARE
     v_user public.users%ROWTYPE;
     v_enableotp boolean;
+    v_opentime time;
+    v_closetime time;
 BEGIN
 
     ---------------------------------------------------
     -- Validate Company
     ---------------------------------------------------
-    SELECT enableotp
-    INTO v_enableotp
+    SELECT
+        enableotp,
+        opentime,
+        closetime
+    INTO
+        v_enableotp,
+        v_opentime,
+        v_closetime
     FROM public.company
     WHERE orgcode = p_orgcode;
 
@@ -710,7 +610,42 @@ BEGIN
     END IF;
 
     ---------------------------------------------------
-    -- Admin User
+    -- Business Hours Check (Non Admin Only)
+    ---------------------------------------------------
+    IF COALESCE(v_user.isadmin, false) = false THEN
+
+        IF v_opentime IS NOT NULL
+           AND CURRENT_TIME < v_opentime THEN
+
+            RETURN json_build_object(
+                'success', false,
+                'message',
+                'Login allowed only between '
+                || to_char(v_opentime, 'HH24:MI')
+                || ' and '
+                || to_char(v_closetime, 'HH24:MI')
+            );
+
+        END IF;
+
+        IF v_closetime IS NOT NULL
+           AND CURRENT_TIME > v_closetime THEN
+
+            RETURN json_build_object(
+                'success', false,
+                'message',
+                'Login allowed only between '
+                || to_char(v_opentime, 'HH24:MI')
+                || ' and '
+                || to_char(v_closetime, 'HH24:MI')
+            );
+
+        END IF;
+
+    END IF;
+
+    ---------------------------------------------------
+    -- Admin User (No OTP Required)
     ---------------------------------------------------
     IF COALESCE(v_user.isadmin, false) = true THEN
         RETURN json_build_object(
@@ -718,6 +653,8 @@ BEGIN
             'otprequired', false,
             'message', 'Login successful',
             'authtoken', v_user.authtoken,
+            'orgcode', v_user.orgcode,
+            'userid', v_user.userid,
             'isadmin', true
         );
     END IF;
@@ -731,6 +668,8 @@ BEGIN
             'otprequired', false,
             'message', 'Login successful',
             'authtoken', v_user.authtoken,
+            'orgcode', v_user.orgcode,
+            'userid', v_user.userid,
             'isadmin', false
         );
     END IF;
@@ -747,7 +686,26 @@ BEGIN
     END IF;
 
     ---------------------------------------------------
-    -- OTP Validation (Second Call)
+    -- OTP Expiry Check
+    ---------------------------------------------------
+    IF v_user.otpexpire IS NULL THEN
+        RETURN json_build_object(
+            'success', false,
+            'otprequired', true,
+            'message', 'OTP expired'
+        );
+    END IF;
+
+    IF v_user.otpexpire < CURRENT_TIMESTAMP THEN
+        RETURN json_build_object(
+            'success', false,
+            'otprequired', true,
+            'message', 'OTP expired'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- OTP Validation
     ---------------------------------------------------
     IF COALESCE(v_user.otp, 0) <> p_otp THEN
         RETURN json_build_object(
@@ -765,6 +723,8 @@ BEGIN
         'otprequired', false,
         'message', 'Login successful',
         'authtoken', v_user.authtoken,
+        'orgcode', v_user.orgcode,
+        'userid', v_user.userid,
         'isadmin', false
     );
 
@@ -777,9 +737,63 @@ EXCEPTION
 END;
 $function$
 
+```
+
+## Function: `get_account_details_by_date`
+```sql
+CREATE OR REPLACE FUNCTION public.get_account_details_by_date(p_orgcode character varying, p_phone character varying, p_date date)
+ RETURNS TABLE(slipno bigint, slip_date date, item character varying, remarks character varying, qty numeric, rate numeric, itemamount numeric, totalamount numeric, discount numeric, netamount numeric)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RETURN QUERY
+    SELECT s.slipno, s.date::date, si.item, si.remarks, si.qty, si.rate, si.amount, s.totalamount, s.discount, s.netamount
+    FROM public.slips s INNER JOIN public.slipitems si ON si.id = s.id
+    WHERE s.orgcode = p_orgcode AND s.phone = p_phone::numeric AND s.date::date = p_date ORDER BY s.slipno, si.item;
+END;
+$function$
+
+```
+
+## Function: `search_accounts`
+```sql
 CREATE OR REPLACE FUNCTION public.search_accounts(p_orgcode character varying, p_search character varying)
  RETURNS TABLE(phone character varying, name character varying, address character varying)
  LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RETURN QUERY
+    WITH unique_accounts AS (
+        SELECT DISTINCT s.phone::character varying as phone, s.name, s.address
+        FROM public.slips s
+        WHERE s.orgcode = p_orgcode AND (COALESCE(s.phone::text,'') ILIKE '%' || p_search || '%' OR COALESCE(s.name,'') ILIKE '%' || p_search || '%' OR COALESCE(s.address,'') ILIKE '%' || p_search || '%')
+    )
+    SELECT ua.phone, ua.name, ua.address FROM unique_accounts ua ORDER BY ua.name NULLS LAST, ua.phone LIMIT 20;
+END;
+$function$
+
+```
+
+## Function: `get_account_summary`
+```sql
+CREATE OR REPLACE FUNCTION public.get_account_summary(p_orgcode character varying, p_phone character varying)
+ RETURNS TABLE(txn_date date, totalamount numeric, discount numeric, netamount numeric, paymentmade numeric)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RETURN QUERY
+    WITH slip_summary AS (
+        SELECT s.date::date AS txn_date, SUM(COALESCE(s.totalamount,0)) AS totalamount, SUM(COALESCE(s.discount,0)) AS discount, SUM(COALESCE(s.netamount,0)) AS netamount
+        FROM public.slips s WHERE s.orgcode = p_orgcode AND s.phone = p_phone::numeric GROUP BY s.date::date
+    ),
+    payment_summary AS (
+        SELECT p.date::date AS txn_date, SUM(COALESCE(p.amount,0)) AS paymentmade
+        FROM public.payments p WHERE p.orgcode = p_orgcode AND p.phone = p_phone::numeric GROUP BY p.date::date
+    )
+    SELECT COALESCE(s.txn_date, p.txn_date) AS txn_date, COALESCE(s.totalamount,0) AS totalamount, COALESCE(s.discount,0) AS discount, COALESCE(s.netamount,0) AS netamount, COALESCE(p.paymentmade,0) AS paymentmade
+    FROM slip_summary s FULL OUTER JOIN payment_summary p ON s.txn_date = p.txn_date ORDER BY txn_date;
+END;
+$function$
 
 ```
 
@@ -788,114 +802,63 @@ CREATE OR REPLACE FUNCTION public.search_accounts(p_orgcode character varying, p
 CREATE OR REPLACE FUNCTION public.save_user(p_authtoken uuid, p_orgcode character varying, p_userid character varying, p_password character varying, p_isadmin boolean, p_isactive boolean)
  RETURNS json
  LANGUAGE plpgsql
+AS $function$ DECLARE v_logged_user public.users%ROWTYPE; BEGIN SELECT * INTO v_logged_user FROM public.users WHERE authtoken = p_authtoken AND orgcode = p_orgcode; IF NOT FOUND THEN RETURN json_build_object('success', false, 'message', 'Invalid auth token'); END IF; IF COALESCE(v_logged_user.isactive, false) = false THEN RETURN json_build_object('success', false, 'message', 'Logged in user is disabled'); END IF; IF COALESCE(v_logged_user.isadmin, false) = false THEN RETURN json_build_object('success', false, 'message', 'Only admin user can manage users'); END IF; IF EXISTS (SELECT 1 FROM public.users WHERE orgcode = p_orgcode AND userid = p_userid) THEN IF p_userid = 'admin' THEN RETURN json_build_object('success', false, 'message', 'The primary admin account cannot be modified.'); END IF; UPDATE public.users SET password = COALESCE(NULLIF(p_password, ''), password), isadmin = p_isadmin, isactive = p_isactive, otp = CASE WHEN p_isadmin = false THEN FLOOR(1000 + RANDOM() * 9000)::int ELSE NULL END WHERE orgcode = p_orgcode AND userid = p_userid; RETURN json_build_object('success', true, 'message', 'User updated successfully'); END IF; INSERT INTO public.users (orgcode, userid, password, isadmin, isactive, otp) VALUES (p_orgcode, p_userid, p_password, p_isadmin, p_isactive, CASE WHEN p_isadmin = false THEN FLOOR(1000 + RANDOM() * 9000)::int ELSE NULL END); RETURN json_build_object('success', true, 'message', 'User created successfully'); EXCEPTION WHEN OTHERS THEN RETURN json_build_object('success', false, 'message', SQLERRM); END; $function$
+
+```
+
+## Function: `close_account`
+```sql
+CREATE OR REPLACE FUNCTION public.close_account(p_orgcode character varying, p_phone character varying)
+ RETURNS json
+ LANGUAGE plpgsql
 AS $function$
 DECLARE
-    v_logged_user public.users%ROWTYPE;
+    v_slip_count integer;
+    v_payment_count integer;
 BEGIN
 
     ---------------------------------------------------
-    -- Validate logged-in user using authtoken
+    -- Count slips
     ---------------------------------------------------
-    SELECT *
-    INTO v_logged_user
-    FROM public.users
-    WHERE authtoken = p_authtoken
-      AND orgcode = p_orgcode;
-
-    IF NOT FOUND THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Invalid auth token'
-        );
-    END IF;
+    SELECT COUNT(*)
+    INTO v_slip_count
+    FROM public.slips
+    WHERE orgcode = p_orgcode
+      AND phone = p_phone::numeric;
 
     ---------------------------------------------------
-    -- Check user active
+    -- Count payments
     ---------------------------------------------------
-    IF COALESCE(v_logged_user.isactive, false) = false THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Logged in user is disabled'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Only admin can add/modify users
-    ---------------------------------------------------
-    IF COALESCE(v_logged_user.isadmin, false) = false THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Only admin user can manage users'
-        );
-    END IF;
+    SELECT COUNT(*)
+    INTO v_payment_count
+    FROM public.payments
+    WHERE orgcode = p_orgcode
+      AND phone = p_phone::numeric;
 
     ---------------------------------------------------
-    -- Update existing user
+    -- Delete slips
+    -- Slipitems auto delete via CASCADE
     ---------------------------------------------------
-    IF EXISTS (
-        SELECT 1
-        FROM public.users
-        WHERE orgcode = p_orgcode
-          AND userid = p_userid
-    ) THEN
-
-        ---------------------------------------------------
-        -- Protection for 'admin' user
-        ---------------------------------------------------
-        IF p_userid = 'admin' THEN
-            RETURN json_build_object(
-                'success', false,
-                'message', 'The primary admin account cannot be modified.'
-            );
-        END IF;
-
-        UPDATE public.users
-        SET
-            password = p_password,
-            isadmin = p_isadmin,
-            isactive = p_isactive,
-            otp = CASE
-                      WHEN p_isadmin = false
-                      THEN FLOOR(1000 + RANDOM() * 9000)::int
-                      ELSE NULL
-                  END
-        WHERE orgcode = p_orgcode
-          AND userid = p_userid;
-
-        RETURN json_build_object(
-            'success', true,
-            'message', 'User updated successfully'
-        );
-
-    END IF;
+    DELETE FROM public.slips
+    WHERE orgcode = p_orgcode
+      AND phone = p_phone::numeric;
 
     ---------------------------------------------------
-    -- Insert new user
+    -- Delete payments
     ---------------------------------------------------
-    INSERT INTO public.users (
-        orgcode,
-        userid,
-        password,
-        isadmin,
-        isactive,
-        otp
-    )
-    VALUES (
-        p_orgcode,
-        p_userid,
-        p_password,
-        p_isadmin,
-        p_isactive,
-        CASE
-            WHEN p_isadmin = false
-            THEN FLOOR(1000 + RANDOM() * 9000)::int
-            ELSE NULL
-        END
-    );
+    DELETE FROM public.payments
+    WHERE orgcode = p_orgcode
+      AND phone = p_phone::numeric;
 
+    ---------------------------------------------------
+    -- Success response
+    ---------------------------------------------------
     RETURN json_build_object(
         'success', true,
-        'message', 'User created successfully'
+        'message', 'Account closed successfully',
+        'deleted_slips', v_slip_count,
+        'deleted_payments', v_payment_count,
+        'phone', p_phone
     );
 
 EXCEPTION
@@ -928,7 +891,8 @@ BEGIN
       AND si.item ILIKE '%' || p_search || '%'
     ORDER BY si.item, s.date DESC;
 END;
-$function$;
+$function$
+
 ```
 
 ## Function: `generate_user_otp`
@@ -936,8 +900,7 @@ $function$;
 CREATE OR REPLACE FUNCTION public.generate_user_otp(p_authtoken uuid, p_orgcode character varying, p_userids character varying[])
  RETURNS json
  LANGUAGE plpgsql
-AS $function$
-DECLARE
+AS $function$DECLARE
     v_logged_user public.users%ROWTYPE;
 BEGIN
     SELECT *
@@ -954,14 +917,16 @@ BEGIN
         RETURN json_build_object('success', false, 'message', 'Only admin user can manage OTPs');
     END IF;
 
-    UPDATE public.users u
-    SET otp = FLOOR(1000 + RANDOM() * 9000)::int
+       UPDATE public.users u
+    SET otp = FLOOR(1000 + RANDOM() * 9000)::int,
+    otpexpire = CURRENT_TIMESTAMP +
+    (COALESCE(c.otpresettime,1) * INTERVAL '1 hour')
     FROM public.company c
     WHERE c.orgcode = u.orgcode
-      AND c.orgcode = p_orgcode
-      AND (p_userids IS NULL OR u.userid = ANY(p_userids))
-      AND COALESCE(c.enableotp, false) = true
-      AND COALESCE(u.isadmin, false) = false;
+    AND c.orgcode = p_orgcode
+    AND (p_userids IS NULL OR u.userid = ANY(p_userids))
+    AND COALESCE(c.enableotp, false) = true
+    AND COALESCE(u.isadmin, false) = false;
 
     RETURN json_build_object(
         'success', true,
@@ -970,6 +935,97 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         RETURN json_build_object('success', false, 'message', SQLERRM);
+END;$function$
+
+```
+
+## Function: `reset_otp`
+```sql
+CREATE OR REPLACE FUNCTION public.reset_otp(p_authtoken uuid, p_orgcode character varying, p_userids character varying[] DEFAULT NULL::character varying[])
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_logged_user public.users%ROWTYPE;
+    v_count integer;
+BEGIN
+
+    ---------------------------------------------------
+    -- Validate logged-in user
+    ---------------------------------------------------
+    SELECT *
+    INTO v_logged_user
+    FROM public.users
+    WHERE authtoken = p_authtoken
+      AND orgcode = p_orgcode;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'Invalid auth token'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Only admin can reset OTP
+    ---------------------------------------------------
+    IF COALESCE(v_logged_user.isadmin, false) = false THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'Only admin user can manage OTPs'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Reset OTP and Expiry
+    ---------------------------------------------------
+    UPDATE public.users u
+    SET
+        otp = FLOOR(1000 + RANDOM() * 9000)::int,
+        otpexpire = CURRENT_TIMESTAMP +
+                    (COALESCE(c.otpresettime, 24) * INTERVAL '1 hour')
+    FROM public.company c
+    WHERE c.orgcode = u.orgcode
+      AND c.orgcode = p_orgcode
+      AND COALESCE(c.enableotp, false) = true
+      AND COALESCE(u.isadmin, false) = false
+      AND (
+            p_userids IS NULL
+            OR u.userid = ANY(p_userids)
+          );
+
+    ---------------------------------------------------
+    -- Reset Auth Token
+    ---------------------------------------------------
+    UPDATE public.users
+    SET authtoken = gen_random_uuid()
+    WHERE orgcode = p_orgcode
+      AND COALESCE(isadmin, false) = false
+      AND (
+            p_userids IS NULL
+            OR userid = ANY(p_userids)
+          );
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+
+    RETURN json_build_object(
+        'success', true,
+        'message', v_count || ' user OTP(s) reset successfully',
+        'updatedusers', v_count,
+        'validityhours',
+        (
+            SELECT otpresettime
+            FROM public.company
+            WHERE orgcode = p_orgcode
+        )
+    );
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', SQLERRM
+        );
 END;
 $function$
 
