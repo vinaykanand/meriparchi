@@ -32,6 +32,7 @@ export async function GET() {
       "SELECT * FROM public.slipitems WHERE id IN (SELECT id FROM public.slips WHERE orgcode = $1)",
       [orgcode]
     );
+    const audit_logs = await query("SELECT * FROM public.audit_logs WHERE orgcode = $1", [orgcode]);
 
     // Create Zip file
     const zip = new AdmZip();
@@ -40,6 +41,7 @@ export async function GET() {
     zip.addFile("payments.json", Buffer.from(JSON.stringify(payments.rows, null, 2)));
     zip.addFile("slips.json", Buffer.from(JSON.stringify(slips.rows, null, 2)));
     zip.addFile("slipitems.json", Buffer.from(JSON.stringify(slipitems.rows, null, 2)));
+    zip.addFile("audit_logs.json", Buffer.from(JSON.stringify(audit_logs.rows, null, 2)));
 
     const zipBuffer = zip.toBuffer();
 

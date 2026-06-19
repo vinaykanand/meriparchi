@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
+import { logAction } from "@/lib/audit";
 
 export async function GET(request: Request) {
   try {
@@ -182,6 +183,38 @@ export async function POST(request: Request) {
     });
 
     const data = await response.json();
+
+    if (response.ok && data.success) {
+      const cookieStore = await cookies();
+      const authtoken = cookieStore.get("authtoken")?.value;
+      let userid = "system";
+      if (authtoken && body.orgcode) {
+        const sessionCheck = await query(
+          "SELECT userid FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
+          [authtoken, body.orgcode]
+        );
+        if (sessionCheck.rows.length > 0) {
+          userid = sessionCheck.rows[0].userid;
+        }
+      }
+
+      if (body.type === "slip") {
+        await logAction({
+          orgcode: body.orgcode,
+          userid,
+          action: "CREATE_SLIP",
+          details: { phone: body.phone, name: body.name, totalamount: body.totalamount, itemsCount: body.items?.length },
+        });
+      } else if (body.type === "payment") {
+        await logAction({
+          orgcode: body.orgcode,
+          userid,
+          action: "LOG_PAYMENT",
+          details: { phone: body.phone, amount: body.amount, narration: body.narration },
+        });
+      }
+    }
+
     return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
     return NextResponse.json(
@@ -226,7 +259,7 @@ export async function DELETE(request: Request) {
     if (slipno) {
       // Find the slip
       const slipCheck = await query(
-        "SELECT id FROM public.slips WHERE orgcode = $1 AND slipno = $2",
+        "SELECT id, phone, name FROM public.slips WHERE orgcode = $1 AND slipno = $2",
         [orgcode, slipno]
       );
       if (slipCheck.rows.length === 0) {
@@ -237,6 +270,13 @@ export async function DELETE(request: Request) {
       // Delete items and slip
       await query("DELETE FROM public.slipitems WHERE id = $1", [slipId]);
       await query("DELETE FROM public.slips WHERE id = $1 AND orgcode = $2", [slipId, orgcode]);
+
+      await logAction({
+        orgcode,
+        userid: sessionCheck.rows[0].userid,
+        action: "DELETE_SLIP",
+        details: { slipno, phone: slipCheck.rows[0]?.phone, name: slipCheck.rows[0]?.name },
+      });
 
       return NextResponse.json({ success: true, message: `Slip #${slipno} deleted successfully` });
     }
@@ -252,6 +292,14 @@ export async function DELETE(request: Request) {
     );
 
     const data = await response.json();
+    if (response.ok && data.success) {
+      await logAction({
+        orgcode,
+        userid: sessionCheck.rows[0].userid,
+        action: "CLOSE_ACCOUNT",
+        details: { phone },
+      });
+    }
     return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
     return NextResponse.json(

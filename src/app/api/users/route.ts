@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
+import { logAction } from "@/lib/audit";
 
 export async function GET(request: Request) {
   try {
@@ -66,6 +67,15 @@ export async function POST(request: Request) {
       );
     }
 
+    const sessionCheck = await query(
+      "SELECT userid FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
+      [authtoken, orgcode]
+    );
+    if (sessionCheck.rows.length === 0) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+    const actorUserid = sessionCheck.rows[0].userid;
+
     const result = await query(
       "SELECT public.save_user($1, $2, $3, $4, $5, $6) as result",
       [authtoken, orgcode, userid, password, isadmin, isactive]
@@ -73,6 +83,15 @@ export async function POST(request: Request) {
 
     if (result.rows.length > 0 && result.rows[0].result) {
       const data = result.rows[0].result;
+      if (data.success) {
+        const isUpdate = data.message?.toLowerCase().includes("update");
+        await logAction({
+          orgcode,
+          userid: actorUserid,
+          action: isUpdate ? "UPDATE_USER" : "CREATE_USER",
+          details: { targetUserid: userid, isadmin, isactive },
+        });
+      }
       return NextResponse.json(data, { status: data.success ? 200 : 400 });
     }
 
@@ -111,12 +130,22 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, message: "Cannot delete the primary admin user" }, { status: 403 });
     }
 
-    const sessionCheck = await query("SELECT isadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true", [authtoken, orgcode]);
+    const sessionCheck = await query(
+      "SELECT userid, isadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
+      [authtoken, orgcode]
+    );
     if (sessionCheck.rows.length === 0 || !sessionCheck.rows[0].isadmin) {
       return NextResponse.json({ success: false, message: "Unauthorized: Admin access required" }, { status: 401 });
     }
 
     await query("DELETE FROM public.users WHERE orgcode = $1 AND userid = $2", [orgcode, userid]);
+
+    await logAction({
+      orgcode,
+      userid: sessionCheck.rows[0].userid,
+      action: "DELETE_USER",
+      details: { targetUserid: userid },
+    });
 
     return NextResponse.json({ success: true, message: "User deleted successfully" });
   } catch (error: any) {

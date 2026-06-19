@@ -61,6 +61,16 @@ export async function POST(request: Request) {
     const slipsData = JSON.parse(slipsEntry.getData().toString("utf8"));
     const slipitemsData = JSON.parse(slipitemsEntry.getData().toString("utf8"));
 
+    const auditLogsEntry = zip.getEntry("audit_logs.json");
+    let auditLogsData = [];
+    if (auditLogsEntry) {
+      try {
+        auditLogsData = JSON.parse(auditLogsEntry.getData().toString("utf8"));
+      } catch (e) {
+        console.error("Failed to parse audit_logs.json, skipping");
+      }
+    }
+
     // Validation: Ensure all records in backup belong to the logged-in admin's orgcode
     for (const row of companyData) {
       if (row.orgcode !== adminOrgcode) {
@@ -80,6 +90,11 @@ export async function POST(request: Request) {
     for (const row of slipsData) {
       if (row.orgcode !== adminOrgcode) {
         return NextResponse.json({ success: false, message: "Tenant mismatch in slips data." }, { status: 403 });
+      }
+    }
+    for (const row of auditLogsData) {
+      if (row.orgcode !== adminOrgcode) {
+        return NextResponse.json({ success: false, message: "Tenant mismatch in audit logs data." }, { status: 403 });
       }
     }
 
@@ -102,15 +117,17 @@ export async function POST(request: Request) {
       adminOrgcode,
       adminUserid,
     ]);
+    // Delete audit logs
+    await client.query("DELETE FROM public.audit_logs WHERE orgcode = $1", [adminOrgcode]);
 
     // 2. Restore Company settings
     if (companyData.length > 0) {
       const c = companyData[0];
       await client.query(
         `UPDATE public.company 
-         SET orgname = $1, isactive = $2, enableotp = $3, otpresettime = $4, opentime = $5, closetime = $6 
-         WHERE orgcode = $7`,
-        [c.orgname, c.isactive, c.enableotp, c.otpresettime, c.opentime, c.closetime, adminOrgcode]
+         SET orgname = $1, isactive = $2, enableotp = $3, otpresettime = $4, opentime = $5, closetime = $6, audit_retention_days = $7
+         WHERE orgcode = $8`,
+        [c.orgname, c.isactive, c.enableotp, c.otpresettime, c.opentime, c.closetime, c.audit_retention_days || 15, adminOrgcode]
       );
     }
 
@@ -161,6 +178,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // 6.5. Restore Audit Logs
+    for (const al of auditLogsData) {
+      await client.query(
+        `INSERT INTO public.audit_logs (id, orgcode, userid, action, details, timestamp)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [al.id, al.orgcode, al.userid, al.action, typeof al.details === 'object' ? JSON.stringify(al.details) : al.details, al.timestamp]
+      );
+    }
+
     // 7. Reset Serial Sequences so new inserts don't conflict with restored IDs
     if (paymentsData.length > 0) {
       await client.query(
@@ -175,6 +201,11 @@ export async function POST(request: Request) {
     if (slipitemsData.length > 0) {
       await client.query(
         `SELECT setval(pg_get_serial_sequence('public.slipitems', 'id'), COALESCE(MAX(id), 1)) FROM public.slipitems`
+      );
+    }
+    if (auditLogsData.length > 0) {
+      await client.query(
+        `SELECT setval(pg_get_serial_sequence('public.audit_logs', 'id'), COALESCE(MAX(id), 1)) FROM public.audit_logs`
       );
     }
 

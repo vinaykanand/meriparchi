@@ -13,7 +13,8 @@ import {
   UsersIcon, 
   Cog6ToothIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
+  ShieldCheckIcon
 } from "@heroicons/react/24/outline";
 
 function AdminDashboardContent({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
     { name: "Reports & Filters", href: "/dashboard/admin/reports", icon: <PresentationChartLineIcon className="w-5 h-5" /> },
     { name: "Manage Users", href: "/dashboard/admin/users", icon: <UsersIcon className="w-5 h-5" /> },
     { name: "Organization Settings", href: "/dashboard/admin/settings", icon: <Cog6ToothIcon className="w-5 h-5" /> },
+    { name: "Audit Logs", href: "/dashboard/admin/audit", icon: <ShieldCheckIcon className="w-5 h-5" /> },
   ];
 
   return (

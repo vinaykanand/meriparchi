@@ -18,6 +18,7 @@ export default function AdminSettingsPage() {
   const [otpresettime, setOtpresettime] = useState<number>(24);
   const [opentime, setOpentime] = useState("09:00");
   const [closetime, setClosetime] = useState("18:00");
+  const [auditRetentionDays, setAuditRetentionDays] = useState<number>(15);
   const [savingCompany, setSavingCompany] = useState(false);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -90,6 +91,9 @@ export default function AdminSettingsPage() {
             setOtpresettime(data.company.otpresettime || 24);
             if (data.company.opentime) setOpentime(data.company.opentime.substring(0, 5));
             if (data.company.closetime) setClosetime(data.company.closetime.substring(0, 5));
+            if (data.company.audit_retention_days !== undefined) {
+              setAuditRetentionDays(data.company.audit_retention_days);
+            }
           }
         }
       } catch (e) {
@@ -115,6 +119,7 @@ export default function AdminSettingsPage() {
           otpresettime: otpresettime,
           opentime: opentime,
           closetime: closetime,
+          audit_retention_days: auditRetentionDays,
         }),
       });
       const data = await response.json();
@@ -178,6 +183,18 @@ export default function AdminSettingsPage() {
                 onChange={(e) => setOtpresettime(parseInt(e.target.value) || 24)} 
               />
               <p className="text-xs text-slate-500 mt-1">Time window before unused OTPs expire (1-24 hrs).</p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Audit Log Retention (Days)</label>
+              <input 
+                type="number" 
+                min="1"
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+                value={auditRetentionDays} 
+                onChange={(e) => setAuditRetentionDays(parseInt(e.target.value) || 15)} 
+              />
+              <p className="text-xs text-slate-500 mt-1">Number of days to retain audit logs. Older logs are automatically purged.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

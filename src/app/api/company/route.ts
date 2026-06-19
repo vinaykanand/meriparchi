@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
+import { logAction } from "@/lib/audit";
 
 export async function GET(request: Request) {
   try {
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
     }
 
     const result = await query(
-      "SELECT orgcode, orgname, isactive, enableotp, otpresettime, opentime, closetime FROM public.company WHERE orgcode = $1",
+      "SELECT orgcode, orgname, isactive, enableotp, otpresettime, opentime, closetime, audit_retention_days FROM public.company WHERE orgcode = $1",
       [orgcode]
     );
 
@@ -38,13 +39,16 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const sessionCheck = await query("SELECT orgcode, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true", [authtoken]);
+    const sessionCheck = await query(
+      "SELECT orgcode, userid, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
+      [authtoken]
+    );
     if (sessionCheck.rows.length === 0 || sessionCheck.rows[0].isadmin !== true) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { orgcode, orgname, enableotp, isactive, otpresettime, opentime, closetime } = body;
+    const { orgcode, orgname, enableotp, isactive, otpresettime, opentime, closetime, audit_retention_days } = body;
 
     // Optional: verify that the user's orgcode matches the request orgcode
     if (sessionCheck.rows[0].orgcode !== orgcode) {
@@ -52,9 +56,18 @@ export async function PUT(request: Request) {
     }
 
     await query(
-      "UPDATE public.company SET orgname = $1, enableotp = $2, isactive = $3, otpresettime = $4, opentime = $5, closetime = $6 WHERE orgcode = $7",
-      [orgname, enableotp, isactive, otpresettime, opentime, closetime, orgcode]
+      `UPDATE public.company 
+       SET orgname = $1, enableotp = $2, isactive = $3, otpresettime = $4, opentime = $5, closetime = $6, audit_retention_days = $7 
+       WHERE orgcode = $8`,
+      [orgname, enableotp, isactive, otpresettime, opentime, closetime, audit_retention_days || 15, orgcode]
     );
+
+    await logAction({
+      orgcode,
+      userid: sessionCheck.rows[0].userid,
+      action: "UPDATE_COMPANY_SETTINGS",
+      details: { orgname, enableotp, isactive, otpresettime, opentime, closetime, audit_retention_days },
+    });
 
     return NextResponse.json({ success: true, message: "Settings updated successfully" });
   } catch (error: any) {
