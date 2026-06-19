@@ -214,7 +214,8 @@ export default function AdminReportsPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
@@ -350,6 +351,80 @@ export default function AdminReportsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Stacked Card View */}
+          <div className="block md:hidden space-y-3">
+            {sortedResults.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 dark:text-slate-400 text-sm bg-white dark:bg-slate-800/30 rounded-2xl border border-slate-200 dark:border-slate-800">
+                No customers match this filter.
+              </div>
+            ) : (
+              sortedResults.map((customer, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => router.push(`/dashboard/admin/lookup?phone=${customer.phone}`)}
+                  className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-pointer shadow-sm space-y-3"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight">
+                        {customer.name || "Unknown"}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">📞 {customer.phone}</p>
+                      {customer.address && <p className="text-[10px] text-slate-400 mt-0.5">📍 {customer.address}</p>}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-semibold text-slate-400 block uppercase">Outstanding</span>
+                      <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                        ₹{parseFloat((customer.outstanding || 0).toString()).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {filterType === "no_activity" && (
+                    <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-slate-700/50 text-slate-500">
+                      <span>Last Activity:</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        {customer.last_activity ? new Date(customer.last_activity).toLocaleDateString('en-IN') : "Never"}
+                      </span>
+                    </div>
+                  )}
+
+                  {filterType === "debt_aging" && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-700/50 space-y-2">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Debt Aging buckets:</span>
+                      <div className="grid grid-cols-4 gap-1.5 text-center">
+                        <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/10">
+                          <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 block">0-30d</span>
+                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-250">
+                            ₹{parseFloat((customer.aging_0_30 || 0).toString()).toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/10">
+                          <span className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 block">31-60d</span>
+                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-250">
+                            ₹{parseFloat((customer.aging_31_60 || 0).toString()).toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/10">
+                          <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400 block">61-90d</span>
+                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-250">
+                            ₹{parseFloat((customer.aging_61_90 || 0).toString()).toFixed(0)}
+                          </span>
+                        </div>
+                        <div className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/10">
+                          <span className="text-[9px] font-semibold text-rose-600 dark:text-rose-400 block">90d+</span>
+                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-250">
+                            ₹{parseFloat((customer.aging_90_plus || 0).toString()).toFixed(0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
