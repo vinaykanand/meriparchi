@@ -37,6 +37,11 @@ export default function AdminSlipsPage() {
   const [showItemSuggestions, setShowItemSuggestions] = useState(false);
   const [activeItemRow, setActiveItemRow] = useState<number | null>(null);
 
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [slipToDelete, setSlipToDelete] = useState<number | null>(null);
+  const [deletingSlip, setDeletingSlip] = useState(false);
+
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
@@ -319,6 +324,37 @@ export default function AdminSlipsPage() {
     }
   };
 
+  const handleConfirmDeleteSlip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session || !slipToDelete || !deletePassword) return;
+
+    setDeletingSlip(true);
+    try {
+      const response = await fetch(
+        `/api/ledger?orgcode=${session.orgcode}&slipno=${slipToDelete}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: deletePassword }),
+        }
+      );
+      const data = await response.json();
+      if (response.ok && data.success) {
+        addToast(`Slip #${slipToDelete} deleted successfully.`, "success");
+        setIsDeleteModalOpen(false);
+        setDeletePassword("");
+        setSlipToDelete(null);
+        fetchCustomerDetails(slipPhone);
+      } else {
+        addToast(data.message || "Failed to delete slip", "error");
+      }
+    } catch (e) {
+      addToast("An error occurred while deleting slip", "error");
+    } finally {
+      setDeletingSlip(false);
+    }
+  };
+
   const { total: slipTotalSum, net: slipNetSum } = getSlipTotals();
 
   return (
@@ -598,9 +634,66 @@ export default function AdminSlipsPage() {
                 <div className="flex gap-2">
                   <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${slipPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=compact`} className="flex-1 text-center py-2 text-sm font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors shadow-sm">🖨️ Print Thermal</a>
                   <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${slipPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=a4`} className="flex-1 text-center py-2 text-sm font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors shadow-sm">📄 Print A4</a>
+                  {idx === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSlipToDelete(s.no);
+                        setIsDeleteModalOpen(true);
+                      }}
+                      className="px-4 py-2 text-sm font-bold bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
+                    >
+                      🗑️ Delete
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Slip Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-up">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Confirm Slip Deletion</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+              DANGER: You are about to permanently delete <strong>Slip #{slipToDelete}</strong>. All associated items will also be removed. This action cannot be undone.
+              <br/><br/>
+              Please enter your admin password to confirm:
+            </p>
+            <form onSubmit={handleConfirmDeleteSlip} className="flex flex-col gap-4">
+              <input
+                type="password"
+                className="w-full px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-red-500 transition-all font-mono"
+                placeholder="Admin Password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                autoFocus
+                required
+              />
+              <div className="flex gap-3 justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletePassword("");
+                    setSlipToDelete(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deletingSlip}
+                  className="px-5 py-2 rounded-xl text-white font-semibold bg-red-600 hover:bg-red-700 transition-all text-sm shadow-md shadow-red-500/20 disabled:opacity-50"
+                >
+                  {deletingSlip ? "Deleting..." : "Confirm Delete"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

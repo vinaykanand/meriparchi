@@ -198,11 +198,12 @@ export async function DELETE(request: Request) {
     const authtoken = cookieStore.get("authtoken")?.value;
     const orgcode = searchParams.get("orgcode");
     const phone = searchParams.get("phone");
+    const slipno = searchParams.get("slipno");
 
     const body = await request.json().catch(() => ({}));
     const password = body.password;
 
-    if (!authtoken || !orgcode || !phone) {
+    if (!authtoken || !orgcode || (!phone && !slipno)) {
       return NextResponse.json(
         { success: false, message: "Missing required parameters" },
         { status: 400 }
@@ -210,7 +211,7 @@ export async function DELETE(request: Request) {
     }
 
     if (!password) {
-      return NextResponse.json({ success: false, message: "Admin password is required to close an account." }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Admin password is required." }, { status: 400 });
     }
 
     const sessionCheck = await query("SELECT isadmin, password FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true", [authtoken, orgcode]);
@@ -220,6 +221,24 @@ export async function DELETE(request: Request) {
 
     if (sessionCheck.rows[0].password !== password) {
       return NextResponse.json({ success: false, message: "Invalid password" }, { status: 401 });
+    }
+
+    if (slipno) {
+      // Find the slip
+      const slipCheck = await query(
+        "SELECT id FROM public.slips WHERE orgcode = $1 AND slipno = $2",
+        [orgcode, slipno]
+      );
+      if (slipCheck.rows.length === 0) {
+        return NextResponse.json({ success: false, message: "Slip not found" }, { status: 404 });
+      }
+      const slipId = slipCheck.rows[0].id;
+
+      // Delete items and slip
+      await query("DELETE FROM public.slipitems WHERE id = $1", [slipId]);
+      await query("DELETE FROM public.slips WHERE id = $1 AND orgcode = $2", [slipId, orgcode]);
+
+      return NextResponse.json({ success: true, message: `Slip #${slipno} deleted successfully` });
     }
 
     const response = await fetch(
