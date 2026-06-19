@@ -76,6 +76,11 @@ export default function AuthProvider({
   }, [requireAdmin, router]);
 
   const logout = () => {
+    if (session) {
+      fetch(`/api/logout?orgcode=${session.orgcode}`, { method: "POST" }).catch((err) =>
+        console.error("Failed to log logout action:", err)
+      );
+    }
     localStorage.removeItem("parchi_session");
     document.cookie = "authtoken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
     document.cookie = "orgcode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";

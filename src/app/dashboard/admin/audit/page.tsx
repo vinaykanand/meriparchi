@@ -42,6 +42,9 @@ const ACTION_TYPES = [
   { value: "CREATE_USER", label: "Create User" },
   { value: "UPDATE_USER", label: "Update User" },
   { value: "DELETE_USER", label: "Delete User" },
+  { value: "LOGIN_SUCCESS", label: "Login Success" },
+  { value: "LOGIN_FAILED", label: "Login Failed" },
+  { value: "LOGOUT", label: "Logout" },
 ];
 
 export default function AdminAuditPage() {
@@ -139,16 +142,20 @@ export default function AdminAuditPage() {
     switch (action) {
       case "CREATE_SLIP":
       case "CREATE_USER":
+      case "LOGIN_SUCCESS":
         return "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
       case "DELETE_SLIP":
       case "DELETE_USER":
       case "CLOSE_ACCOUNT":
+      case "LOGIN_FAILED":
         return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400 border border-rose-200 dark:border-rose-800/30";
       case "UPDATE_COMPANY_SETTINGS":
       case "UPDATE_USER":
         return "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800/30";
       case "LOG_PAYMENT":
         return "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30";
+      case "LOGOUT":
+        return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
       default:
         return "bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
     }
@@ -184,6 +191,12 @@ export default function AdminAuditPage() {
           return `Updated user credentials/status: ${parsed.targetUserid}`;
         case "DELETE_USER":
           return `Deleted operator account: ${parsed.targetUserid}`;
+        case "LOGIN_SUCCESS":
+          return `Successful login for user: ${parsed.username || log.userid}${parsed.ip ? ` from IP ${parsed.ip}` : ""}`;
+        case "LOGIN_FAILED":
+          return `Failed login attempt for user: ${parsed.username || "Unknown"}${parsed.reason ? ` (${parsed.reason})` : ""}${parsed.ip ? ` from IP ${parsed.ip}` : ""}`;
+        case "LOGOUT":
+          return `User logged out: ${parsed.username || log.userid}`;
         default:
           return JSON.stringify(parsed);
       }

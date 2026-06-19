@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
+import { logAction } from "@/lib/audit";
 
 export async function POST(request: Request) {
   try {
@@ -16,13 +17,38 @@ export async function POST(request: Request) {
       [orgcode, userid, password, otp || null]
     );
 
+    // Read security logging preference
+    const companyCheck = await query(
+      "SELECT enable_security_logs FROM public.company WHERE orgcode = $1",
+      [orgcode]
+    );
+    const enableSecurityLogs = companyCheck.rows.length > 0 && companyCheck.rows[0].enable_security_logs !== false;
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+
     if (result.rows.length === 0) {
+      if (enableSecurityLogs) {
+        await logAction({
+          orgcode,
+          userid,
+          action: "LOGIN_FAILED",
+          details: { ip, userAgent, message: "Database query returned no rows" },
+        });
+      }
       return NextResponse.json({ success: false, message: "Login failed" }, { status: 400 });
     }
 
     const data = result.rows[0].result;
 
     if (!data || !data.success) {
+      if (enableSecurityLogs) {
+        await logAction({
+          orgcode,
+          userid,
+          action: "LOGIN_FAILED",
+          details: { ip, userAgent, message: data?.message || "Invalid credentials" },
+        });
+      }
       return NextResponse.json(data || { success: false, message: "Login failed" }, { status: 400 });
     }
 
@@ -42,6 +68,15 @@ export async function POST(request: Request) {
         sameSite: "strict",
         path: "/",
         maxAge: 60 * 60 * 24 * 7, // 1 week
+      });
+    }
+
+    if (enableSecurityLogs) {
+      await logAction({
+        orgcode,
+        userid: data.userid || userid,
+        action: "LOGIN_SUCCESS",
+        details: { ip, userAgent },
       });
     }
 

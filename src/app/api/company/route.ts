@@ -14,7 +14,8 @@ export async function GET(request: Request) {
 
     const result = await query(
       `SELECT orgcode, orgname, isactive, enableotp, otpresettime, opentime, closetime, audit_retention_days, 
-              gdrive_client_id, backup_schedule, last_backup_time, (gdrive_refresh_token IS NOT NULL) as gdrive_linked 
+              gdrive_client_id, backup_schedule, last_backup_time, (gdrive_refresh_token IS NOT NULL) as gdrive_linked,
+              enable_security_logs 
        FROM public.company WHERE orgcode = $1`,
       [orgcode]
     );
@@ -52,7 +53,8 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const { 
       orgcode, orgname, enableotp, isactive, otpresettime, opentime, closetime, 
-      audit_retention_days, gdrive_client_id, gdrive_client_secret, backup_schedule 
+      audit_retention_days, gdrive_client_id, gdrive_client_secret, backup_schedule,
+      enable_security_logs 
     } = body;
 
     // Optional: verify that the user's orgcode matches the request orgcode
@@ -68,11 +70,13 @@ export async function PUT(request: Request) {
     await query(
       `UPDATE public.company 
        SET orgname = $1, enableotp = $2, isactive = $3, otpresettime = $4, opentime = $5, closetime = $6, 
-           audit_retention_days = $7, gdrive_client_id = $8, gdrive_client_secret = $9, backup_schedule = $10 
-       WHERE orgcode = $11`,
+           audit_retention_days = $7, gdrive_client_id = $8, gdrive_client_secret = $9, backup_schedule = $10,
+           enable_security_logs = $11 
+       WHERE orgcode = $12`,
       [
         orgname, enableotp, isactive, otpresettime, opentime, closetime, 
-        audit_retention_days || 15, gdrive_client_id, finalSecret, backup_schedule || 'none', orgcode
+        audit_retention_days || 15, gdrive_client_id, finalSecret, backup_schedule || 'none', 
+        enable_security_logs !== false, orgcode
       ]
     );
 
@@ -82,7 +86,7 @@ export async function PUT(request: Request) {
       action: "UPDATE_COMPANY_SETTINGS",
       details: { 
         orgname, enableotp, isactive, otpresettime, opentime, closetime, 
-        audit_retention_days, gdrive_client_id, backup_schedule 
+        audit_retention_days, gdrive_client_id, backup_schedule, enable_security_logs 
       },
     });
 

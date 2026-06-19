@@ -28,6 +28,7 @@ export default function AdminSettingsPage() {
   const [gdriveLinked, setGdriveLinked] = useState(false);
   const [lastBackupTime, setLastBackupTime] = useState("");
   const [gdriveUploading, setGdriveUploading] = useState(false);
+  const [enableSecurityLogs, setEnableSecurityLogs] = useState(true);
 
   const [savingCompany, setSavingCompany] = useState(false);
 
@@ -146,6 +147,9 @@ export default function AdminSettingsPage() {
             setBackupSchedule(data.company.backup_schedule || "none");
             setGdriveLinked(!!data.company.gdrive_linked);
             setLastBackupTime(data.company.last_backup_time || "");
+            if (data.company.enable_security_logs !== undefined) {
+              setEnableSecurityLogs(data.company.enable_security_logs);
+            }
           }
         }
       } catch (e) {
@@ -175,6 +179,7 @@ export default function AdminSettingsPage() {
           gdrive_client_id: gdriveClientId,
           gdrive_client_secret: gdriveClientSecret,
           backup_schedule: backupSchedule,
+          enable_security_logs: enableSecurityLogs,
         }),
       });
       const data = await response.json();
@@ -229,6 +234,24 @@ export default function AdminSettingsPage() {
                   className="sr-only peer"
                   checked={enableotp} 
                   onChange={(e) => setEnableotp(e.target.checked)} 
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+
+            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div>
+                <div className="font-semibold text-slate-900 dark:text-slate-100">Session Tracking & Security Logs</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Log security-critical operations including successful/failed operator logins and logout actions.
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer"
+                  checked={enableSecurityLogs} 
+                  onChange={(e) => setEnableSecurityLogs(e.target.checked)} 
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
               </label>
