@@ -563,7 +563,7 @@ export default function AdminLookupPage() {
                                 </td>
                                 <td className={`px-4 py-3 font-semibold text-right ${parseFloat(s.qty) < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{s.qty}</td>
                                 <td className="px-4 py-3 text-slate-500 text-right">₹{s.rate}</td>
-                                <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100 text-right">₹{s.amt}</td>
+                                <td className={`px-4 py-3 font-medium text-right ${parseFloat(s.amt) < 0 ? 'text-red-500' : 'text-slate-900 dark:text-slate-100'}`}>₹{s.amt}</td>
                               </tr>
                               {isLast && (
                                 <tr className="bg-slate-50 dark:bg-slate-800/30 group">
@@ -578,7 +578,7 @@ export default function AdminLookupPage() {
                                       </span>
                                     </div>
                                   </td>
-                                  <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-700 text-right">
+                                  <td className={`px-4 py-2.5 font-bold border-t border-slate-200 dark:border-slate-700 text-right ${slipTotals[s.no] < 0 ? 'text-red-500' : 'text-slate-900 dark:text-slate-100'}`}>
                                     ₹{slipTotals[s.no].toFixed(2)}
                                   </td>
                                 </tr>
@@ -602,7 +602,14 @@ export default function AdminLookupPage() {
                           <td colSpan={5} className="px-4 py-4 text-right text-sm text-slate-700 dark:text-slate-300 uppercase tracking-widest">
                             Grand Total (Slips)
                           </td>
-                          <td className="px-4 py-4 text-right text-lg text-slate-900 dark:text-slate-100">
+                          <td className={`px-4 py-4 text-right text-lg ${(() => {
+                              let displaySlips = lookupData.slips;
+                              if (showReturnsOnly) {
+                                displaySlips = displaySlips.filter((s: any) => parseFloat(s.qty) < 0);
+                              }
+                              const grandTotal = displaySlips.reduce((acc: number, s: any) => acc + (parseFloat(s.amt) || 0), 0);
+                              return grandTotal < 0 ? 'text-red-500' : 'text-slate-900 dark:text-slate-100';
+                            })()}`}>
                             ₹{(() => {
                               let displaySlips = lookupData.slips;
                               if (showReturnsOnly) {
@@ -636,7 +643,7 @@ export default function AdminLookupPage() {
                         <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                           <td className="px-4 py-3 text-slate-500">{new Date(p.time).toLocaleDateString()}</td>
                           <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{p.narration || "—"}</td>
-                          <td className="px-4 py-3 font-bold text-green-600 dark:text-green-400 text-right">₹{p.amt}</td>
+                          <td className={`px-4 py-3 font-bold text-right ${parseFloat(p.amt) < 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>₹{p.amt}</td>
                         </tr>
                       ))}
                       {lookupData.payments.length === 0 && (
@@ -649,7 +656,10 @@ export default function AdminLookupPage() {
                           <td colSpan={2} className="px-4 py-4 text-right text-sm text-slate-700 dark:text-slate-300 uppercase tracking-widest">
                             Grand Total (Payments)
                           </td>
-                          <td className="px-4 py-4 text-right text-lg text-green-600 dark:text-green-400">
+                          <td className={`px-4 py-4 text-right text-lg ${(() => {
+                            const grandTotal = lookupData.payments.reduce((acc: number, p: any) => acc + (parseFloat(p.amt) || 0), 0);
+                            return grandTotal < 0 ? 'text-red-500 font-bold' : 'text-green-600 dark:text-green-400';
+                          })()}`}>
                             ₹{(() => {
                               const grandTotal = lookupData.payments.reduce((acc: number, p: any) => acc + (parseFloat(p.amt) || 0), 0);
                               return grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
