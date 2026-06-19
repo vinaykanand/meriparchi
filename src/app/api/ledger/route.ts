@@ -247,7 +247,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, message: "Admin password is required." }, { status: 400 });
     }
 
-    const sessionCheck = await query("SELECT isadmin, password FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true", [authtoken, orgcode]);
+    const sessionCheck = await query("SELECT isadmin, password, userid FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true", [authtoken, orgcode]);
     if (sessionCheck.rows.length === 0 || !sessionCheck.rows[0].isadmin) {
       return NextResponse.json({ success: false, message: "Unauthorized: Admin access required" }, { status: 401 });
     }
