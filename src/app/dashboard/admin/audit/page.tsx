@@ -194,7 +194,7 @@ export default function AdminAuditPage() {
         case "LOGIN_SUCCESS":
           return `Successful login for user: ${parsed.username || log.userid}${parsed.ip ? ` from IP ${parsed.ip}` : ""}`;
         case "LOGIN_FAILED":
-          return `Failed login attempt for user: ${parsed.username || "Unknown"}${parsed.reason ? ` (${parsed.reason})` : ""}${parsed.ip ? ` from IP ${parsed.ip}` : ""}`;
+          return `Failed login attempt for user: ${parsed.username || log.userid || "Unknown"}${parsed.message || parsed.reason ? ` (${parsed.message || parsed.reason})` : ""}${parsed.ip ? ` from IP ${parsed.ip}` : ""}`;
         case "LOGOUT":
           return `User logged out: ${parsed.username || log.userid}`;
         default:

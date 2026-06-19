@@ -32,7 +32,7 @@ export async function POST(request: Request) {
           orgcode,
           userid,
           action: "LOGIN_FAILED",
-          details: { ip, userAgent, message: "Database query returned no rows" },
+          details: { username: userid, ip, userAgent, message: "Database query returned no rows" },
         });
       }
       return NextResponse.json({ success: false, message: "Login failed" }, { status: 400 });
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
           orgcode,
           userid,
           action: "LOGIN_FAILED",
-          details: { ip, userAgent, message: data?.message || "Invalid credentials" },
+          details: { username: userid, ip, userAgent, message: data?.message || "Invalid credentials" },
         });
       }
       return NextResponse.json(data || { success: false, message: "Login failed" }, { status: 400 });
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         orgcode,
         userid: data.userid || userid,
         action: "LOGIN_SUCCESS",
-        details: { ip, userAgent },
+        details: { username: data.userid || userid, ip, userAgent },
       });
     }
 
