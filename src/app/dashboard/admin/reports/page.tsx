@@ -13,6 +13,10 @@ interface ReportCustomer {
   last_activity?: string;
   last_slip_date?: string;
   last_payment_date?: string;
+  aging_0_30?: number;
+  aging_31_60?: number;
+  aging_61_90?: number;
+  aging_90_plus?: number;
 }
 
 export default function AdminReportsPage() {
@@ -29,6 +33,10 @@ export default function AdminReportsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const totalBalance = results.reduce((sum, cust) => sum + parseFloat(cust.outstanding?.toString() || "0"), 0);
+  const totalAging0_30 = results.reduce((sum, cust: any) => sum + parseFloat(cust.aging_0_30?.toString() || "0"), 0);
+  const totalAging31_60 = results.reduce((sum, cust: any) => sum + parseFloat(cust.aging_31_60?.toString() || "0"), 0);
+  const totalAging61_90 = results.reduce((sum, cust: any) => sum + parseFloat(cust.aging_61_90?.toString() || "0"), 0);
+  const totalAging90Plus = results.reduce((sum, cust: any) => sum + parseFloat(cust.aging_90_plus?.toString() || "0"), 0);
 
   const sortedResults = [...results].sort((a: any, b: any) => {
     let valA = a[sortCol];
@@ -37,7 +45,13 @@ export default function AdminReportsPage() {
     if (valA === undefined || valA === null) valA = "";
     if (valB === undefined || valB === null) valB = "";
 
-    if (sortCol === "outstanding") {
+    if (
+      sortCol === "outstanding" || 
+      sortCol === "aging_0_30" || 
+      sortCol === "aging_31_60" || 
+      sortCol === "aging_61_90" || 
+      sortCol === "aging_90_plus"
+    ) {
       valA = parseFloat(valA) || 0;
       valB = parseFloat(valB) || 0;
     } else if (sortCol === "last_activity") {
@@ -106,6 +120,7 @@ export default function AdminReportsPage() {
             >
               <option value="zero_outstanding">Customers with Zero Outstanding Balance</option>
               <option value="no_activity">Customers with No Activity (Inactive)</option>
+              <option value="debt_aging">Debt Aging Analysis & Financial Insights</option>
             </select>
           </div>
 
@@ -143,11 +158,51 @@ export default function AdminReportsPage() {
         )}
       </div>
 
+      {/* Financial Insights Summary Cards */}
+      {hasSearched && filterType === "debt_aging" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 animate-fade-in">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-1">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Outstanding</span>
+            <span className="text-2xl font-black text-slate-800 dark:text-slate-100">
+              ₹{totalBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-1">
+            <span className="text-xs font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">0–30 Days (Current)</span>
+            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+              ₹{totalAging0_30.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-1">
+            <span className="text-xs font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider">31–60 Days</span>
+            <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
+              ₹{totalAging31_60.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-1">
+            <span className="text-xs font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider">61–90 Days</span>
+            <span className="text-2xl font-black text-amber-600 dark:text-amber-400">
+              ₹{totalAging61_90.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-1">
+            <span className="text-xs font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider">90+ Days (High Risk)</span>
+            <span className="text-2xl font-black text-rose-600 dark:text-rose-400">
+              ₹{totalAging90Plus.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+      )}
+
       {hasSearched && (
         <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-fade-in">
           <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
             <h3 className="font-bold text-slate-800 dark:text-slate-200">
-              {filterType === "zero_outstanding" ? "Fully Paid Customers" : `Inactive Customers (> ${days} days)`}
+              {filterType === "zero_outstanding" 
+                ? "Fully Paid Customers" 
+                : filterType === "debt_aging" 
+                ? "Debt Aging Analysis" 
+                : `Inactive Customers (> ${days} days)`}
             </h3>
             <div className="flex items-center gap-4">
               <span className="font-bold text-slate-800 dark:text-slate-200 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-lg">
@@ -201,12 +256,52 @@ export default function AdminReportsPage() {
                       Last Activity {sortCol === "last_activity" && (sortDir === "asc" ? "↑" : "↓")}
                     </th>
                   )}
+                  {filterType === "debt_aging" && (
+                    <>
+                      <th 
+                        className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-emerald-600 dark:text-emerald-400"
+                        onClick={() => {
+                          if (sortCol === "aging_0_30") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                          else { setSortCol("aging_0_30"); setSortDir("asc"); }
+                        }}
+                      >
+                        0-30 Days {sortCol === "aging_0_30" && (sortDir === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th 
+                        className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-blue-600 dark:text-blue-400"
+                        onClick={() => {
+                          if (sortCol === "aging_31_60") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                          else { setSortCol("aging_31_60"); setSortDir("asc"); }
+                        }}
+                      >
+                        31-60 Days {sortCol === "aging_31_60" && (sortDir === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th 
+                        className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-amber-600 dark:text-amber-400"
+                        onClick={() => {
+                          if (sortCol === "aging_61_90") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                          else { setSortCol("aging_61_90"); setSortDir("asc"); }
+                        }}
+                      >
+                        61-90 Days {sortCol === "aging_61_90" && (sortDir === "asc" ? "↑" : "↓")}
+                      </th>
+                      <th 
+                        className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-rose-600 dark:text-rose-400"
+                        onClick={() => {
+                          if (sortCol === "aging_90_plus") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                          else { setSortCol("aging_90_plus"); setSortDir("asc"); }
+                        }}
+                      >
+                        90+ Days {sortCol === "aging_90_plus" && (sortDir === "asc" ? "↑" : "↓")}
+                      </th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {sortedResults.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400 text-sm">
+                    <td colSpan={filterType === "debt_aging" ? 7 : filterType === "no_activity" ? 4 : 3} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400 text-sm">
                       No customers match this filter.
                     </td>
                   </tr>
@@ -233,6 +328,22 @@ export default function AdminReportsPage() {
                         <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300 text-right">
                           {customer.last_activity ? new Date(customer.last_activity).toLocaleDateString('en-IN') : "Never"}
                         </td>
+                      )}
+                      {filterType === "debt_aging" && (
+                        <>
+                          <td className="px-6 py-4 text-sm text-emerald-600 dark:text-emerald-400 text-right font-medium">
+                            ₹{parseFloat((customer.aging_0_30 || 0).toString()).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-blue-600 dark:text-blue-400 text-right font-medium">
+                            ₹{parseFloat((customer.aging_31_60 || 0).toString()).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-amber-600 dark:text-amber-400 text-right font-medium">
+                            ₹{parseFloat((customer.aging_61_90 || 0).toString()).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-rose-600 dark:text-rose-400 text-right font-medium">
+                            ₹{parseFloat((customer.aging_90_plus || 0).toString()).toFixed(2)}
+                          </td>
+                        </>
                       )}
                     </tr>
                   ))
