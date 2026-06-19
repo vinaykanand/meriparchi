@@ -161,43 +161,43 @@ export default function AdminReportsPage() {
       {/* Financial Insights Summary Cards */}
       {hasSearched && filterType === "debt_aging" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 animate-fade-in">
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[100px]">
             <div className="h-8 flex items-center">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider leading-tight">Total Outstanding</span>
             </div>
-            <span className="text-2xl font-black text-slate-800 dark:text-slate-100 leading-none">
+            <span className="text-lg sm:text-xl font-extrabold text-slate-800 dark:text-slate-100 leading-none truncate">
               ₹{totalBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[100px]">
             <div className="h-8 flex items-center">
               <span className="text-[11px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider leading-tight">0–30 Days (Current)</span>
             </div>
-            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-none">
+            <span className="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 leading-none truncate">
               ₹{totalAging0_30.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[100px]">
             <div className="h-8 flex items-center">
               <span className="text-[11px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider leading-tight">31–60 Days</span>
             </div>
-            <span className="text-2xl font-black text-blue-600 dark:text-blue-400 leading-none">
+            <span className="text-lg sm:text-xl font-extrabold text-blue-600 dark:text-blue-400 leading-none truncate">
               ₹{totalAging31_60.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[100px]">
             <div className="h-8 flex items-center">
               <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider leading-tight">61–90 Days</span>
             </div>
-            <span className="text-2xl font-black text-amber-600 dark:text-amber-400 leading-none">
+            <span className="text-lg sm:text-xl font-extrabold text-amber-600 dark:text-amber-400 leading-none truncate">
               ₹{totalAging61_90.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[110px]">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[100px]">
             <div className="h-8 flex items-center">
               <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider leading-tight">90+ Days (High Risk)</span>
             </div>
-            <span className="text-2xl font-black text-rose-600 dark:text-rose-400 leading-none">
+            <span className="text-lg sm:text-xl font-extrabold text-rose-600 dark:text-rose-400 leading-none truncate">
               ₹{totalAging90Plus.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
