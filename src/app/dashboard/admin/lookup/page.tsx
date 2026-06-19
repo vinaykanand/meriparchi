@@ -38,6 +38,8 @@ export default function AdminLookupPage() {
   const [selectedDate, setSelectedDate] = useState<string>("");
 
   const [closingAccount, setClosingAccount] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [searchSuggestions, setSearchSuggestions] = useState<{phone: string, name: string, address: string}[]>([]);
   const [showLookupSuggestions, setShowLookupSuggestions] = useState(false);
@@ -160,12 +162,17 @@ export default function AdminLookupPage() {
     executeLookup(searchedLookupPhone, newDate);
   };
 
-  const handleCloseAccount = async () => {
+  const handleCloseAccount = () => {
     if (!session || !searchedLookupPhone) return;
-    
-    const pwd = prompt(`DANGER: You are about to permanently close the account for ${searchedLookupPhone}.\n\nPlease enter your admin password to confirm this irreversible action:`);
-    if (!pwd) return;
+    setConfirmPassword("");
+    setIsConfirmModalOpen(true);
+  };
 
+  const confirmCloseAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session || !searchedLookupPhone || !confirmPassword) return;
+
+    setIsConfirmModalOpen(false);
     setClosingAccount(true);
     try {
       const response = await fetch(
@@ -173,7 +180,7 @@ export default function AdminLookupPage() {
         { 
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ password: pwd })
+          body: JSON.stringify({ password: confirmPassword })
         }
       );
       const data = await response.json();
@@ -190,6 +197,7 @@ export default function AdminLookupPage() {
       addToast("An error occurred while closing account", "error");
     } finally {
       setClosingAccount(false);
+      setConfirmPassword("");
     }
   };
 
@@ -676,6 +684,49 @@ export default function AdminLookupPage() {
 
             </>
           ) : null}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-up">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Confirm Account Deletion</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+              DANGER: You are about to permanently close the account for <strong className="text-slate-950 dark:text-slate-50">{searchedLookupPhone}</strong>. This action is irreversible.
+              <br/><br/>
+              Please enter your admin password to confirm:
+            </p>
+            <form onSubmit={confirmCloseAccount} className="flex flex-col gap-4">
+              <input
+                type="password"
+                className="w-full px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-red-500 transition-all font-mono"
+                placeholder="Admin Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoFocus
+                required
+              />
+              <div className="flex gap-3 justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsConfirmModalOpen(false);
+                    setConfirmPassword("");
+                  }}
+                  className="px-4 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-white font-semibold bg-red-600 hover:bg-red-700 transition-all text-sm shadow-md shadow-red-500/20"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
