@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { QuestionMarkCircleIcon } from "@heroicons/react/24/outline";
 
 interface Toast {
   id: number;
@@ -259,7 +260,22 @@ export default function AdminSettingsPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Google Drive Client ID</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Google Drive Client ID</label>
+                <div className="group relative flex items-center">
+                  <QuestionMarkCircleIcon className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" />
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 text-white text-xs rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 font-normal leading-relaxed">
+                    <strong>How to get Google Client ID:</strong>
+                    <ol className="list-decimal list-inside mt-1 space-y-1">
+                      <li>Go to Google Cloud Console.</li>
+                      <li>Create a project & enable Google Drive API.</li>
+                      <li>Configure OAuth Consent Screen.</li>
+                      <li>Create Credentials &rarr; OAuth Client ID.</li>
+                      <li>Set Web App and add redirect URI: <em>{"http://<your-domain>/api/company/backup/gdrive-callback"}</em></li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
               <input 
                 type="text" 
                 placeholder="Google OAuth Client ID"
@@ -270,7 +286,18 @@ export default function AdminSettingsPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Google Drive Client Secret</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Google Drive Client Secret</label>
+                <div className="group relative flex items-center">
+                  <QuestionMarkCircleIcon className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" />
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 text-white text-xs rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 font-normal leading-relaxed">
+                    <strong>How to get Client Secret:</strong>
+                    <p className="mt-1">
+                      The Client Secret is generated automatically alongside the Client ID in the Google Cloud Console Credentials interface. Copy both into these fields.
+                    </p>
+                  </div>
+                </div>
+              </div>
               <input 
                 type="password" 
                 placeholder={gdriveLinked ? "••••••••••••••••" : "Google OAuth Client Secret"}
