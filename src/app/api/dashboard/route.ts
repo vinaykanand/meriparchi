@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { checkAndTriggerBackup } from "@/lib/scheduler";
 
 export async function GET(request: Request) {
   try {
@@ -9,6 +10,9 @@ export async function GET(request: Request) {
     if (!orgcode) {
       return NextResponse.json({ success: false, message: "Missing orgcode" }, { status: 400 });
     }
+
+    // Trigger lazy automatic backup check
+    checkAndTriggerBackup(orgcode).catch((err) => console.error("Scheduler trigger failed:", err));
 
     // 1. Total Outstanding Ledger Balance
     const slipsTotalResult = await query(

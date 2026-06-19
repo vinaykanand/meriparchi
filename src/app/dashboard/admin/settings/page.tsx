@@ -19,6 +19,15 @@ export default function AdminSettingsPage() {
   const [opentime, setOpentime] = useState("09:00");
   const [closetime, setClosetime] = useState("18:00");
   const [auditRetentionDays, setAuditRetentionDays] = useState<number>(15);
+  
+  // Google Drive config states
+  const [gdriveClientId, setGdriveClientId] = useState("");
+  const [gdriveClientSecret, setGdriveClientSecret] = useState("");
+  const [backupSchedule, setBackupSchedule] = useState("none");
+  const [gdriveLinked, setGdriveLinked] = useState(false);
+  const [lastBackupTime, setLastBackupTime] = useState("");
+  const [gdriveUploading, setGdriveUploading] = useState(false);
+
   const [savingCompany, setSavingCompany] = useState(false);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -40,6 +49,35 @@ export default function AdminSettingsPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleLinkGDrive = () => {
+    if (!session) return;
+    if (!gdriveClientId) {
+      addToast("Please save your Google Client ID first.", "error");
+      return;
+    }
+    window.location.href = `/api/company/backup/gdrive-auth?orgcode=${session.orgcode}`;
+  };
+
+  const handleManualGDriveBackup = async () => {
+    setGdriveUploading(true);
+    try {
+      const response = await fetch("/api/company/backup/gdrive-upload", {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        addToast("Backup uploaded to Google Drive successfully!", "success");
+        setLastBackupTime(new Date().toISOString());
+      } else {
+        addToast(data.message || "Failed to upload backup.", "error");
+      }
+    } catch (e) {
+      addToast("Failed to connect to server.", "error");
+    } finally {
+      setGdriveUploading(false);
     }
   };
 
@@ -78,6 +116,15 @@ export default function AdminSettingsPage() {
   };
 
   useEffect(() => {
+    // Read OAuth success query param
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("gdrive") === "success") {
+      addToast("Google Drive successfully linked!", "success");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchCompanyData = async () => {
       if (!session) return;
       try {
@@ -94,6 +141,10 @@ export default function AdminSettingsPage() {
             if (data.company.audit_retention_days !== undefined) {
               setAuditRetentionDays(data.company.audit_retention_days);
             }
+            setGdriveClientId(data.company.gdrive_client_id || "");
+            setBackupSchedule(data.company.backup_schedule || "none");
+            setGdriveLinked(!!data.company.gdrive_linked);
+            setLastBackupTime(data.company.last_backup_time || "");
           }
         }
       } catch (e) {
@@ -120,11 +171,21 @@ export default function AdminSettingsPage() {
           opentime: opentime,
           closetime: closetime,
           audit_retention_days: auditRetentionDays,
+          gdrive_client_id: gdriveClientId,
+          gdrive_client_secret: gdriveClientSecret,
+          backup_schedule: backupSchedule,
         }),
       });
       const data = await response.json();
       if (response.ok && data.success) {
         addToast("Company settings updated successfully", "success");
+        setGdriveClientSecret(""); // clear secret input on save
+        // Re-fetch company details to check link status
+        const fetchRes = await fetch(`/api/company?orgcode=${session.orgcode}`);
+        const fetchData = await fetchRes.json();
+        if (fetchRes.ok && fetchData.success && fetchData.company) {
+          setGdriveLinked(!!fetchData.company.gdrive_linked);
+        }
       } else {
         addToast(data.message || "Failed to update settings", "error");
       }
@@ -197,6 +258,43 @@ export default function AdminSettingsPage() {
               <p className="text-xs text-slate-500 mt-1">Number of days to retain audit logs. Older logs are automatically purged.</p>
             </div>
 
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Google Drive Client ID</label>
+              <input 
+                type="text" 
+                placeholder="Google OAuth Client ID"
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+                value={gdriveClientId} 
+                onChange={(e) => setGdriveClientId(e.target.value)} 
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Google Drive Client Secret</label>
+              <input 
+                type="password" 
+                placeholder={gdriveLinked ? "••••••••••••••••" : "Google OAuth Client Secret"}
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+                value={gdriveClientSecret} 
+                onChange={(e) => setGdriveClientSecret(e.target.value)} 
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Auto Backup Schedule</label>
+              <select
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                value={backupSchedule}
+                onChange={(e) => setBackupSchedule(e.target.value)}
+              >
+                <option value="none">Disabled (No Auto Backup)</option>
+                <option value="daily">Daily Backup</option>
+                <option value="weekly">Weekly Backup</option>
+                <option value="monthly">Monthly Backup</option>
+              </select>
+              <p className="text-xs text-slate-500 mt-1">Automatically push backup ZIP files to the linked Google Drive folder on schedule.</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Opening Time</label>
@@ -226,6 +324,47 @@ export default function AdminSettingsPage() {
               {savingCompany ? "Saving Settings..." : "Commit Settings"}
             </button>
           </form>
+        </div>
+
+        <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-700 pb-3 mb-5">Google Drive Backup Settings</h3>
+          <div className="flex flex-col gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="font-semibold text-slate-900 dark:text-slate-100">Status:</span>
+                {gdriveLinked ? (
+                  <span className="text-sm font-semibold text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full">🟢 Linked</span>
+                ) : (
+                  <span className="text-sm font-semibold text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">🔴 Not Linked</span>
+                )}
+              </div>
+              {lastBackupTime && (
+                <p className="text-xs text-slate-500 mb-3">Last upload: {new Date(lastBackupTime).toLocaleString()}</p>
+              )}
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4">
+                Grant permission to upload backup files to your Google Drive. Save your Client ID and Client Secret in Organization settings first, then authenticate.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleLinkGDrive}
+                  disabled={!gdriveClientId}
+                  className="py-2.5 px-4 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all text-sm"
+                >
+                  Link Google Drive
+                </button>
+                {gdriveLinked && (
+                  <button
+                    onClick={handleManualGDriveBackup}
+                    disabled={gdriveUploading}
+                    className="py-2.5 px-4 rounded-xl text-white font-medium bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all text-sm"
+                  >
+                    {gdriveUploading ? "Uploading Backup..." : "Upload Backup to Drive"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl">

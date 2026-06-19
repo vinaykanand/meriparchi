@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
-import { generateBackupZip } from "@/lib/backup";
+import { uploadBackupToGDrive } from "@/lib/gdrive";
 
-export async function GET() {
+export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
     const authtoken = cookieStore.get("authtoken")?.value;
@@ -23,21 +23,11 @@ export async function GET() {
 
     const orgcode = sessionCheck.rows[0].orgcode;
 
-    const zipBuffer = await generateBackupZip(orgcode);
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `backup_${orgcode}_${timestamp}.zip`;
-
-    return new Response(new Uint8Array(zipBuffer), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-      },
-    });
+    const result = await uploadBackupToGDrive(orgcode);
+    return NextResponse.json(result, { status: result.success ? 200 : 400 });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: error.message || "Backup failed" },
+      { success: false, message: error.message || "Server Error" },
       { status: 500 }
     );
   }
