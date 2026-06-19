@@ -441,7 +441,7 @@ export default function AdminLookupPage() {
 
             {lookupData && (
               <div className="flex gap-2 w-full md:w-auto md:ml-auto">
-                <a target="_blank" rel="noopener noreferrer" href={`/print/ledger?phone=${searchedLookupPhone}&orgcode=${session?.orgcode}${showReturnsOnly ? '&returnsOnly=true' : ''}`} className="flex-1 md:flex-none text-center px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors shadow-sm shadow-purple-500/20">
+                <a target="_blank" rel="noopener noreferrer" href={`/print/ledger?phone=${searchedLookupPhone}&orgcode=${session?.orgcode}${showReturnsOnly ? '&returnsOnly=true' : ''}`} className="flex-1 md:flex-none text-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-500/20">
                   {showReturnsOnly ? "🖨️ Print Returns" : "🖨️ Print Ledger"}
                 </a>
                 <a href={`/dashboard/admin/slips?phone=${searchedLookupPhone}`} className="flex-1 md:flex-none text-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20">
