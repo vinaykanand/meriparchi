@@ -7,7 +7,8 @@ import {
   FunnelIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  TrashIcon
 } from "@heroicons/react/24/outline";
 
 interface AuditLog {
@@ -23,6 +24,12 @@ interface Pagination {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+interface Toast {
+  id: number;
+  message: string;
+  type: "success" | "error" | "info";
 }
 
 const ACTION_TYPES = [
@@ -51,6 +58,20 @@ export default function AdminAuditPage() {
   const [selectedAction, setSelectedAction] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
+
+  // Purging and Modal states
+  const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [purging, setPurging] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = (message: string, type: "success" | "error" | "info") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  };
 
   const fetchLogs = async (pageNum = 1) => {
     if (!session) return;
@@ -86,6 +107,32 @@ export default function AdminAuditPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchLogs(1);
+  };
+
+  const handlePurgeLogs = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session) return;
+    setPurging(true);
+    try {
+      const response = await fetch(`/api/company/audit-logs?orgcode=${session.orgcode}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: confirmPassword }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        addToast("Audit logs purged successfully", "success");
+        setIsPurgeModalOpen(false);
+        setConfirmPassword("");
+        fetchLogs(1);
+      } else {
+        addToast(data.message || "Failed to purge audit logs", "error");
+      }
+    } catch (error: any) {
+      addToast(error.message || "Failed to connect to server", "error");
+    } finally {
+      setPurging(false);
+    }
   };
 
   const getActionBadgeColor = (action: string) => {
@@ -154,13 +201,22 @@ export default function AdminAuditPage() {
             Monitor system activities, operator actions, settings modifications, and financial changes.
           </p>
         </div>
-        <button
-          onClick={() => fetchLogs(pagination.page)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
-        >
-          <ArrowPathIcon className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
+        <div className="flex gap-2.5">
+          <button
+            onClick={() => fetchLogs(pagination.page)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+          >
+            <ArrowPathIcon className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+          <button
+            onClick={() => setIsPurgeModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition-colors shadow-md shadow-rose-500/20"
+          >
+            <TrashIcon className="w-4 h-4" />
+            Purge Logs
+          </button>
+        </div>
       </div>
 
       {/* Filters Card */}
@@ -306,6 +362,59 @@ export default function AdminAuditPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Confirmation Modal */}
+      {isPurgeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-up">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Purge Action Audit Logs</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+              Warning: You are about to permanently delete all action audit logs for this organization. This action cannot be undone.
+              <br/><br/>
+              Please enter your admin password to confirm:
+            </p>
+            <form onSubmit={handlePurgeLogs} className="flex flex-col gap-4">
+              <input
+                type="password"
+                className="w-full px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-rose-500 transition-all font-mono"
+                placeholder="Admin Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoFocus
+                required
+              />
+              <div className="flex gap-3 justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPurgeModalOpen(false);
+                    setConfirmPassword("");
+                  }}
+                  className="px-4 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={purging}
+                  className="px-5 py-2 rounded-xl text-white font-semibold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 transition-all text-sm shadow-md shadow-rose-500/20"
+                >
+                  {purging ? "Purging..." : "Confirm Purge"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Toasts */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <div key={toast.id} className={`px-4 py-3 rounded shadow-lg text-white text-sm font-medium animate-slide-up ${toast.type === 'error' ? 'bg-red-500' : toast.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}>
+            {toast.message}
+          </div>
+        ))}
       </div>
     </div>
   );
