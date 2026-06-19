@@ -449,8 +449,8 @@ export default function AdminSlipsPage() {
               <span className="font-semibold text-gray-900 dark:text-gray-100">Slip Items List</span>
             </div>
 
-            <div className="w-full overflow-visible rounded-lg border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-black/20">
-              <table className="w-full text-left text-sm min-w-[600px]">
+            <div className="hidden md:block w-full overflow-visible rounded-lg border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-black/20">
+              <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50/50 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-xs uppercase font-medium">
                   <tr>
                     <th className="px-4 py-2 w-[35%]">Item Name*</th>
@@ -561,6 +561,107 @@ export default function AdminSlipsPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Stacked Card View */}
+            <div className="block md:hidden space-y-4">
+              {slipItems.map((itemInput, idx) => {
+                const qty = parseFloat(itemInput.qty) || 0;
+                const rate = parseFloat(itemInput.rate) || 0;
+                const amount = qty * rate;
+                return (
+                  <div 
+                    key={idx} 
+                    className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800/40 space-y-3 relative shadow-sm"
+                  >
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-700">
+                      <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">Item #{idx + 1}</span>
+                      <button 
+                        type="button" 
+                        disabled={slipItems.length === 1}
+                        className="w-6 h-6 rounded-full flex items-center justify-center bg-red-50 dark:bg-red-950/20 text-red-500 hover:bg-red-100 disabled:opacity-35 transition-colors"
+                        onClick={() => removeSlipItemField(idx)}
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2.5">
+                      <div className="relative">
+                        <label className="text-xs font-semibold text-slate-500 mb-1 block">Item Name*</label>
+                        <input 
+                          type="text" 
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                          placeholder="e.g. Paint" 
+                          value={itemInput.item} 
+                          onChange={(e) => updateSlipItemField(idx, "item", e.target.value)}
+                          onBlur={() => setTimeout(() => setShowItemSuggestions(false), 200)}
+                          onFocus={(e) => { setActiveItemRow(idx); fetchItemSuggestions(e.target.value); }} 
+                        />
+                        {activeItemRow === idx && showItemSuggestions && itemSuggestions.length > 0 && (
+                          <ul className="absoluteImpl absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden text-sm max-h-[200px] overflow-y-auto">
+                            {itemSuggestions.map((s, i) => (
+                              <li 
+                                key={i} 
+                                className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700/50 last:border-0 flex justify-between items-center"
+                                onMouseDown={(e) => { e.preventDefault(); applyItemSuggestion(s); }}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-slate-800 dark:text-slate-200">{s.item}</span>
+                                  <span className="text-xs text-slate-500">{s.remarks}</span>
+                                </div>
+                                <span className="text-blue-600 dark:text-blue-400 font-semibold">₹{s.rate}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 mb-1 block">Remarks (Optional)</label>
+                        <input 
+                          type="text" 
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:outline-none" 
+                          placeholder="Remarks" 
+                          value={itemInput.remarks} 
+                          onChange={(e) => updateSlipItemField(idx, "remarks", e.target.value)} 
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500 mb-1 block">Qty</label>
+                          <input 
+                            type="number" 
+                            step="any"
+                            className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:outline-none" 
+                            placeholder="1" 
+                            value={itemInput.qty} 
+                            onChange={(e) => updateSlipItemField(idx, "qty", e.target.value)} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500 mb-1 block">Rate (₹)</label>
+                          <input 
+                            type="number" 
+                            min="0"
+                            step="any"
+                            className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 focus:outline-none" 
+                            placeholder="0" 
+                            value={itemInput.rate} 
+                            onChange={(e) => updateSlipItemField(idx, "rate", e.target.value)} 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-2 text-sm border-t border-slate-100 dark:border-slate-700/50">
+                        <span className="font-semibold text-slate-500 dark:text-slate-400">Subtotal:</span>
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">₹{amount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <div className="mt-4 flex justify-between items-center">
               <span className="text-xs text-slate-500">Shortcut: <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">Alt</kbd> + <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">A</kbd> to add item</span>
