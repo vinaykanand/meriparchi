@@ -248,6 +248,15 @@ export default function AdminSlipsPage() {
       return;
     }
 
+    // Check if any cleaned item is missing quantity or rate
+    const hasMissingQtyOrRate = cleanedItems.some(
+      (it) => !it.qty.trim() || !it.rate.trim()
+    );
+    if (hasMissingQtyOrRate) {
+      addToast("Quantity and Rate are required for all added items.", "error");
+      return;
+    }
+
     const hasNegativeRate = cleanedItems.some(
       (it) => (parseFloat(it.rate) || 0) < 0
     );
@@ -469,7 +478,6 @@ export default function AdminSlipsPage() {
                             onChange={(e) => updateSlipItemField(idx, "item", e.target.value)}
                             onBlur={() => setTimeout(() => setShowItemSuggestions(false), 200)}
                             onFocus={(e) => { setActiveItemRow(idx); fetchItemSuggestions(e.target.value); }} 
-                            required
                           />
                           {activeItemRow === idx && showItemSuggestions && itemSuggestions.length > 0 && (
                             <ul className="absolute z-50 left-3 top-full mt-1 w-[300px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden text-sm">
@@ -511,7 +519,6 @@ export default function AdminSlipsPage() {
                                 e.preventDefault();
                               }
                             }}
-                            required
                           />
                         </td>
                         <td className="px-3 py-2">
@@ -534,7 +541,6 @@ export default function AdminSlipsPage() {
                                 }
                               }
                             }}
-                            required
                           />
                         </td>
                         <td className="px-4 py-2 font-mono font-semibold text-gray-700 dark:text-gray-300">

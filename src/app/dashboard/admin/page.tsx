@@ -6,7 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 
 export default function AdminOverview() {
   const { session } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<{
     kpis: {
@@ -139,23 +139,23 @@ export default function AdminOverview() {
             <AreaChart data={dashboardData.trend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#059669" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorPayment" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorReturns" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#dc2626" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dy={10} />
               <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dx={-10} tickFormatter={(value) => `₹${value}`} />
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.2} />
               <RechartsTooltip content={<CustomTooltip />} />
-              <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '12px' }}/>
+              <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '12px' }} />
               <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#059669" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
               <Area type="monotone" dataKey="payment" name="Payments" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorPayment)" />
               <Area type="monotone" dataKey="returns" name="Returns" stroke="#dc2626" strokeWidth={3} fillOpacity={1} fill="url(#colorReturns)" />
@@ -166,7 +166,7 @@ export default function AdminOverview() {
 
       {/* Row 3: Split View for Debtors and Items */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Top Debtors */}
         <div className="bg-white/80 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
           <div className="mb-4 flex justify-between items-center">
@@ -176,7 +176,7 @@ export default function AdminOverview() {
             </div>
             <span className="text-2xl">🚨</span>
           </div>
-          
+
           <div className="flex flex-col gap-4 mt-6">
             {dashboardData.topDebtors.map((debtor, idx) => {
               const maxDebt = Math.max(...dashboardData.topDebtors.map(d => d.outstanding), 1);
@@ -211,15 +211,15 @@ export default function AdminOverview() {
             </div>
             <span className="text-2xl">📦</span>
           </div>
-          
+
           <div className="h-[250px] w-full mt-4">
             {dashboardData.topItems.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dashboardData.topItems} layout="vertical" margin={{ top: 0, right: 30, left: 30, bottom: 0 }}>
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="item" width={80} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <RechartsTooltip 
-                    cursor={{fill: 'transparent'}}
+                  <RechartsTooltip
+                    cursor={{ fill: 'transparent' }}
                     content={({ active, payload }: any) => {
                       if (active && payload && payload.length) {
                         return (

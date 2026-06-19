@@ -33,7 +33,7 @@ export default function AdminLookupPage() {
   const [showReturnsOnly, setShowReturnsOnly] = useState(false);
   const [loadingLookupLedger, setLoadingLookupLedger] = useState(false);
   const [hasLookupSearched, setHasLookupSearched] = useState(false);
-  
+
   const [lookupData, setLookupData] = useState<LookupData | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>("");
 
@@ -41,7 +41,7 @@ export default function AdminLookupPage() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [searchSuggestions, setSearchSuggestions] = useState<{phone: string, name: string, address: string}[]>([]);
+  const [searchSuggestions, setSearchSuggestions] = useState<{ phone: string, name: string, address: string }[]>([]);
   const [showLookupSuggestions, setShowLookupSuggestions] = useState(false);
 
   const [loadingRecent, setLoadingRecent] = useState(false);
@@ -139,7 +139,7 @@ export default function AdminLookupPage() {
     try {
       let url = `/api/ledger?orgcode=${session.orgcode}&phone=${phone.trim()}`;
       if (date) url += `&date=${date}`;
-      
+
       const response = await fetch(url);
       const data = await response.json();
       if (response.ok && data.success) {
@@ -177,7 +177,7 @@ export default function AdminLookupPage() {
     try {
       const response = await fetch(
         `/api/ledger?orgcode=${session.orgcode}&phone=${searchedLookupPhone}`,
-        { 
+        {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ password: confirmPassword })
@@ -211,11 +211,11 @@ export default function AdminLookupPage() {
         <form onSubmit={handleLookupSearch} className="flex gap-3">
           <div className="relative flex-grow flex items-center">
             <span className="absolute left-4 text-slate-400">🔍</span>
-            <input 
-              type="text" 
-              className="w-full pl-10 pr-4 py-3 text-sm border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
-              placeholder="Enter Client Phone Number, Name, or Address" 
-              value={lookupPhone} 
+            <input
+              type="text"
+              className="w-full pl-10 pr-4 py-3 text-sm border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              placeholder="Enter Client Phone Number, Name, or Address"
+              value={lookupPhone}
               onChange={(e) => {
                 setLookupPhone(e.target.value);
                 setShowLookupSuggestions(true);
@@ -225,8 +225,8 @@ export default function AdminLookupPage() {
             {showLookupSuggestions && searchSuggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto z-50 py-2">
                 {searchSuggestions.map((item, idx) => (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={idx}
                     className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors"
                     onClick={() => handleSelectLookupSuggestion(item.phone, item.name, item.address)}
                   >
@@ -240,8 +240,8 @@ export default function AdminLookupPage() {
               </div>
             )}
           </div>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.2)] disabled:opacity-50 transition-colors"
             disabled={loadingLookupLedger}
           >
@@ -261,14 +261,14 @@ export default function AdminLookupPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
+
               {/* Column 1: Recently Active Clients */}
               <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
                 <h4 className="text-sm font-semibold border-b border-slate-200 dark:border-slate-700 pb-2">Recently Active Clients</h4>
                 <div className="flex flex-col gap-2 mt-2 max-h-[400px] overflow-y-auto pr-1">
                   {recentAccounts.map((acc, idx) => (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       onClick={() => handleSelectLookupSuggestion(acc.phone, acc.name, acc.address)}
                       className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-black/20 hover:bg-blue-500/5 dark:hover:bg-white/5 cursor-pointer transition-all flex flex-col gap-1"
                     >
@@ -302,8 +302,8 @@ export default function AdminLookupPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                       {recentSlips.map((slip, idx) => (
-                        <tr 
-                          key={idx} 
+                        <tr
+                          key={idx}
                           onClick={() => {
                             handleSelectLookupSuggestion(slip.phone, slip.name, "");
                           }}
@@ -342,7 +342,7 @@ export default function AdminLookupPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                       {recentPayments.map((pay, idx) => (
-                        <tr 
+                        <tr
                           key={idx}
                           onClick={() => {
                             handleSelectLookupSuggestion(pay.phone.toString(), "", "");
@@ -382,7 +382,7 @@ export default function AdminLookupPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                       {recentReturns.map((ret, idx) => (
-                        <tr 
+                        <tr
                           key={idx}
                           onClick={() => {
                             handleSelectLookupSuggestion(ret.phone, ret.name, "");
@@ -420,7 +420,7 @@ export default function AdminLookupPage() {
         <div className="flex flex-col gap-6 animate-fade-in">
           <div className="flex flex-col md:flex-row md:items-center gap-4 w-full">
             <div className="flex items-center gap-3 w-full md:w-auto">
-              <button 
+              <button
                 type="button"
                 onClick={() => {
                   setHasLookupSearched(false);
@@ -438,7 +438,7 @@ export default function AdminLookupPage() {
                 {lookupData?.customer?.name || searchedLookupPhone}
               </h3>
             </div>
-            
+
             {lookupData && (
               <div className="flex gap-2 w-full md:w-auto md:ml-auto">
                 <a target="_blank" rel="noopener noreferrer" href={`/print/ledger?phone=${searchedLookupPhone}&orgcode=${session?.orgcode}${showReturnsOnly ? '&returnsOnly=true' : ''}`} className="flex-1 md:flex-none text-center px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors shadow-sm shadow-purple-500/20">
@@ -490,7 +490,7 @@ export default function AdminLookupPage() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <span className="font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">Overview for:</span>
-                  <select 
+                  <select
                     className="flex-1 sm:flex-none w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={selectedDate}
                     onChange={handleDateFilterChange}
@@ -498,15 +498,15 @@ export default function AdminLookupPage() {
                     <option value="">All Time History</option>
                     {lookupData.availableDates.filter((d: any) => d).map((d: any) => {
                       const [y, m, day] = d.split('-');
-                      const displayDate = new Date(Number(y), Number(m)-1, Number(day)).toLocaleDateString();
+                      const displayDate = new Date(Number(y), Number(m) - 1, Number(day)).toLocaleDateString();
                       return <option key={d} value={d}>{displayDate}</option>;
                     })}
                   </select>
                 </div>
-                
+
                 <label className="flex items-center gap-2 cursor-pointer w-full sm:w-auto sm:ml-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={showReturnsOnly}
                     onChange={(e) => setShowReturnsOnly(e.target.checked)}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
@@ -545,44 +545,44 @@ export default function AdminLookupPage() {
                         return displaySlips.map((s: any, i: number) => {
                           const isFirst = i === 0 || displaySlips[i - 1].no !== s.no;
                           const isLast = i === displaySlips.length - 1 || displaySlips[i + 1].no !== s.no;
-                          
+
                           return (
                             <React.Fragment key={i}>
-                              <tr 
+                              <tr
                                 className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isFirst && i !== 0 ? 'border-t-2 border-slate-200 dark:border-slate-700' : ''}`}
                               >
-                            <td className="px-4 py-3 text-slate-500">
-                              {isFirst ? new Date(s.time).toLocaleDateString() : ""}
-                            </td>
-                            <td className="px-4 py-3 font-semibold text-blue-600 dark:text-blue-400">
-                              {isFirst ? `#${s.no}` : ""}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="font-medium text-slate-900 dark:text-slate-100">{s.item}</div>
-                              {s.remarks && <div className="text-xs text-slate-500 mt-0.5">{s.remarks}</div>}
-                            </td>
-                            <td className={`px-4 py-3 font-semibold text-right ${parseFloat(s.qty) < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{s.qty}</td>
-                            <td className="px-4 py-3 text-slate-500 text-right">₹{s.rate}</td>
-                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100 text-right">₹{s.amt}</td>
-                          </tr>
-                          {isLast && (
-                            <tr className="bg-slate-50 dark:bg-slate-800/30 group">
-                              <td colSpan={5} className="px-4 py-2.5 text-right">
-                                <div className="flex items-center justify-end gap-4">
-                                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=compact`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">🖨️ Thermal</a>
-                                    <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=a4`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">📄 A4</a>
-                                  </div>
-                                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                    Slip #{s.no} Total
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-700 text-right">
-                                ₹{slipTotals[s.no].toFixed(2)}
-                              </td>
-                            </tr>
-                          )}
+                                <td className="px-4 py-3 text-slate-500">
+                                  {isFirst ? new Date(s.time).toLocaleDateString() : ""}
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-blue-600 dark:text-blue-400">
+                                  {isFirst ? `#${s.no}` : ""}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="font-medium text-slate-900 dark:text-slate-100">{s.item}</div>
+                                  {s.remarks && <div className="text-xs text-slate-500 mt-0.5">{s.remarks}</div>}
+                                </td>
+                                <td className={`px-4 py-3 font-semibold text-right ${parseFloat(s.qty) < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{s.qty}</td>
+                                <td className="px-4 py-3 text-slate-500 text-right">₹{s.rate}</td>
+                                <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100 text-right">₹{s.amt}</td>
+                              </tr>
+                              {isLast && (
+                                <tr className="bg-slate-50 dark:bg-slate-800/30 group">
+                                  <td colSpan={5} className="px-4 py-2.5 text-right">
+                                    <div className="flex items-center justify-end gap-4">
+                                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=compact`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">🖨️ Thermal</a>
+                                        <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=a4`} className="px-2 py-1 text-xs font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">📄 A4</a>
+                                      </div>
+                                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                        Slip #{s.no} Total
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-700 text-right">
+                                    ₹{slipTotals[s.no].toFixed(2)}
+                                  </td>
+                                </tr>
+                              )}
                             </React.Fragment>
                           );
                         });
@@ -609,7 +609,7 @@ export default function AdminLookupPage() {
                                 displaySlips = displaySlips.filter((s: any) => parseFloat(s.qty) < 0);
                               }
                               const grandTotal = displaySlips.reduce((acc: number, s: any) => acc + (parseFloat(s.amt) || 0), 0);
-                              return grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                              return grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             })()}
                           </td>
                         </tr>
@@ -652,7 +652,7 @@ export default function AdminLookupPage() {
                           <td className="px-4 py-4 text-right text-lg text-green-600 dark:text-green-400">
                             ₹{(() => {
                               const grandTotal = lookupData.payments.reduce((acc: number, p: any) => acc + (parseFloat(p.amt) || 0), 0);
-                              return grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                              return grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             })()}
                           </td>
                         </tr>
@@ -694,7 +694,7 @@ export default function AdminLookupPage() {
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Confirm Account Deletion</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
               DANGER: You are about to permanently close the account for <strong className="text-slate-950 dark:text-slate-50">{searchedLookupPhone}</strong>. This action is irreversible.
-              <br/><br/>
+              <br /><br />
               Please enter your admin password to confirm:
             </p>
             <form onSubmit={confirmCloseAccount} className="flex flex-col gap-4">

@@ -22,7 +22,7 @@ interface ReportCustomer {
 export default function AdminReportsPage() {
   const { session } = useAuth();
   const router = useRouter();
-  
+
   const [filterType, setFilterType] = useState<string>("zero_outstanding");
   const [days, setDays] = useState<number | "">(30);
   const [loading, setLoading] = useState(false);
@@ -46,10 +46,10 @@ export default function AdminReportsPage() {
     if (valB === undefined || valB === null) valB = "";
 
     if (
-      sortCol === "outstanding" || 
-      sortCol === "aging_0_30" || 
-      sortCol === "aging_31_60" || 
-      sortCol === "aging_61_90" || 
+      sortCol === "outstanding" ||
+      sortCol === "aging_0_30" ||
+      sortCol === "aging_31_60" ||
+      sortCol === "aging_61_90" ||
       sortCol === "aging_90_plus"
     ) {
       valA = parseFloat(valA) || 0;
@@ -74,7 +74,7 @@ export default function AdminReportsPage() {
     setLoading(true);
     setError("");
     setHasSearched(false);
-    
+
     try {
       let url = `/api/reports?orgcode=${session.orgcode}&filter=${filterType}`;
       if (filterType === "no_activity") {
@@ -83,7 +83,7 @@ export default function AdminReportsPage() {
 
       const res = await fetch(url);
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setResults(data.data || []);
         setHasSearched(true);
@@ -106,7 +106,7 @@ export default function AdminReportsPage() {
 
       <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
         <form onSubmit={handleFetchReport} className="flex flex-col sm:flex-row gap-4 items-end">
-          
+
           <div className="flex flex-col gap-1 w-full sm:w-1/2">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Select Filter Type</label>
             <select
@@ -198,11 +198,11 @@ export default function AdminReportsPage() {
         <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-fade-in">
           <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
             <h3 className="font-bold text-slate-800 dark:text-slate-200">
-              {filterType === "zero_outstanding" 
-                ? "Fully Paid Customers" 
-                : filterType === "debt_aging" 
-                ? "Debt Aging Analysis" 
-                : `Inactive Customers (> ${days} days)`}
+              {filterType === "zero_outstanding"
+                ? "Fully Paid Customers"
+                : filterType === "debt_aging"
+                  ? "Debt Aging Analysis"
+                  : `Inactive Customers (> ${days} days)`}
             </h3>
             <div className="flex items-center gap-4">
               <span className="font-bold text-slate-800 dark:text-slate-200 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-lg">
@@ -218,7 +218,7 @@ export default function AdminReportsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
-                  <th 
+                  <th
                     className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     onClick={() => {
                       if (sortCol === "name") setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -227,7 +227,7 @@ export default function AdminReportsPage() {
                   >
                     Name {sortCol === "name" && (sortDir === "asc" ? "↑" : "↓")}
                   </th>
-                  <th 
+                  <th
                     className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     onClick={() => {
                       if (sortCol === "phone") setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -236,7 +236,7 @@ export default function AdminReportsPage() {
                   >
                     Phone {sortCol === "phone" && (sortDir === "asc" ? "↑" : "↓")}
                   </th>
-                  <th 
+                  <th
                     className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     onClick={() => {
                       if (sortCol === "outstanding") setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -246,7 +246,7 @@ export default function AdminReportsPage() {
                     Outstanding {sortCol === "outstanding" && (sortDir === "asc" ? "↑" : "↓")}
                   </th>
                   {filterType === "no_activity" && (
-                    <th 
+                    <th
                       className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                       onClick={() => {
                         if (sortCol === "last_activity") setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -258,7 +258,7 @@ export default function AdminReportsPage() {
                   )}
                   {filterType === "debt_aging" && (
                     <>
-                      <th 
+                      <th
                         className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-emerald-600 dark:text-emerald-400"
                         onClick={() => {
                           if (sortCol === "aging_0_30") setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -267,7 +267,7 @@ export default function AdminReportsPage() {
                       >
                         0-30 Days {sortCol === "aging_0_30" && (sortDir === "asc" ? "↑" : "↓")}
                       </th>
-                      <th 
+                      <th
                         className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-blue-600 dark:text-blue-400"
                         onClick={() => {
                           if (sortCol === "aging_31_60") setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -276,7 +276,7 @@ export default function AdminReportsPage() {
                       >
                         31-60 Days {sortCol === "aging_31_60" && (sortDir === "asc" ? "↑" : "↓")}
                       </th>
-                      <th 
+                      <th
                         className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-amber-600 dark:text-amber-400"
                         onClick={() => {
                           if (sortCol === "aging_61_90") setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -285,7 +285,7 @@ export default function AdminReportsPage() {
                       >
                         61-90 Days {sortCol === "aging_61_90" && (sortDir === "asc" ? "↑" : "↓")}
                       </th>
-                      <th 
+                      <th
                         className="px-6 py-4 font-semibold border-b border-slate-200 dark:border-slate-700 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-rose-600 dark:text-rose-400"
                         onClick={() => {
                           if (sortCol === "aging_90_plus") setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -307,8 +307,8 @@ export default function AdminReportsPage() {
                   </tr>
                 ) : (
                   sortedResults.map((customer, idx) => (
-                    <tr 
-                      key={idx} 
+                    <tr
+                      key={idx}
                       onClick={() => router.push(`/dashboard/admin/lookup?phone=${customer.phone}`)}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                     >

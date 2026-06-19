@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { 
-  MagnifyingGlassIcon, 
+import {
+  MagnifyingGlassIcon,
   FunnelIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -49,7 +49,7 @@ const ACTION_TYPES = [
 
 export default function AdminAuditPage() {
   const { session } = useAuth();
-  
+
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
@@ -384,7 +384,7 @@ export default function AdminAuditPage() {
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Purge Action Audit Logs</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
               Warning: You are about to permanently delete all action audit logs for this organization. This action cannot be undone.
-              <br/><br/>
+              <br /><br />
               Please enter your admin password to confirm:
             </p>
             <form onSubmit={handlePurgeLogs} className="flex flex-col gap-4">
