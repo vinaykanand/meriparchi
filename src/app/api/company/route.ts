@@ -75,7 +75,7 @@ export async function PUT(request: Request) {
        WHERE orgcode = $11`,
       [
         orgname, enableotp, isactive, otpresettime, opentime, closetime, 
-        audit_retention_days || 15, backup_schedule || 'none', 
+        audit_retention_days || 10, backup_schedule || 'none', 
         enable_security_logs !== false, enable_ai_assistant !== false, orgcode
       ]
     );

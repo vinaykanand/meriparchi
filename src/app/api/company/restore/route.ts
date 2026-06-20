@@ -292,7 +292,7 @@ export async function POST(request: Request) {
           c.otpresettime,
           c.opentime,
           c.closetime,
-          c.audit_retention_days || 15,
+          c.audit_retention_days || 10,
           c.gdrive_refresh_token || null,
           c.backup_schedule || null,
           c.last_backup_time || null,

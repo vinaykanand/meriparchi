@@ -24,7 +24,7 @@ export default function AdminSettingsPage() {
   const [otpresettime, setOtpresettime] = useState<number>(24);
   const [opentime, setOpentime] = useState("09:00");
   const [closetime, setClosetime] = useState("18:00");
-  const [auditRetentionDays, setAuditRetentionDays] = useState<number>(15);
+  const [auditRetentionDays, setAuditRetentionDays] = useState<number>(10);
   
   // Google Drive config states
   const [backupSchedule, setBackupSchedule] = useState("none");
@@ -205,7 +205,7 @@ export default function AdminSettingsPage() {
                 min="1"
                 className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
                 value={auditRetentionDays} 
-                onChange={(e) => setAuditRetentionDays(parseInt(e.target.value) || 15)} 
+                onChange={(e) => setAuditRetentionDays(parseInt(e.target.value) || 10)} 
               />
               <p className="text-xs text-slate-500 mt-1">Number of days to retain audit logs. Older logs are automatically purged.</p>
             </div>

@@ -44,11 +44,11 @@ export async function logAction({
       [orgcode, userid, action, JSON.stringify(details)]
     );
 
-    // 2. Automatically delete logs older than retention period
+    // 2. Automatically delete logs older than retention period (default 10 days)
     await executor.query(
       `DELETE FROM public.audit_logs 
        WHERE orgcode = $1 
-         AND timestamp < NOW() - (SELECT COALESCE(audit_retention_days, 15) FROM public.company WHERE orgcode = $1) * INTERVAL '1 day'`,
+         AND timestamp < NOW() - (SELECT COALESCE(audit_retention_days, 10) FROM public.company WHERE orgcode = $1) * INTERVAL '1 day'`,
       [orgcode]
     );
   } catch (error) {
