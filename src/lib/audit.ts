@@ -18,12 +18,16 @@ export async function logAction({
   const executor = client || { query: query };
   
   try {
-    // Prevent duplicate logs for backup and restore actions within 5 seconds
+    // Prevent duplicate logs for backup and restore actions within 2 minutes (120 seconds)
+    // Using both interval check and timezone-safe epoch differences
     if (action.includes("BACKUP") || action.includes("RESTORE")) {
       const dupCheck = await executor.query(
         `SELECT id FROM public.audit_logs 
          WHERE orgcode = $1 AND userid = $2 AND action = $3 
-           AND timestamp > NOW() - INTERVAL '5 seconds'
+           AND (
+             timestamp > NOW() - INTERVAL '2 minutes'
+             OR ABS(EXTRACT(EPOCH FROM (NOW() - timestamp))) < 120
+           )
          LIMIT 1`,
         [orgcode, userid, action]
       );
