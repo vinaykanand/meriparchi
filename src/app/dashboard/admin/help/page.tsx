@@ -31,17 +31,17 @@ function BlurredScreenshot({ src, alt, caption, blurOverlays = [] }: BlurredScre
       </div>
       
       {/* Image Container with relative positioning for blur layers */}
-      <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] bg-slate-200 dark:bg-slate-800">
+      <div className="relative w-full bg-slate-200 dark:bg-slate-800">
         <img
           src={src}
           alt={alt}
-          className="w-full h-full object-cover"
+          className="w-full h-auto block"
         />
         {/* Blur layers */}
         {blurOverlays.map((layer, idx) => (
           <div
             key={idx}
-            className={`absolute backdrop-blur-[6px] bg-slate-100/30 dark:bg-slate-900/30 border border-slate-200/20 shadow-inner select-none ${layer.rounded || "rounded"}`}
+            className={`absolute backdrop-blur-md bg-white/40 dark:bg-slate-950/40 border border-slate-200/30 shadow-inner select-none ${layer.rounded || "rounded"}`}
             style={{
               left: layer.left,
               top: layer.top,
