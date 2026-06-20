@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
 import { uploadBackupToGDrive } from "@/lib/gdrive";
+import { logAction } from "@/lib/audit";
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     }
 
     const sessionCheck = await query(
-      "SELECT orgcode, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
+      "SELECT userid, orgcode, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
       [authtoken]
     );
 
@@ -22,8 +23,21 @@ export async function POST(request: Request) {
     }
 
     const orgcode = sessionCheck.rows[0].orgcode;
+    const userid = sessionCheck.rows[0].userid;
 
     const result = await uploadBackupToGDrive(orgcode);
+
+    await logAction({
+      orgcode,
+      userid,
+      action: "MANUAL_BACKUP_GDRIVE",
+      details: {
+        success: result.success,
+        fileId: result.success ? (result as any).fileId : undefined,
+        error: result.success ? undefined : result.message,
+      },
+    });
+
     return NextResponse.json(result, { status: result.success ? 200 : 400 });
   } catch (error: any) {
     return NextResponse.json(

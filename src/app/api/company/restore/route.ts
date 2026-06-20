@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import pool, { query } from "@/lib/db";
 import AdmZip from "adm-zip";
+import { logAction } from "@/lib/audit";
 
 export async function POST(request: Request) {
   let client;
@@ -300,6 +301,15 @@ export async function POST(request: Request) {
         `SELECT setval(pg_get_serial_sequence('public.audit_logs', 'id'), COALESCE(MAX(id), 1)) FROM public.audit_logs`
       );
     }
+
+    // Log the restore operation inside the transaction using the active client
+    await logAction({
+      client,
+      orgcode: adminOrgcode,
+      userid: adminUserid,
+      action: fileId ? "RESTORE_BACKUP_GDRIVE" : "RESTORE_BACKUP_LOCAL",
+      details: { success: true, fileId: fileId || undefined },
+    });
 
     await client.query("COMMIT");
     return NextResponse.json({ success: true, message: "Company data restored successfully" });

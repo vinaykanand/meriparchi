@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
 import { generateBackupZip } from "@/lib/backup";
+import { logAction } from "@/lib/audit";
 
 export async function GET() {
   try {
@@ -13,7 +14,7 @@ export async function GET() {
     }
 
     const sessionCheck = await query(
-      "SELECT orgcode, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
+      "SELECT userid, orgcode, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
       [authtoken]
     );
 
@@ -22,11 +23,20 @@ export async function GET() {
     }
 
     const orgcode = sessionCheck.rows[0].orgcode;
+    const userid = sessionCheck.rows[0].userid;
 
     const zipBuffer = await generateBackupZip(orgcode);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `backup_${orgcode}_${timestamp}.zip`;
+
+    // Log the backup operation in the audit log
+    await logAction({
+      orgcode,
+      userid,
+      action: "MANUAL_BACKUP_LOCAL",
+      details: { success: true, filename },
+    });
 
     return new Response(new Uint8Array(zipBuffer), {
       status: 200,
