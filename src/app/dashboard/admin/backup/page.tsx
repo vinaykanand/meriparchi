@@ -28,6 +28,8 @@ export default function AdminBackupPage() {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [restorePassword, setRestorePassword] = useState("");
   const [restoreFileId, setRestoreFileId] = useState<string | undefined>(undefined);
+  const [restoreType, setRestoreType] = useState<"full" | "partial">("full");
+  const [restorePhone, setRestorePhone] = useState("");
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -163,13 +165,21 @@ export default function AdminBackupPage() {
 
     if (fileId) {
       setRestoreProgress(50);
-      xhr.open("POST", `/api/company/restore?fileId=${fileId}&password=${encodeURIComponent(password)}`);
+      let url = `/api/company/restore?fileId=${fileId}&password=${encodeURIComponent(password)}`;
+      if (restoreType === "partial" && restorePhone.trim()) {
+        url += `&phone=${encodeURIComponent(restorePhone.trim())}`;
+      }
+      xhr.open("POST", url);
       xhr.send();
     } else {
       if (!selectedFile) return;
       const formData = new FormData();
       formData.append("file", selectedFile);
-      xhr.open("POST", `/api/company/restore?password=${encodeURIComponent(password)}`);
+      let url = `/api/company/restore?password=${encodeURIComponent(password)}`;
+      if (restoreType === "partial" && restorePhone.trim()) {
+        url += `&phone=${encodeURIComponent(restorePhone.trim())}`;
+      }
+      xhr.open("POST", url);
       xhr.send(formData);
     }
   };
@@ -297,6 +307,8 @@ export default function AdminBackupPage() {
                   if (!selectedFile) return;
                   setRestoreFileId(undefined);
                   setRestorePassword("");
+                  setRestoreType("full");
+                  setRestorePhone("");
                   setShowRestoreModal(true);
                 }}
                 disabled={!selectedFile || restoring}
@@ -420,6 +432,8 @@ export default function AdminBackupPage() {
                           onClick={() => {
                             setRestoreFileId(b.id);
                             setRestorePassword("");
+                            setRestoreType("full");
+                            setRestorePhone("");
                             setShowRestoreModal(true);
                           }}
                           disabled={restoring}
@@ -444,9 +458,42 @@ export default function AdminBackupPage() {
             <div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Restore Database Backup</h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Warning: This will permanently delete and overwrite all current slips, items, users, and payments for this company. This action cannot be undone.
+                {restoreType === "full" 
+                  ? "Warning: This will permanently delete and overwrite all current slips, items, users, and payments for this company. This action cannot be undone."
+                  : "Restore only the history (slips and payments) of a specific phone number. Other data will remain untouched."}
               </p>
             </div>
+
+            {/* Toggle Restore Type */}
+            <div className="flex gap-2 p-1 bg-slate-150 dark:bg-slate-950 rounded-xl border border-slate-200/50 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setRestoreType("full")}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${restoreType === "full" ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                Full Restore
+              </button>
+              <button
+                type="button"
+                onClick={() => setRestoreType("partial")}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${restoreType === "partial" ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                Restore Selected Phone
+              </button>
+            </div>
+
+            {restoreType === "partial" && (
+              <div className="space-y-1 animate-fade-in">
+                <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Target Customer Phone Number</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 9876543210"
+                  value={restorePhone}
+                  onChange={(e) => setRestorePhone(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 dark:text-slate-200 outline-none"
+                />
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Enter Admin Password to Proceed</label>
@@ -470,7 +517,7 @@ export default function AdminBackupPage() {
               </button>
               <button
                 type="button"
-                disabled={restoring || !restorePassword}
+                disabled={restoring || !restorePassword || (restoreType === "partial" && !restorePhone.trim())}
                 onClick={() => {
                   setShowRestoreModal(false);
                   handleRestore(restoreFileId, restorePassword);

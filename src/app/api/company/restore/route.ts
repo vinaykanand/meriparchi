@@ -175,7 +175,86 @@ export async function POST(request: Request) {
       }
     }
 
-    // Connect DB client for Transaction
+    const phone = searchParams.get("phone")?.trim();
+
+    if (phone) {
+      // Find data in backup for that phone number
+      const targetSlips = slipsData.filter((s: any) => s.phone === phone);
+      const targetSlipIds = new Set(targetSlips.map((s: any) => s.id));
+      const targetPayments = paymentsData.filter((p: any) => p.phone === phone);
+      const targetSlipItems = slipitemsData.filter((si: any) => targetSlipIds.has(si.id));
+
+      if (targetSlips.length === 0 && targetPayments.length === 0) {
+        return NextResponse.json(
+          { success: false, message: `No data found in the backup file for phone number: ${phone}` },
+          { status: 400 }
+        );
+      }
+
+      // Connect DB client for Transaction
+      client = await pool.connect();
+      await client.query("BEGIN");
+
+      // 1. Delete existing data for this phone number
+      await client.query(
+        "DELETE FROM public.slipitems WHERE id IN (SELECT id FROM public.slips WHERE orgcode = $1 AND phone = $2)",
+        [adminOrgcode, phone]
+      );
+      await client.query("DELETE FROM public.slips WHERE orgcode = $1 AND phone = $2", [adminOrgcode, phone]);
+      await client.query("DELETE FROM public.payments WHERE orgcode = $1 AND phone = $2", [adminOrgcode, phone]);
+
+      // 2. Restore Payments
+      for (const p of targetPayments) {
+        await client.query(
+          `INSERT INTO public.payments (id, orgcode, phone, date, amount, narration)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [p.id, p.orgcode, p.phone, p.date, p.amount, p.narration]
+        );
+      }
+
+      // 3. Restore Slips
+      for (const s of targetSlips) {
+        await client.query(
+          `INSERT INTO public.slips (id, orgcode, slipno, date, phone, name, address, totalamount, discount)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [s.id, s.orgcode, s.slipno, s.date, s.phone, s.name, s.address, s.totalamount, s.discount]
+        );
+      }
+
+      // 4. Restore Slip Items
+      for (const si of targetSlipItems) {
+        await client.query(
+          `INSERT INTO public.slipitems (id, item, remarks, qty, rate)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [si.id, si.item, si.remarks, si.qty, si.rate]
+        );
+      }
+
+      // 5. Reset serial sequences
+      await client.query(
+        `SELECT setval(pg_get_serial_sequence('public.payments', 'id'), COALESCE(MAX(id), 1)) FROM public.payments`
+      );
+      await client.query(
+        `SELECT setval(pg_get_serial_sequence('public.slips', 'id'), COALESCE(MAX(id), 1)) FROM public.slips`
+      );
+      await client.query(
+        `SELECT setval(pg_get_serial_sequence('public.slipitems', 'id'), COALESCE(MAX(id), 1)) FROM public.slipitems`
+      );
+
+      // Log the partial restore operation
+      await logAction({
+        client,
+        orgcode: adminOrgcode,
+        userid: adminUserid,
+        action: fileId ? "RESTORE_PARTIAL_GDRIVE" : "RESTORE_PARTIAL_LOCAL",
+        details: { success: true, fileId: fileId || undefined, phone },
+      });
+
+      await client.query("COMMIT");
+      return NextResponse.json({ success: true, message: `Data for phone number ${phone} restored successfully` });
+    }
+
+    // Connect DB client for Transaction (Full Restore)
     client = await pool.connect();
     await client.query("BEGIN");
 

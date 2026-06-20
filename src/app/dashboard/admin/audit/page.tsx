@@ -50,6 +50,8 @@ const ACTION_TYPES = [
   { value: "AUTO_BACKUP_GDRIVE", label: "Auto Drive Backup" },
   { value: "RESTORE_BACKUP_LOCAL", label: "Restore Local Backup" },
   { value: "RESTORE_BACKUP_GDRIVE", label: "Restore Drive Backup" },
+  { value: "RESTORE_PARTIAL_LOCAL", label: "Restore Partial Local" },
+  { value: "RESTORE_PARTIAL_GDRIVE", label: "Restore Partial Drive" },
 ];
 
 export default function AdminAuditPage() {
@@ -158,6 +160,8 @@ export default function AdminAuditPage() {
       case "LOGIN_FAILED":
       case "RESTORE_BACKUP_LOCAL":
       case "RESTORE_BACKUP_GDRIVE":
+      case "RESTORE_PARTIAL_LOCAL":
+      case "RESTORE_PARTIAL_GDRIVE":
         return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400 border border-rose-200 dark:border-rose-800/30";
       case "UPDATE_COMPANY_SETTINGS":
       case "UPDATE_USER":
@@ -221,6 +225,10 @@ export default function AdminAuditPage() {
           return `Database successfully restored from local backup file`;
         case "RESTORE_BACKUP_GDRIVE":
           return `Database successfully restored from Google Drive backup (File ID: ${parsed.fileId || "N/A"})`;
+        case "RESTORE_PARTIAL_LOCAL":
+          return `Database partially restored for phone number: ${parsed.phone || "N/A"} from local backup`;
+        case "RESTORE_PARTIAL_GDRIVE":
+          return `Database partially restored for phone number: ${parsed.phone || "N/A"} from Google Drive backup (File ID: ${parsed.fileId || "N/A"})`;
         default:
           return JSON.stringify(parsed);
       }
