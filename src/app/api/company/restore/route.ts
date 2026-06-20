@@ -181,18 +181,18 @@ export async function POST(request: Request) {
     // 5. Restore Slips
     for (const s of slipsData) {
       await client.query(
-        `INSERT INTO public.slips (id, orgcode, slipno, date, phone, name, address, totalamount, discount, netamount)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [s.id, s.orgcode, s.slipno, s.date, s.phone, s.name, s.address, s.totalamount, s.discount, s.netamount]
+        `INSERT INTO public.slips (id, orgcode, slipno, date, phone, name, address, totalamount, discount)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [s.id, s.orgcode, s.slipno, s.date, s.phone, s.name, s.address, s.totalamount, s.discount]
       );
     }
 
     // 6. Restore Slip Items
     for (const si of slipitemsData) {
       await client.query(
-        `INSERT INTO public.slipitems (id, item, remarks, qty, rate, amount)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [si.id, si.item, si.remarks, si.qty, si.rate, si.amount]
+        `INSERT INTO public.slipitems (id, item, remarks, qty, rate)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [si.id, si.item, si.remarks, si.qty, si.rate]
       );
     }
 
