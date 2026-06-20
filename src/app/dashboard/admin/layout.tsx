@@ -65,11 +65,25 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
         document.documentElement.classList.add("dark");
       }
     }
-    const savedAi = localStorage.getItem("parchi_ai_enabled");
-    if (savedAi !== null) {
-      setIsAiEnabled(savedAi === "true");
-    }
   }, []);
+
+  useEffect(() => {
+    const fetchCompanyAiSetting = async () => {
+      if (!session?.orgcode) return;
+      try {
+        const res = await fetch(`/api/company?orgcode=${session.orgcode}`);
+        const data = await res.json();
+        if (res.ok && data.success && data.company) {
+          if (data.company.enable_ai_assistant !== undefined) {
+            setIsAiEnabled(data.company.enable_ai_assistant);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load company AI setting:", e);
+      }
+    };
+    fetchCompanyAiSetting();
+  }, [session]);
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
@@ -147,22 +161,6 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
             <span className="text-slate-500 dark:text-slate-400">User:</span>
             <span className="font-semibold">{session?.userid}</span>
           </div>
-          <button 
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-              isAiEnabled 
-                ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800" 
-                : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700"
-            }`}
-            onClick={() => {
-              const newValue = !isAiEnabled;
-              setIsAiEnabled(newValue);
-              localStorage.setItem("parchi_ai_enabled", String(newValue));
-            }}
-            title="Toggle AI Assistant"
-          >
-            <SparklesIcon className={`w-4 h-4 ${isAiEnabled ? "animate-pulse text-yellow-500" : ""}`} />
-            <span className="hidden md:inline">{isAiEnabled ? "AI Active" : "AI Off"}</span>
-          </button>
           <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={toggleTheme} aria-label="Toggle Theme">
             {theme === "dark" ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
           </button>
