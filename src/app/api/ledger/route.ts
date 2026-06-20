@@ -28,6 +28,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, accounts: result.rows });
     }
 
+    // 1b. Fetch Recent Payments
+    const paymentsLimit = searchParams.get("paymentsLimit");
+    if (paymentsLimit !== null) {
+      const limit = parseInt(paymentsLimit, 10) || 50;
+      const result = await query(
+        `SELECT p.id, p.phone, p.date, p.amount, p.narration,
+                (SELECT s.name FROM public.slips s WHERE s.orgcode = p.orgcode AND s.phone = p.phone LIMIT 1) as name
+         FROM public.payments p
+         WHERE p.orgcode = $1
+         ORDER BY p.date DESC, p.id DESC
+         LIMIT $2`,
+        [orgcode, limit]
+      );
+      return NextResponse.json({ success: true, payments: result.rows });
+    }
+
     // 2. Recent Transactions / Accounts Lookup
     if (recent === "true") {
       // Recent slips
@@ -232,11 +248,12 @@ export async function DELETE(request: Request) {
     const orgcode = searchParams.get("orgcode");
     const phone = searchParams.get("phone");
     const slipno = searchParams.get("slipno");
+    const paymentIds = searchParams.get("paymentIds");
 
     const body = await request.json().catch(() => ({}));
     const password = body.password;
 
-    if (!authtoken || !orgcode || (!phone && !slipno)) {
+    if (!authtoken || !orgcode || (!phone && !slipno && !paymentIds)) {
       return NextResponse.json(
         { success: false, message: "Missing required parameters" },
         { status: 400 }
@@ -254,6 +271,36 @@ export async function DELETE(request: Request) {
 
     if (sessionCheck.rows[0].password !== password) {
       return NextResponse.json({ success: false, message: "Invalid password" }, { status: 401 });
+    }
+
+    if (paymentIds) {
+      const idArray = paymentIds.split(",").map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+      if (idArray.length > 0) {
+        // Find details for audit logging BEFORE deleting
+        const paymentsDetails = await query(
+          "SELECT id, phone, amount FROM public.payments WHERE orgcode = $1 AND id = ANY($2::bigint[])",
+          [orgcode, idArray]
+        );
+
+        // Delete payments
+        await query(
+          "DELETE FROM public.payments WHERE orgcode = $1 AND id = ANY($2::bigint[])",
+          [orgcode, idArray]
+        );
+
+        // Log action for EACH deleted payment
+        for (const p of paymentsDetails.rows) {
+          await logAction({
+            orgcode,
+            userid: sessionCheck.rows[0].userid,
+            action: "DELETE_PAYMENT",
+            details: { paymentId: p.id, phone: p.phone, amount: p.amount },
+          });
+        }
+
+        return NextResponse.json({ success: true, message: `${idArray.length} payment(s) deleted successfully` });
+      }
+      return NextResponse.json({ success: false, message: "No valid payment IDs provided" }, { status: 400 });
     }
 
     if (slipno) {
