@@ -522,43 +522,52 @@ export default function AdminBackupPage() {
               </button>
             </div>
 
-            {restoreType === "partial" && (
-              <div className="space-y-1 animate-fade-in relative">
-                <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Target Customer Phone Number</label>
-                <input
-                  type="text"
-                  placeholder="Type to search phone or name..."
-                  value={restorePhone}
-                  onChange={(e) => setRestorePhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 dark:text-slate-200 outline-none"
-                />
-                {inspecting ? (
-                  <p className="text-[10px] text-slate-400">Scanning backup contents...</p>
-                ) : (
-                  <>
-                    {restorePhone.trim() && (
-                      <div className="absolute left-0 right-0 z-50 max-h-40 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mt-1 divide-y divide-slate-100 dark:divide-slate-800">
-                        {inspectResult.filter(c => c.phone.includes(restorePhone) || c.name.toLowerCase().includes(restorePhone.toLowerCase())).length === 0 ? (
-                          <div className="p-2.5 text-xs text-slate-400 text-center">No matching customer found in backup</div>
-                        ) : (
-                          inspectResult.filter(c => c.phone.includes(restorePhone) || c.name.toLowerCase().includes(restorePhone.toLowerCase())).map((c) => (
-                            <button
-                              key={c.phone}
-                              type="button"
-                              onClick={() => setRestorePhone(c.phone)}
-                              className="w-full text-left px-3.5 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 flex justify-between items-center transition-colors"
-                            >
-                              <span className="font-semibold text-slate-700 dark:text-slate-300">{c.phone}</span>
-                              <span className="text-slate-400 text-[10px]">{c.name}</span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
+            {restoreType === "partial" && (() => {
+              const exactMatch = inspectResult.find(c => c.phone === restorePhone);
+              const filteredResults = inspectResult.filter(c => c.phone.includes(restorePhone) || c.name.toLowerCase().includes(restorePhone.toLowerCase()));
+              return (
+                <div className="space-y-1 animate-fade-in relative">
+                  <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Target Customer Phone Number</label>
+                  <input
+                    type="text"
+                    placeholder="Type to search phone or name..."
+                    value={restorePhone}
+                    onChange={(e) => setRestorePhone(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 dark:text-slate-200 outline-none"
+                  />
+                  {exactMatch && (
+                    <p className="text-[11px] text-green-600 dark:text-green-400 font-semibold mt-1">
+                      ✓ Selected Customer: {exactMatch.name}
+                    </p>
+                  )}
+                  {inspecting ? (
+                    <p className="text-[10px] text-slate-400">Scanning backup contents...</p>
+                  ) : (
+                    <>
+                      {restorePhone.trim() && !exactMatch && (
+                        <div className="absolute left-0 right-0 z-50 max-h-40 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mt-1 divide-y divide-slate-100 dark:divide-slate-800">
+                          {filteredResults.length === 0 ? (
+                            <div className="p-2.5 text-xs text-slate-400 text-center">No matching customer found in backup</div>
+                          ) : (
+                            filteredResults.map((c) => (
+                              <button
+                                key={c.phone}
+                                type="button"
+                                onClick={() => setRestorePhone(c.phone)}
+                                className="w-full text-left px-3.5 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 flex justify-between items-center transition-colors"
+                              >
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">{c.phone}</span>
+                                <span className="text-slate-400 text-[10px]">{c.name}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Enter Admin Password to Proceed</label>
