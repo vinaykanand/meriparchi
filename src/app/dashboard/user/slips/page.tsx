@@ -28,6 +28,7 @@ export default function UserSlipsPage() {
   const [savingSlip, setSavingSlip] = useState(false);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
   const [paymentMade, setPaymentMade] = useState<string>("0");
+  const [paymentRemarks, setPaymentRemarks] = useState("");
   const [loadingCustomer, setLoadingCustomer] = useState(false);
   
   const [searchSuggestions, setSearchSuggestions] = useState<{phone: string, name: string, address: string}[]>([]);
@@ -295,7 +296,7 @@ export default function UserSlipsPage() {
               orgcode: session.orgcode,
               phone: slipPhone.trim(),
               amount: payAmt,
-              narration: `Payment made with Slip`.trim(),
+              narration: paymentRemarks.trim() || `Payment made with Slip`.trim(),
             }),
           });
           const payData = await payResponse.json();
@@ -308,6 +309,7 @@ export default function UserSlipsPage() {
 
         setSlipItems([{ item: "", remarks: "", qty: "0", rate: "0" }]);
         setPaymentMade("0");
+        setPaymentRemarks("");
         fetchCustomerDetails(slipPhone);
       } else {
         addToast(data.message || "Failed to commit transaction", "error");
@@ -564,6 +566,17 @@ export default function UserSlipsPage() {
                   placeholder="Amount received (e.g. 500)" 
                   value={paymentMade} 
                   onChange={(e) => setPaymentMade(e.target.value)} 
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Payment Remarks / Narration</label>
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all dark:text-white" 
+                  placeholder="Remarks for this payment (Optional)" 
+                  value={paymentRemarks} 
+                  onChange={(e) => setPaymentRemarks(e.target.value)} 
                 />
               </div>
             </div>
