@@ -52,6 +52,8 @@ export default function AdminLookupPage() {
 
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  const exactMatch = searchSuggestions.find(c => c.phone === lookupPhone.trim());
+
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
@@ -208,45 +210,52 @@ export default function AdminLookupPage() {
 
       {/* Search Panel */}
       <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
-        <form onSubmit={handleLookupSearch} className="flex gap-3">
-          <div className="relative flex-grow flex items-center">
-            <span className="absolute left-4 text-slate-400">🔍</span>
-            <input
-              type="text"
-              className="w-full pl-10 pr-4 py-3 text-sm border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-              placeholder="Enter Client Phone Number, Name, or Address"
-              value={lookupPhone}
-              onChange={(e) => {
-                setLookupPhone(e.target.value);
-                setShowLookupSuggestions(true);
-              }}
-              onFocus={() => setShowLookupSuggestions(true)}
-            />
-            {showLookupSuggestions && searchSuggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto z-50 py-2">
-                {searchSuggestions.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors"
-                    onClick={() => handleSelectLookupSuggestion(item.phone, item.name, item.address)}
-                  >
-                    <div className="font-semibold text-slate-800 dark:text-slate-200">{item.name || "Unnamed Customer"}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-3">
-                      <span className="flex items-center gap-1">📞 {item.phone}</span>
-                      {item.address && <span className="flex items-center gap-1">📍 {item.address}</span>}
+        <form onSubmit={handleLookupSearch} className="flex flex-col gap-2">
+          <div className="flex gap-3">
+            <div className="relative flex-grow flex items-center">
+              <span className="absolute left-4 text-slate-400">🔍</span>
+              <input
+                type="text"
+                className="w-full pl-10 pr-4 py-3 text-sm border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                placeholder="Enter Client Phone Number, Name, or Address"
+                value={lookupPhone}
+                onChange={(e) => {
+                  setLookupPhone(e.target.value);
+                  setShowLookupSuggestions(true);
+                }}
+                onFocus={() => setShowLookupSuggestions(true)}
+              />
+              {showLookupSuggestions && !exactMatch && searchSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto z-50 py-2">
+                  {searchSuggestions.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors"
+                      onClick={() => handleSelectLookupSuggestion(item.phone, item.name, item.address)}
+                    >
+                      <div className="font-semibold text-slate-800 dark:text-slate-200">{item.name || "Unnamed Customer"}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-3">
+                        <span className="flex items-center gap-1">📞 {item.phone}</span>
+                        {item.address && <span className="flex items-center gap-1">📍 {item.address}</span>}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.2)] disabled:opacity-50 transition-colors"
+              disabled={loadingLookupLedger}
+            >
+              {loadingLookupLedger ? "Searching..." : "Retrieve Statement"}
+            </button>
           </div>
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.2)] disabled:opacity-50 transition-colors"
-            disabled={loadingLookupLedger}
-          >
-            {loadingLookupLedger ? "Searching..." : "Retrieve Statement"}
-          </button>
+          {exactMatch && (
+            <p className="text-[11px] text-green-600 dark:text-green-400 font-semibold mt-1 ml-2">
+              ✓ Selected Customer: {exactMatch.name}
+            </p>
+          )}
         </form>
       </div>
 
