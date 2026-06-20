@@ -112,13 +112,17 @@ export async function POST(request: Request) {
     const slipsData = slipsEntry ? JSON.parse(slipsEntry.getData().toString("utf8")) : [];
     const paymentsData = paymentsEntry ? JSON.parse(paymentsEntry.getData().toString("utf8")) : [];
 
-    // Map unique phones to names
-    const phoneMap = new Map<string, string>();
+    // Map unique phones to names and addresses
+    const phoneMap = new Map<string, { name: string; address: string }>();
 
-    // slips might have phone and name
+    // slips might have phone, name, and address
     for (const s of slipsData) {
       if (s.phone && s.orgcode === adminOrgcode) {
-        phoneMap.set(s.phone, s.name || phoneMap.get(s.phone) || "Unknown Customer");
+        const existing = phoneMap.get(s.phone);
+        phoneMap.set(s.phone, {
+          name: s.name || existing?.name || "Unknown Customer",
+          address: s.address || existing?.address || "",
+        });
       }
     }
 
@@ -126,14 +130,18 @@ export async function POST(request: Request) {
     for (const p of paymentsData) {
       if (p.phone && p.orgcode === adminOrgcode) {
         if (!phoneMap.has(p.phone)) {
-          phoneMap.set(p.phone, "Unknown Customer");
+          phoneMap.set(p.phone, {
+            name: "Unknown Customer",
+            address: "",
+          });
         }
       }
     }
 
-    const customers = Array.from(phoneMap.entries()).map(([phone, name]) => ({
+    const customers = Array.from(phoneMap.entries()).map(([phone, info]) => ({
       phone,
-      name,
+      name: info.name,
+      address: info.address,
     }));
 
     return NextResponse.json({ success: true, customers });

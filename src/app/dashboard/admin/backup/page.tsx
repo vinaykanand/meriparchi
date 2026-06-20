@@ -31,7 +31,7 @@ export default function AdminBackupPage() {
   const [restoreType, setRestoreType] = useState<"full" | "partial">("full");
   const [restorePhone, setRestorePhone] = useState("");
   const [inspecting, setInspecting] = useState(false);
-  const [inspectResult, setInspectResult] = useState<{ phone: string, name: string }[]>([]);
+  const [inspectResult, setInspectResult] = useState<{ phone: string, name: string, address: string }[]>([]);
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -524,13 +524,17 @@ export default function AdminBackupPage() {
 
             {restoreType === "partial" && (() => {
               const exactMatch = inspectResult.find(c => c.phone === restorePhone);
-              const filteredResults = inspectResult.filter(c => c.phone.includes(restorePhone) || c.name.toLowerCase().includes(restorePhone.toLowerCase()));
+              const filteredResults = inspectResult.filter(c => 
+                c.phone.includes(restorePhone) || 
+                c.name.toLowerCase().includes(restorePhone.toLowerCase()) || 
+                (c.address && c.address.toLowerCase().includes(restorePhone.toLowerCase()))
+              );
               return (
                 <div className="space-y-1 animate-fade-in relative">
                   <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Target Customer Phone Number</label>
                   <input
                     type="text"
-                    placeholder="Type to search phone or name..."
+                    placeholder="Type to search phone, name, or address..."
                     value={restorePhone}
                     onChange={(e) => setRestorePhone(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 dark:text-slate-200 outline-none"
@@ -545,19 +549,34 @@ export default function AdminBackupPage() {
                   ) : (
                     <>
                       {restorePhone.trim() && !exactMatch && (
-                        <div className="absolute left-0 right-0 z-50 max-h-40 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mt-1 divide-y divide-slate-100 dark:divide-slate-800">
+                        <div className="absolute left-0 right-0 z-50 max-h-48 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mt-1 divide-y divide-slate-100 dark:divide-slate-800">
                           {filteredResults.length === 0 ? (
-                            <div className="p-2.5 text-xs text-slate-400 text-center">No matching customer found in backup</div>
+                            <div className="p-3 text-xs text-slate-400 text-center">No matching customer found in backup</div>
                           ) : (
                             filteredResults.map((c) => (
                               <button
                                 key={c.phone}
                                 type="button"
                                 onClick={() => setRestorePhone(c.phone)}
-                                className="w-full text-left px-3.5 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 flex justify-between items-center transition-colors"
+                                className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 flex flex-col gap-1 transition-colors"
                               >
-                                <span className="font-semibold text-slate-700 dark:text-slate-300">{c.phone}</span>
-                                <span className="text-slate-400 text-[10px]">{c.name}</span>
+                                <div className="font-semibold text-sm text-slate-800 dark:text-slate-200">{c.name || "Unknown Customer"}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center flex-wrap gap-x-3 gap-y-1">
+                                  <span className="flex items-center gap-1">
+                                    <svg className="w-3.5 h-3.5 text-rose-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.3-1.1-.5-2.3-.5-3.5 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z" />
+                                    </svg>
+                                    {c.phone}
+                                  </span>
+                                  {c.address && (
+                                    <span className="flex items-center gap-1">
+                                      <svg className="w-3.5 h-3.5 text-rose-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 2C8.1 2 5 5.1 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.9-3.1-7-7-7zm0 9.5c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5z" />
+                                      </svg>
+                                      {c.address}
+                                    </span>
+                                  )}
+                                </div>
                               </button>
                             ))
                           )}

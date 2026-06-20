@@ -120,6 +120,14 @@ export default function AdminLookupPage() {
     return () => clearTimeout(timeout);
   }, [lookupPhone, session]);
 
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setShowLookupSuggestions(false);
+    };
+    document.addEventListener("click", handleGlobalClick);
+    return () => document.removeEventListener("click", handleGlobalClick);
+  }, []);
+
   const handleSelectLookupSuggestion = (phone: string, name: string, address: string) => {
     setLookupPhone(phone);
     setShowLookupSuggestions(false);
@@ -226,17 +234,29 @@ export default function AdminLookupPage() {
                 onFocus={() => setShowLookupSuggestions(true)}
               />
               {showLookupSuggestions && !exactMatch && searchSuggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto z-50 py-2">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto z-50 py-1 divide-y divide-slate-100 dark:divide-slate-800">
                   {searchSuggestions.map((item, idx) => (
                     <div
                       key={idx}
-                      className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors"
+                      className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
                       onClick={() => handleSelectLookupSuggestion(item.phone, item.name, item.address)}
                     >
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">{item.name || "Unnamed Customer"}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-3">
-                        <span className="flex items-center gap-1">📞 {item.phone}</span>
-                        {item.address && <span className="flex items-center gap-1">📍 {item.address}</span>}
+                      <div className="font-semibold text-sm text-slate-800 dark:text-slate-200">{item.name || "Unnamed Customer"}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center flex-wrap gap-x-3 gap-y-1">
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5 text-rose-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.8-6.6-6.6l2.2-2.2c.3-.3.4-.7.2-1-.3-1.1-.5-2.3-.5-3.5 0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.6-.4-1-1-1z" />
+                          </svg>
+                          {item.phone}
+                        </span>
+                        {item.address && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5 text-rose-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2C8.1 2 5 5.1 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.9-3.1-7-7-7zm0 9.5c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5z" />
+                            </svg>
+                            {item.address}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
