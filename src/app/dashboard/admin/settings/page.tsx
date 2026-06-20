@@ -190,6 +190,7 @@ export default function AdminSettingsPage() {
       const data = await response.json();
       if (response.ok && data.success) {
         addToast("Company settings updated successfully", "success");
+        window.dispatchEvent(new Event("company-settings-updated"));
         setGdriveClientSecret(""); // clear secret input on save
         // Re-fetch company details to check link status
         const fetchRes = await fetch(`/api/company?orgcode=${session.orgcode}`);

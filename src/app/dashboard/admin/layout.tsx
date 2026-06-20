@@ -83,6 +83,11 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
       }
     };
     fetchCompanyAiSetting();
+
+    window.addEventListener("company-settings-updated", fetchCompanyAiSetting);
+    return () => {
+      window.removeEventListener("company-settings-updated", fetchCompanyAiSetting);
+    };
   }, [session]);
 
   const toggleTheme = () => {
