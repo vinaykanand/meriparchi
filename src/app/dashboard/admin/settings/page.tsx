@@ -36,6 +36,7 @@ export default function AdminSettingsPage() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [restoreProgress, setRestoreProgress] = useState<number | null>(null);
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -93,29 +94,50 @@ export default function AdminSettingsPage() {
     if (!confirmRestore) return;
 
     setRestoring(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
+    setRestoreProgress(0);
 
-      const response = await fetch("/api/company/restore", {
-        method: "POST",
-        body: formData,
-      });
+    const formData = new FormData();
+    formData.append("file", selectedFile);
 
-      const data = await response.json();
-      if (response.ok && data.success) {
-        addToast("Database restored successfully! Reloading...", "success");
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-      } else {
-        addToast(data.message || "Failed to restore database", "error");
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        // Cap upload progress at 99% to indicate server-side DB work is running
+        setRestoreProgress(Math.min(percentComplete, 99));
       }
-    } catch (e) {
+    });
+
+    xhr.addEventListener("load", () => {
+      setRestoreProgress(100);
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+          addToast("Database restored successfully! Reloading...", "success");
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } else {
+          addToast(data.message || "Failed to restore database", "error");
+          setRestoreProgress(null);
+          setRestoring(false);
+        }
+      } catch (e) {
+        addToast("Failed to parse server response", "error");
+        setRestoreProgress(null);
+        setRestoring(false);
+      }
+    });
+
+    xhr.addEventListener("error", () => {
       addToast("Failed to connect to server", "error");
-    } finally {
+      setRestoreProgress(null);
       setRestoring(false);
-    }
+    });
+
+    xhr.open("POST", "/api/company/restore");
+    xhr.send(formData);
   };
 
   useEffect(() => {
@@ -477,6 +499,19 @@ export default function AdminSettingsPage() {
                     hover:file:bg-slate-200 dark:hover:file:bg-slate-600
                     cursor-pointer"
                 />
+                
+                {restoreProgress !== null && (
+                  <div className="w-full bg-slate-100 dark:bg-slate-900 rounded-full h-4 relative overflow-hidden border border-slate-200 dark:border-slate-800">
+                    <div 
+                      className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out" 
+                      style={{ width: `${restoreProgress}%` }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-350">
+                      {restoreProgress === 99 ? "Processing database..." : `${restoreProgress}%`}
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={handleRestore}
                   disabled={!selectedFile || restoring}
