@@ -284,7 +284,7 @@ export default function AdminAuditPage() {
       </div>
 
       {/* Filters Card */}
-      <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+      <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative z-20">
         <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1 flex flex-col gap-1.5 w-full">
             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Search</label>
@@ -359,7 +359,7 @@ export default function AdminAuditPage() {
       </div>
 
       {/* Logs Table Card */}
-      <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden relative z-10">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
