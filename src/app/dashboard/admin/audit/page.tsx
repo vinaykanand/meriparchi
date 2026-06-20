@@ -68,6 +68,7 @@ export default function AdminAuditPage() {
   const [selectedAction, setSelectedAction] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
+  const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
 
   // Purging and Modal states
   const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false);
@@ -114,6 +115,14 @@ export default function AdminAuditPage() {
     fetchLogs(1);
   }, [session, selectedAction]);
 
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setIsActionDropdownOpen(false);
+    };
+    document.addEventListener("click", handleGlobalClick);
+    return () => document.removeEventListener("click", handleGlobalClick);
+  }, []);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchLogs(1);
@@ -150,14 +159,21 @@ export default function AdminAuditPage() {
       case "CREATE_SLIP":
       case "CREATE_USER":
       case "LOGIN_SUCCESS":
-      case "MANUAL_BACKUP_LOCAL":
-      case "MANUAL_BACKUP_GDRIVE":
-      case "AUTO_BACKUP_GDRIVE":
-      case "RESTORE_BACKUP_LOCAL":
-      case "RESTORE_BACKUP_GDRIVE":
-      case "RESTORE_PARTIAL_LOCAL":
-      case "RESTORE_PARTIAL_GDRIVE":
         return "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
+      case "MANUAL_BACKUP_LOCAL":
+        return "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800/30";
+      case "MANUAL_BACKUP_GDRIVE":
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/30";
+      case "AUTO_BACKUP_GDRIVE":
+        return "bg-teal-50 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400 border border-teal-200 dark:border-teal-800/30";
+      case "RESTORE_BACKUP_LOCAL":
+        return "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/30";
+      case "RESTORE_BACKUP_GDRIVE":
+        return "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400 border border-purple-200 dark:border-purple-800/30";
+      case "RESTORE_PARTIAL_LOCAL":
+        return "bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400 border border-sky-200 dark:border-sky-800/30";
+      case "RESTORE_PARTIAL_GDRIVE":
+        return "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30";
       case "DELETE_SLIP":
       case "DELETE_USER":
       case "CLOSE_ACCOUNT":
@@ -167,7 +183,7 @@ export default function AdminAuditPage() {
       case "UPDATE_USER":
         return "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800/30";
       case "LOG_PAYMENT":
-        return "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30";
+        return "bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800/30";
       case "LOGOUT":
         return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
       default:
@@ -281,21 +297,52 @@ export default function AdminAuditPage() {
             </div>
           </div>
 
-          <div className="w-full md:w-64 flex flex-col gap-1.5">
+          <div className="w-full md:w-64 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Filter Action</label>
             <div className="relative">
-              <select
-                value={selectedAction}
-                onChange={(e) => setSelectedAction(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white appearance-none cursor-pointer"
+              <button
+                type="button"
+                onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white flex items-center justify-between cursor-pointer text-sm font-semibold min-h-[46px]"
               >
-                {ACTION_TYPES.map((type) => (
-                  <option key={type.value} value={type.value} className="dark:bg-slate-800">
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-              <FunnelIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                <span className="truncate">
+                  {selectedAction ? (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(selectedAction)}`}>
+                      {ACTION_TYPES.find(a => a.value === selectedAction)?.label || selectedAction.replace(/_/g, " ")}
+                    </span>
+                  ) : (
+                    "All Actions"
+                  )}
+                </span>
+                <span className="text-slate-400 text-xs">▼</span>
+              </button>
+              <FunnelIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+
+              {isActionDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto z-50 py-1 divide-y divide-slate-100 dark:divide-slate-800">
+                  {ACTION_TYPES.map((type) => (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => {
+                        setSelectedAction(type.value);
+                        setIsActionDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center"
+                    >
+                      {type.value ? (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(type.value)}`}>
+                          {type.label}
+                        </span>
+                      ) : (
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          All Actions
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
