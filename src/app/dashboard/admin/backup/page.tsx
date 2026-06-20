@@ -30,6 +30,8 @@ export default function AdminBackupPage() {
   const [restoreFileId, setRestoreFileId] = useState<string | undefined>(undefined);
   const [restoreType, setRestoreType] = useState<"full" | "partial">("full");
   const [restorePhone, setRestorePhone] = useState("");
+  const [inspecting, setInspecting] = useState(false);
+  const [inspectResult, setInspectResult] = useState<{ phone: string, name: string }[]>([]);
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -37,6 +39,42 @@ export default function AdminBackupPage() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 5000);
+  };
+
+  const handleInspectBackup = async (fileId?: string) => {
+    setInspecting(true);
+    setInspectResult([]);
+    try {
+      if (fileId) {
+        const res = await fetch(`/api/company/restore/inspect?fileId=${fileId}`, {
+          method: "POST"
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setInspectResult(data.customers || []);
+        } else {
+          console.error("Inspect failed:", data.message);
+        }
+      } else {
+        if (!selectedFile) return;
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        const res = await fetch("/api/company/restore/inspect", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setInspectResult(data.customers || []);
+        } else {
+          console.error("Inspect failed:", data.message);
+        }
+      }
+    } catch (e) {
+      console.error("Inspect failed:", e);
+    } finally {
+      setInspecting(false);
+    }
   };
 
   const handleBackup = () => {
@@ -310,6 +348,7 @@ export default function AdminBackupPage() {
                   setRestoreType("full");
                   setRestorePhone("");
                   setShowRestoreModal(true);
+                  handleInspectBackup();
                 }}
                 disabled={!selectedFile || restoring}
                 className="py-2.5 px-4 rounded-xl text-white font-medium bg-rose-600 hover:bg-rose-700 disabled:opacity-50 transition-all shadow-[0_4px_10px_rgba(225,29,72,0.2)] text-sm self-start"
@@ -435,6 +474,7 @@ export default function AdminBackupPage() {
                             setRestoreType("full");
                             setRestorePhone("");
                             setShowRestoreModal(true);
+                            handleInspectBackup(b.id);
                           }}
                           disabled={restoring}
                           className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50"
@@ -483,15 +523,40 @@ export default function AdminBackupPage() {
             </div>
 
             {restoreType === "partial" && (
-              <div className="space-y-1 animate-fade-in">
+              <div className="space-y-1 animate-fade-in relative">
                 <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Target Customer Phone Number</label>
                 <input
                   type="text"
-                  placeholder="e.g. 9876543210"
+                  placeholder="Type to search phone or name..."
                   value={restorePhone}
                   onChange={(e) => setRestorePhone(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 dark:text-slate-200 outline-none"
                 />
+                {inspecting ? (
+                  <p className="text-[10px] text-slate-400">Scanning backup contents...</p>
+                ) : (
+                  <>
+                    {restorePhone.trim() && (
+                      <div className="absolute left-0 right-0 z-50 max-h-40 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg mt-1 divide-y divide-slate-100 dark:divide-slate-800">
+                        {inspectResult.filter(c => c.phone.includes(restorePhone) || c.name.toLowerCase().includes(restorePhone.toLowerCase())).length === 0 ? (
+                          <div className="p-2.5 text-xs text-slate-400 text-center">No matching customer found in backup</div>
+                        ) : (
+                          inspectResult.filter(c => c.phone.includes(restorePhone) || c.name.toLowerCase().includes(restorePhone.toLowerCase())).map((c) => (
+                            <button
+                              key={c.phone}
+                              type="button"
+                              onClick={() => setRestorePhone(c.phone)}
+                              className="w-full text-left px-3.5 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 flex justify-between items-center transition-colors"
+                            >
+                              <span className="font-semibold text-slate-700 dark:text-slate-300">{c.phone}</span>
+                              <span className="text-slate-400 text-[10px]">{c.name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
