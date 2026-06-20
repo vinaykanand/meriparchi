@@ -7,7 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 export default function AdminOverview() {
   const { session } = useAuth();
 
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
   const [trendLoading, setTrendLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState<{
@@ -38,11 +38,7 @@ export default function AdminOverview() {
     const fetchDashboardData = async () => {
       if (!session?.orgcode) return;
       try {
-        if (weekOffset === 0) {
-          setLoading(true);
-        } else {
-          setTrendLoading(true);
-        }
+        setTrendLoading(true);
         const res = await fetch(`/api/dashboard?orgcode=${session.orgcode}&weekOffset=${weekOffset}`);
         const data = await res.json();
         if (res.ok && data.success) {
@@ -56,7 +52,7 @@ export default function AdminOverview() {
       } catch (err) {
         console.error("Failed to fetch dashboard data", err);
       } finally {
-        setLoading(false);
+        setInitialLoading(false);
         setTrendLoading(false);
       }
     };
@@ -80,7 +76,7 @@ export default function AdminOverview() {
     return null;
   };
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-700 border-t-blue-600 rounded-full animate-spin"></div>
