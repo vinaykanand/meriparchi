@@ -293,9 +293,11 @@ export default function AdminReportsPage() {
                   Close Selected ({selectedPhones.length})
                 </button>
               )}
-              <span className="font-bold text-slate-800 dark:text-slate-200 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-xl text-sm">
-                Total Balance: ₹{totalBalance.toFixed(2)}
-              </span>
+              {filterType !== "zero_outstanding" && (
+                <span className="font-bold text-slate-800 dark:text-slate-200 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-xl text-sm">
+                  Total Balance: ₹{totalBalance.toFixed(2)}
+                </span>
+              )}
             </div>
           </div>
 
