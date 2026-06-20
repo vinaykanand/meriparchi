@@ -45,6 +45,11 @@ const ACTION_TYPES = [
   { value: "LOGIN_SUCCESS", label: "Login Success" },
   { value: "LOGIN_FAILED", label: "Login Failed" },
   { value: "LOGOUT", label: "Logout" },
+  { value: "MANUAL_BACKUP_LOCAL", label: "Manual Local Backup" },
+  { value: "MANUAL_BACKUP_GDRIVE", label: "Manual Drive Backup" },
+  { value: "AUTO_BACKUP_GDRIVE", label: "Auto Drive Backup" },
+  { value: "RESTORE_BACKUP_LOCAL", label: "Restore Local Backup" },
+  { value: "RESTORE_BACKUP_GDRIVE", label: "Restore Drive Backup" },
 ];
 
 export default function AdminAuditPage() {
@@ -143,11 +148,16 @@ export default function AdminAuditPage() {
       case "CREATE_SLIP":
       case "CREATE_USER":
       case "LOGIN_SUCCESS":
+      case "MANUAL_BACKUP_LOCAL":
+      case "MANUAL_BACKUP_GDRIVE":
+      case "AUTO_BACKUP_GDRIVE":
         return "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
       case "DELETE_SLIP":
       case "DELETE_USER":
       case "CLOSE_ACCOUNT":
       case "LOGIN_FAILED":
+      case "RESTORE_BACKUP_LOCAL":
+      case "RESTORE_BACKUP_GDRIVE":
         return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400 border border-rose-200 dark:border-rose-800/30";
       case "UPDATE_COMPANY_SETTINGS":
       case "UPDATE_USER":
@@ -197,6 +207,20 @@ export default function AdminAuditPage() {
           return `Failed login attempt for user: ${parsed.username || log.userid || "Unknown"}${parsed.message || parsed.reason ? ` (${parsed.message || parsed.reason})` : ""}${parsed.ip ? ` from IP ${parsed.ip}` : ""}`;
         case "LOGOUT":
           return `User logged out: ${parsed.username || log.userid}`;
+        case "MANUAL_BACKUP_LOCAL":
+          return `Manual local backup exported: ${parsed.filename || ""}`;
+        case "MANUAL_BACKUP_GDRIVE":
+          return parsed.success 
+            ? `Manual backup uploaded to Google Drive (File ID: ${parsed.fileId || "N/A"})` 
+            : `Manual backup to Google Drive failed: ${parsed.error || "Unknown error"}`;
+        case "AUTO_BACKUP_GDRIVE":
+          return parsed.success 
+            ? `Auto backup completed to Google Drive (File ID: ${parsed.fileId || "N/A"})` 
+            : `Auto backup to Google Drive failed: ${parsed.error || "Unknown error"}`;
+        case "RESTORE_BACKUP_LOCAL":
+          return `Database successfully restored from local backup file`;
+        case "RESTORE_BACKUP_GDRIVE":
+          return `Database successfully restored from Google Drive backup (File ID: ${parsed.fileId || "N/A"})`;
         default:
           return JSON.stringify(parsed);
       }
