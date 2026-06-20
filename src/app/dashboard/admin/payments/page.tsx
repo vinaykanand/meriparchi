@@ -413,9 +413,9 @@ export default function AdminPaymentsPage() {
                           <div className="font-semibold text-slate-800 dark:text-slate-200">
                             {p.name || "Unknown"}
                           </div>
-                          <div className="text-[10px] text-slate-550 font-mono dark:text-slate-400">{p.phone}</div>
+                          <div className="text-[10px] text-slate-550 font-mono dark:text-slate-300">{p.phone}</div>
                           {p.address && (
-                            <div className="text-[10px] text-slate-450 dark:text-slate-500/80 italic mt-0.5">📍 {p.address}</div>
+                            <div className="text-[10px] text-slate-450 dark:text-slate-350 italic mt-0.5">📍 {p.address}</div>
                           )}
                         </td>
                         <td className="px-4 py-3 text-slate-650 dark:text-slate-450 whitespace-nowrap">
