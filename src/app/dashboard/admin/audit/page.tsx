@@ -69,6 +69,7 @@ export default function AdminAuditPage() {
   const [loading, setLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   // Purging and Modal states
   const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false);
@@ -116,8 +117,10 @@ export default function AdminAuditPage() {
   }, [session, selectedAction]);
 
   useEffect(() => {
-    const handleGlobalClick = () => {
-      setIsActionDropdownOpen(false);
+    const handleGlobalClick = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsActionDropdownOpen(false);
+      }
     };
     document.addEventListener("click", handleGlobalClick);
     return () => document.removeEventListener("click", handleGlobalClick);
@@ -297,7 +300,7 @@ export default function AdminAuditPage() {
             </div>
           </div>
 
-          <div className="w-full md:w-64 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <div ref={dropdownRef} className="w-full md:w-64 flex flex-col gap-1.5">
             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Filter Action</label>
             <div className="relative">
               <button
