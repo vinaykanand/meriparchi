@@ -153,15 +153,15 @@ export default function AdminAuditPage() {
       case "MANUAL_BACKUP_LOCAL":
       case "MANUAL_BACKUP_GDRIVE":
       case "AUTO_BACKUP_GDRIVE":
+      case "RESTORE_BACKUP_LOCAL":
+      case "RESTORE_BACKUP_GDRIVE":
+      case "RESTORE_PARTIAL_LOCAL":
+      case "RESTORE_PARTIAL_GDRIVE":
         return "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
       case "DELETE_SLIP":
       case "DELETE_USER":
       case "CLOSE_ACCOUNT":
       case "LOGIN_FAILED":
-      case "RESTORE_BACKUP_LOCAL":
-      case "RESTORE_BACKUP_GDRIVE":
-      case "RESTORE_PARTIAL_LOCAL":
-      case "RESTORE_PARTIAL_GDRIVE":
         return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400 border border-rose-200 dark:border-rose-800/30";
       case "UPDATE_COMPANY_SETTINGS":
       case "UPDATE_USER":
