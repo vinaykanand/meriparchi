@@ -32,8 +32,36 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
   // AI Assistant Chat Widget State
   const [isAiEnabled, setIsAiEnabled] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"chat" | "help">("chat");
+  const [todayOverview, setTodayOverview] = useState<{
+    totalOutstanding: number;
+    revenueToday: number;
+    paymentsToday: number;
+    returnsToday: number;
+    slipsToday: number;
+  } | null>(null);
+  const [isLoadingOverview, setIsLoadingOverview] = useState(false);
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { sender: "ai", text: "Hello! I am your AI Assistant. Ask me anything about your customer balances, payments, top debtors, or outstanding statistics." }
+    { 
+      sender: "ai", 
+      text: `Hello! I am your AI Assistant. I can help you search ledgers and analyze details in real time.
+
+**Here are examples of what you can ask me (click to ask):**
+- *"What is the total outstanding?"*
+- *"Who is the top debtor?"*
+- *"Show Aging Report"*
+- *"risky accounts"* (overdue > 60 days)
+- *"hasn't paid"* (no payment in 30+ days)
+- *"most sold"* (popular items)
+- *"returned items today"*
+- *"this week vs last week"* (WoW trend)
+- *"largest payment"* or *"largest slip"*
+- *"outstanding in [City]"*
+- *"Show details for slip #8"*
+
+*Or type a customer query like: "Outstanding for [Name/Phone]" or "Payments for [Name/Phone]"*`
+    }
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -55,6 +83,29 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
       setTimeout(scrollToBottom, 100);
     }
   }, [chatMessages, isChatOpen]);
+
+  // Fetch today's overview data whenever chat is opened or refreshed
+  const fetchOverviewData = async () => {
+    if (!session?.orgcode) return;
+    setIsLoadingOverview(true);
+    try {
+      const res = await fetch(`/api/dashboard?orgcode=${session.orgcode}`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTodayOverview(data.kpis);
+      }
+    } catch (e) {
+      console.error("Failed to load today's overview stats:", e);
+    } finally {
+      setIsLoadingOverview(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isChatOpen && session?.orgcode) {
+      fetchOverviewData();
+    }
+  }, [isChatOpen, session?.orgcode]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("parchi_theme");
@@ -105,6 +156,8 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
     
     const userMsg = textToSend.trim();
     setChatInput("");
+    // Ensure we switch to chat tab so the user can see the AI's reply stream
+    setActiveTab("chat");
     setChatMessages((prev) => [...prev, { sender: "user", text: userMsg }]);
     setIsChatLoading(true);
 
@@ -243,7 +296,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
           {/* Chat window drawer */}
           {isChatOpen && (
-            <div className="w-[360px] sm:w-[380px] h-[480px] bg-white/95 dark:bg-slate-950/95 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden mb-4 backdrop-blur-xl animate-fade-in relative">
+            <div className="w-[360px] sm:w-[380px] h-[540px] bg-white/95 dark:bg-slate-950/95 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden mb-4 backdrop-blur-xl animate-fade-in relative">
               {/* Header */}
               <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex justify-between items-center shadow">
                 <div className="flex items-center gap-2">
@@ -261,61 +314,213 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
 
-              {/* Messages log */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
-                {chatMessages.map((msg, idx) => (
-                  <div 
-                    key={idx}                  className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm leading-relaxed whitespace-pre-line
-                      ${msg.sender === "user"
-                        ? "bg-blue-600 text-white rounded-tr-none self-end"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none self-start border border-slate-200/50 dark:border-slate-700"}`}
-                  >
-                    {renderMessageContent(msg)}
-                  </div>
-                ))}
-                {isChatLoading && (
-                  <div className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-2xl rounded-tl-none px-3 py-2 self-start flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Scrolling suggestions */}
-              <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none">
-                {chatSuggestions.map((sugg, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSendChat(sugg)}
-                    className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-full text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors shadow-sm shrink-0"
-                  >
-                    {sugg}
-                  </button>
-                ))}
-              </div>
-
-              {/* Input Form */}
-              <form 
-                onSubmit={(e) => { e.preventDefault(); handleSendChat(chatInput); }}
-                className="p-3 border-t border-slate-200 dark:border-slate-800 flex gap-2 items-center bg-white dark:bg-slate-950"
-              >
-                <input
-                  type="text"
-                  placeholder="Ask assistant..."
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  className="flex-1 px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-200"
-                />
+              {/* Tab Selector */}
+              <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
                 <button
-                  type="submit"
-                  disabled={!chatInput.trim() || isChatLoading}
-                  className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white transition-colors shadow shadow-blue-500/20"
+                  onClick={() => setActiveTab("chat")}
+                  className={`flex-1 py-2 text-xs font-semibold border-b-2 transition-all ${
+                    activeTab === "chat"
+                      ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                      : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  }`}
                 >
-                  <PaperAirplaneIcon className="w-4 h-4" />
+                  Chat Assistant
                 </button>
-              </form>
+                <button
+                  onClick={() => setActiveTab("help")}
+                  className={`flex-1 py-2 text-xs font-semibold border-b-2 transition-all ${
+                    activeTab === "help"
+                      ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                      : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  }`}
+                >
+                  Today & Help Guide
+                </button>
+              </div>
+
+              {activeTab === "help" ? (
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30 dark:bg-slate-950/30">
+                  {/* Today's Overview Section */}
+                  <div>
+                    <h5 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Today's Real-time Overview</h5>
+                    {isLoadingOverview ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {[1, 2, 3, 4].map((i) => (
+                          <div key={i} className="h-14 bg-slate-100 dark:bg-slate-900 rounded-xl animate-pulse"></div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100/50 dark:border-blue-900/30 rounded-2xl">
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">New Revenue</p>
+                          <p className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                            ₹{(todayOverview?.revenueToday || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </p>
+                          <span className="text-[9px] text-slate-400">({todayOverview?.slipsToday || 0} slips)</span>
+                        </div>
+                        <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100/50 dark:border-emerald-900/30 rounded-2xl">
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Payments Received</p>
+                          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            ₹{(todayOverview?.paymentsToday || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-red-50/50 dark:bg-red-950/20 border border-red-100/50 dark:border-red-900/30 rounded-2xl">
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Returns Today</p>
+                          <p className="text-sm font-bold text-red-600 dark:text-red-400 mt-0.5">
+                            ₹{(todayOverview?.returnsToday || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100/50 dark:border-amber-900/30 rounded-2xl col-span-1">
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Total Outstanding</p>
+                          <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-0.5">
+                            ₹{(todayOverview?.totalOutstanding || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Interactive Questions Manual */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h5 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Help Manual & Ask Guide</h5>
+                      <span className="text-[9px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">Click to Ask</span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      {/* Section 1 */}
+                      <div className="p-2.5 rounded-2xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80">
+                        <p className="font-bold text-[11px] text-slate-700 dark:text-slate-300 mb-1.5">📊 Ledgers & Debt Overview</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: "Total Outstanding", query: "What is the total outstanding?" },
+                            { label: "Top Debtors", query: "Who is the top debtor?" },
+                            { label: "Aging Summary", query: "Show Aging Report" },
+                          ].map((item) => (
+                            <button
+                              key={item.label}
+                              onClick={() => handleSendChat(item.query)}
+                              className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-205 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors"
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Section 2 */}
+                      <div className="p-2.5 rounded-2xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80">
+                        <p className="font-bold text-[11px] text-slate-700 dark:text-slate-300 mb-1.5">⚠️ Risk & Inactivity</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: "Overdue > 60 Days", query: "risky accounts" },
+                            { label: "No payments (30+ days)", query: "hasn't paid" },
+                          ].map((item) => (
+                            <button
+                              key={item.label}
+                              onClick={() => handleSendChat(item.query)}
+                              className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-205 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors"
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Section 3 */}
+                      <div className="p-2.5 rounded-2xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80">
+                        <p className="font-bold text-[11px] text-slate-700 dark:text-slate-300 mb-1.5">📦 Products & Returns</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: "Most Sold Items", query: "most sold" },
+                            { label: "Returned Items Today", query: "returned items today" },
+                            { label: "Week-over-Week Trend", query: "this week vs last week" },
+                          ].map((item) => (
+                            <button
+                              key={item.label}
+                              onClick={() => handleSendChat(item.query)}
+                              className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-205 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors"
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Section 4 */}
+                      <div className="p-2.5 rounded-2xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80">
+                        <p className="font-bold text-[11px] text-slate-700 dark:text-slate-300 mb-1">🔍 Specific Customer Searches</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5">Type these queries in the chat bar at the bottom:</p>
+                        <ul className="list-disc pl-4 space-y-1 text-slate-550 dark:text-slate-400 text-[10px]">
+                          <li><span className="font-medium text-slate-700 dark:text-slate-300">Outstanding:</span> Outstanding for [Name or Phone]</li>
+                          <li><span className="font-medium text-slate-700 dark:text-slate-300">Recent Payments:</span> Show payments made by [Name]</li>
+                          <li><span className="font-medium text-slate-700 dark:text-slate-300">Returns:</span> Returns for [Customer Name]</li>
+                          <li><span className="font-medium text-slate-700 dark:text-slate-300">Slip lookup:</span> Show details for slip #[Number]</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Messages log */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
+                    {chatMessages.map((msg, idx) => (
+                      <div 
+                        key={idx}
+                        className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm leading-relaxed whitespace-pre-line
+                          ${msg.sender === "user"
+                            ? "bg-blue-600 text-white rounded-tr-none self-end"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none self-start border border-slate-200/50 dark:border-slate-700"}`}
+                      >
+                        {renderMessageContent(msg)}
+                      </div>
+                    ))}
+                    {isChatLoading && (
+                      <div className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-2xl rounded-tl-none px-3 py-2 self-start flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  {/* Scrolling suggestions */}
+                  <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none">
+                    {chatSuggestions.map((sugg, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSendChat(sugg)}
+                        className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-full text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors shadow-sm shrink-0"
+                      >
+                        {sugg}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Input Form */}
+                  <form 
+                    onSubmit={(e) => { e.preventDefault(); handleSendChat(chatInput); }}
+                    className="p-3 border-t border-slate-200 dark:border-slate-800 flex gap-2 items-center bg-white dark:bg-slate-950"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Ask assistant..."
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      className="flex-1 px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-200"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!chatInput.trim() || isChatLoading}
+                      className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white transition-colors shadow shadow-blue-500/20"
+                    >
+                      <PaperAirplaneIcon className="w-4 h-4" />
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           )}
 
