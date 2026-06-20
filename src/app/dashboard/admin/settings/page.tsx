@@ -12,6 +12,11 @@ interface Toast {
 
 export default function AdminSettingsPage() {
   const { session } = useAuth();
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   const [orgname, setOrgname] = useState("");
   const [enableotp, setEnableotp] = useState(false);
@@ -340,7 +345,12 @@ export default function AdminSettingsPage() {
                       <li>Create a project & enable Google Drive API.</li>
                       <li>Configure OAuth Consent Screen.</li>
                       <li>Create Credentials &rarr; OAuth Client ID.</li>
-                      <li>Set Web App and add redirect URI: <em>{"http://<your-domain>/api/company/backup/gdrive-callback"}</em></li>
+                      <li>
+                        Set Web App and add redirect URI:
+                        <code className="break-all select-all bg-slate-950 p-1.5 rounded font-mono block mt-1.5 text-[10px] text-emerald-400 select-all cursor-pointer" title="Click to copy or double click to select">
+                          {origin ? `${origin}/api/company/backup/gdrive-callback` : "https://<your-domain>/api/company/backup/gdrive-callback"}
+                        </code>
+                      </li>
                     </ol>
                   </div>
                 </div>
