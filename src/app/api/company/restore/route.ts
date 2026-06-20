@@ -25,8 +25,24 @@ export async function POST(request: Request) {
     const adminOrgcode = sessionCheck.rows[0].orgcode;
     const adminUserid = sessionCheck.rows[0].userid;
 
-    // Check if restoring from Google Drive fileId
     const { searchParams } = new URL(request.url);
+    const password = searchParams.get("password");
+
+    if (!password) {
+      return NextResponse.json({ success: false, message: "Admin password is required" }, { status: 400 });
+    }
+
+    // Verify admin credentials
+    const adminCheck = await query(
+      "SELECT password FROM public.users WHERE orgcode = $1 AND userid = $2",
+      [adminOrgcode, adminUserid]
+    );
+
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].password !== password) {
+      return NextResponse.json({ success: false, message: "Invalid admin password" }, { status: 401 });
+    }
+
+    // Check if restoring from Google Drive fileId
     const fileId = searchParams.get("fileId");
 
     let buffer: Buffer;

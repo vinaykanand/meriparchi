@@ -43,6 +43,9 @@ export default function AdminSettingsPage() {
   const [restoreProgress, setRestoreProgress] = useState<number | null>(null);
   const [gdriveBackups, setGdriveBackups] = useState<any[]>([]);
   const [loadingGdriveBackups, setLoadingGdriveBackups] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [restorePassword, setRestorePassword] = useState("");
+  const [restoreFileId, setRestoreFileId] = useState<string | undefined>(undefined);
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -134,12 +137,8 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleRestore = async (fileId?: string) => {
-    const confirmRestore = window.confirm(
-      "Are you absolutely sure you want to restore? This will permanently delete and overwrite all current slips, items, users, and payments for this company. This cannot be undone."
-    );
-    if (!confirmRestore) return;
-
+  const handleRestore = async (fileId?: string, password?: string) => {
+    if (!password) return;
     setRestoring(true);
     setRestoreProgress(0);
 
@@ -181,13 +180,13 @@ export default function AdminSettingsPage() {
 
     if (fileId) {
       setRestoreProgress(50);
-      xhr.open("POST", `/api/company/restore?fileId=${fileId}`);
+      xhr.open("POST", `/api/company/restore?fileId=${fileId}&password=${encodeURIComponent(password)}`);
       xhr.send();
     } else {
       if (!selectedFile) return;
       const formData = new FormData();
       formData.append("file", selectedFile);
-      xhr.open("POST", "/api/company/restore");
+      xhr.open("POST", `/api/company/restore?password=${encodeURIComponent(password)}`);
       xhr.send(formData);
     }
   };
@@ -528,7 +527,12 @@ export default function AdminSettingsPage() {
                 )}
 
                 <button
-                  onClick={() => handleRestore()}
+                  onClick={() => {
+                    if (!selectedFile) return;
+                    setRestoreFileId(undefined);
+                    setRestorePassword("");
+                    setShowRestoreModal(true);
+                  }}
                   disabled={!selectedFile || restoring}
                   className="py-2.5 px-4 rounded-xl text-white font-medium bg-rose-600 hover:bg-rose-700 disabled:opacity-50 transition-all shadow-[0_4px_10px_rgba(225,29,72,0.2)] text-sm self-start"
                 >
@@ -574,7 +578,11 @@ export default function AdminSettingsPage() {
                               </td>
                               <td className="px-4 py-2.5 text-right whitespace-nowrap">
                                 <button
-                                  onClick={() => handleRestore(b.id)}
+                                  onClick={() => {
+                                    setRestoreFileId(b.id);
+                                    setRestorePassword("");
+                                    setShowRestoreModal(true);
+                                  }}
                                   disabled={restoring}
                                   className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50"
                                 >
@@ -593,6 +601,53 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Restore Confirmation Password Modal */}
+      {showRestoreModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-6 max-w-md w-full space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Restore Database Backup</h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Warning: This will permanently delete and overwrite all current slips, items, users, and payments for this company. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Enter Admin Password to Proceed</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={restorePassword}
+                onChange={(e) => setRestorePassword(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 dark:text-slate-200 outline-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={restoring}
+                onClick={() => setShowRestoreModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={restoring || !restorePassword}
+                onClick={() => {
+                  setShowRestoreModal(false);
+                  handleRestore(restoreFileId, restorePassword);
+                }}
+                className="px-5 py-2.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl transition-colors shadow-md shadow-rose-500/20"
+              >
+                Confirm & Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toasts */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
