@@ -318,7 +318,298 @@ export async function POST(request: Request) {
       suggestions = ["Show Top Debtors", "Total Outstanding"];
     }
 
-    // --- INTENT 8: CUSTOMER INQUIRY (Outstanding, Payments, or Returns) ---
+    // --- INTENT 8: INVENTORY & SALES INSIGHTS (Item Popularity) ---
+    else if (
+      cleanedMsg.includes("most sold") ||
+      cleanedMsg.includes("top items") ||
+      cleanedMsg.includes("popular item") ||
+      cleanedMsg.includes("most popular") ||
+      cleanedMsg.includes("highest revenue item") ||
+      cleanedMsg.includes("item revenue") ||
+      cleanedMsg.includes("top products")
+    ) {
+      if (cleanedMsg.includes("revenue") || cleanedMsg.includes("value") || cleanedMsg.includes("earnings")) {
+        const topRevItems = await query(
+          `SELECT item, SUM(qty * rate) as total_revenue, SUM(qty) as total_qty
+           FROM public.slipitems 
+           WHERE orgcode = $1 
+           GROUP BY item 
+           ORDER BY total_revenue DESC 
+           LIMIT 5`,
+          [orgcode]
+        );
+
+        if (topRevItems.rows.length === 0) {
+          reply = "No inventory sales records found to analyze product revenue.";
+        } else {
+          reply = `💰 **Top Products by Revenue Generated**\n\n`;
+          topRevItems.rows.forEach((row: any, idx: number) => {
+            reply += `${idx + 1}. **${row.item}**: **₹${parseFloat(row.total_revenue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}** (Qty Sold: ${row.total_qty})\n`;
+          });
+        }
+      } else {
+        const topSoldItems = await query(
+          `SELECT item, SUM(qty) as total_qty, COUNT(*) as sales_count 
+           FROM public.slipitems 
+           WHERE orgcode = $1 
+           GROUP BY item 
+           ORDER BY total_qty DESC 
+           LIMIT 5`,
+          [orgcode]
+        );
+
+        if (topSoldItems.rows.length === 0) {
+          reply = "No inventory sales records found to analyze product volume.";
+        } else {
+          reply = `📦 **Most Sold Products by Quantity**\n\n`;
+          topSoldItems.rows.forEach((row: any, idx: number) => {
+            reply += `${idx + 1}. **${row.item}**: **${row.total_qty} units** sold (across ${row.sales_count} slips)\n`;
+          });
+        }
+      }
+      suggestions = ["Today's Stats", "Total Outstanding"];
+    }
+
+    // --- INTENT 9: LOCATION-BASED OUTSTANDING (GEOGRAPHIC ANALYSIS) ---
+    else if (
+      cleanedMsg.includes("location") ||
+      cleanedMsg.includes("area") ||
+      cleanedMsg.includes("city") ||
+      cleanedMsg.includes("outstanding in") ||
+      cleanedMsg.includes("balance in") ||
+      cleanedMsg.includes("debt in")
+    ) {
+      // Check if they specified a location (e.g. "outstanding in Phagwara")
+      const locationMatch = message.match(/(?:outstanding|balance|debt)\s+in\s+([a-zA-Z0-9\s]+)/i) || message.match(/in\s+([a-zA-Z0-9\s]+)\s+(?:outstanding|balance|debt)/i);
+      
+      if (locationMatch) {
+        const locationKeyword = locationMatch[1].trim();
+        const locDetails = await query(
+          `WITH customer_slips AS (
+             SELECT phone, MAX(name) as name, MAX(address) as addr, SUM(netamount) as total_slips
+             FROM public.slips
+             WHERE orgcode = $1
+             GROUP BY phone
+           ),
+           customer_payments AS (
+             SELECT phone, SUM(amount) as total_payments
+             FROM public.payments
+             WHERE orgcode = $1
+             GROUP BY phone
+           )
+           SELECT 
+             s.phone, s.name, s.addr,
+             (COALESCE(s.total_slips, 0) - COALESCE(p.total_payments, 0)) as outstanding
+           FROM customer_slips s
+           LEFT JOIN customer_payments p ON s.phone = p.phone
+           WHERE s.addr ILIKE $2 AND (COALESCE(s.total_slips, 0) - COALESCE(p.total_payments, 0)) > 0
+           ORDER BY outstanding DESC`,
+          [orgcode, `%${locationKeyword}%`]
+        );
+
+        if (locDetails.rows.length === 0) {
+          reply = `No accounts with an active outstanding balance were found matching the location **"${locationKeyword}"**.`;
+        } else {
+          reply = `📍 **Outstanding Balances in "${locationKeyword}"**\n\n`;
+          let locSum = 0;
+          locDetails.rows.forEach((row: any) => {
+            reply += `- **${row.name}** (${row.phone}): **₹${parseFloat(row.outstanding).toLocaleString('en-IN', { minimumFractionDigits: 2 })}**\n   *Address:* ${row.addr || "N/A"}\n`;
+            locSum += parseFloat(row.outstanding);
+          });
+          reply += `\n**Total Outstanding for Area:** **₹${locSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}**`;
+        }
+      } else {
+        // General geographical breakdown
+        const geoBreakdown = await query(
+          `WITH customer_slips AS (
+             SELECT phone, MAX(address) as addr, SUM(netamount) as total_slips
+             FROM public.slips
+             WHERE orgcode = $1
+             GROUP BY phone
+           ),
+           customer_payments AS (
+             SELECT phone, SUM(amount) as total_payments
+             FROM public.payments
+             WHERE orgcode = $1
+             GROUP BY phone
+           )
+           SELECT 
+             COALESCE(NULLIF(TRIM(s.addr), ''), 'No Address Specified') as location,
+             SUM(COALESCE(s.total_slips, 0) - COALESCE(p.total_payments, 0)) as outstanding
+           FROM customer_slips s
+           LEFT JOIN customer_payments p ON s.phone = p.phone
+           GROUP BY location
+           HAVING SUM(COALESCE(s.total_slips, 0) - COALESCE(p.total_payments, 0)) > 0
+           ORDER BY outstanding DESC
+           LIMIT 5`,
+          [orgcode]
+        );
+
+        if (geoBreakdown.rows.length === 0) {
+          reply = "No active customer debt records found to map geographical outstanding.";
+        } else {
+          reply = `📍 **Top Locations by Outstanding Balances**\n\n`;
+          geoBreakdown.rows.forEach((row: any, idx: number) => {
+            reply += `${idx + 1}. **${row.location}**: **₹${parseFloat(row.outstanding).toLocaleString('en-IN', { minimumFractionDigits: 2 })}** outstanding\n`;
+          });
+        }
+      }
+      suggestions = ["Show Top Debtors", "Total Outstanding"];
+    }
+
+    // --- INTENT 10: CUSTOMER ACTIVITY & COLLECTION ALERTS ---
+    else if (
+      cleanedMsg.includes("hasn't paid") ||
+      cleanedMsg.includes("no payment") ||
+      cleanedMsg.includes("inactive customer") ||
+      cleanedMsg.includes("not paid") ||
+      cleanedMsg.includes("idle customer") ||
+      cleanedMsg.includes("idle accounts") ||
+      cleanedMsg.includes("collection alert")
+    ) {
+      const inactiveCustomers = await query(
+        `WITH customer_outstanding AS (
+           SELECT s.phone, MAX(s.name) as name, MAX(s.address) as addr, 
+                  (SUM(s.netamount) - COALESCE((SELECT SUM(amount) FROM public.payments p WHERE p.orgcode = $1 AND p.phone = s.phone), 0)) as outstanding
+           FROM public.slips s
+           WHERE s.orgcode = $1
+           GROUP BY s.phone
+         )
+         SELECT co.name, co.phone, co.outstanding, 
+                (SELECT MAX(date) FROM public.payments p WHERE p.orgcode = $1 AND p.phone = co.phone) as last_payment_date
+         FROM customer_outstanding co
+         WHERE co.outstanding > 0 
+           AND (
+             (SELECT MAX(date) FROM public.payments p WHERE p.orgcode = $1 AND p.phone = co.phone) IS NULL 
+             OR (SELECT MAX(date) FROM public.payments p WHERE p.orgcode = $1 AND p.phone = co.phone) < CURRENT_DATE - INTERVAL '30 days'
+           )
+         ORDER BY co.outstanding DESC
+         LIMIT 5`,
+        [orgcode]
+      );
+
+      if (inactiveCustomers.rows.length === 0) {
+        reply = "Excellent! All debtors with active outstanding balances have made a payment within the last 30 days.";
+      } else {
+        reply = `⚠️ **Debtors with No Payments in the Last 30+ Days**\n\n`;
+        inactiveCustomers.rows.forEach((cust: any, idx: number) => {
+          const daysStr = cust.last_payment_date 
+            ? `${Math.floor((new Date().getTime() - new Date(cust.last_payment_date).getTime()) / (1000 * 60 * 60 * 24))} days ago`
+            : "Never Paid";
+          reply += `${idx + 1}. **${cust.name}** (${cust.phone}):\n`;
+          reply += `   - Outstanding: **₹${parseFloat(cust.outstanding).toLocaleString('en-IN', { minimumFractionDigits: 2 })}**\n`;
+          reply += `   - Last Payment: **${daysStr}** (${cust.last_payment_date ? new Date(cust.last_payment_date).toLocaleDateString() : "No record"})\n`;
+        });
+      }
+      suggestions = ["Show Aging Report", "Total Outstanding"];
+    }
+
+    // --- INTENT 11: COMPARATIVE PERIODS (WEEK-OVER-WEEK / MONTH-OVER-MONTH) ---
+    else if (
+      cleanedMsg.includes("vs") ||
+      cleanedMsg.includes("compared to") ||
+      cleanedMsg.includes("revenue compared") ||
+      cleanedMsg.includes("collection compared") ||
+      cleanedMsg.includes("this month vs") ||
+      cleanedMsg.includes("this week vs")
+    ) {
+      // Weekly Revenue / Sales comparison
+      const weeklySlips = await query(
+        `SELECT 
+           COALESCE(SUM(CASE WHEN date >= CURRENT_DATE - INTERVAL '7 days' THEN netamount ELSE 0 END), 0) as this_week,
+           COALESCE(SUM(CASE WHEN date >= CURRENT_DATE - INTERVAL '14 days' AND date < CURRENT_DATE - INTERVAL '7 days' THEN netamount ELSE 0 END), 0) as last_week
+         FROM public.slips
+         WHERE orgcode = $1`,
+        [orgcode]
+      );
+      
+      const weeklyPayments = await query(
+        `SELECT 
+           COALESCE(SUM(CASE WHEN date >= CURRENT_DATE - INTERVAL '7 days' THEN amount ELSE 0 END), 0) as this_week,
+           COALESCE(SUM(CASE WHEN date >= CURRENT_DATE - INTERVAL '14 days' AND date < CURRENT_DATE - INTERVAL '7 days' THEN amount ELSE 0 END), 0) as last_week
+         FROM public.payments
+         WHERE orgcode = $1`,
+        [orgcode]
+      );
+
+      const sThis = parseFloat(weeklySlips.rows[0].this_week);
+      const sLast = parseFloat(weeklySlips.rows[0].last_week);
+      const pThis = parseFloat(weeklyPayments.rows[0].this_week);
+      const pLast = parseFloat(weeklyPayments.rows[0].last_week);
+
+      const sDiff = sThis - sLast;
+      const pDiff = pThis - pLast;
+
+      reply = `📊 **Weekly Comparative Stats (Last 7 Days vs Previous 7 Days)**\n\n`;
+      reply += `* **Revenue Generated (New Slips):**\n`;
+      reply += `  - This Week: ₹${sThis.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n`;
+      reply += `  - Previous Week: ₹${sLast.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n`;
+      reply += `  - Trend: **${sDiff >= 0 ? "📈 Up" : "📉 Down"}** by ₹${Math.abs(sDiff).toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n\n`;
+      reply += `* **Collections Received (Payments):**\n`;
+      reply += `  - This Week: ₹${pThis.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n`;
+      reply += `  - Previous Week: ₹${pLast.toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n`;
+      reply += `  - Trend: **${pDiff >= 0 ? "📈 Up" : "📉 Down"}** by ₹${Math.abs(pDiff).toLocaleString('en-IN', { minimumFractionDigits: 2 })}\n`;
+
+      suggestions = ["Today's Stats", "Total Outstanding"];
+    }
+
+    // --- INTENT 12: SLIP & VALUE INQUIRIES (Largest slips or payments) ---
+    else if (
+      cleanedMsg.includes("largest") ||
+      cleanedMsg.includes("biggest") ||
+      cleanedMsg.includes("highest") ||
+      cleanedMsg.includes("maximum") ||
+      cleanedMsg.includes("max slip") ||
+      cleanedMsg.includes("max payment")
+    ) {
+      if (cleanedMsg.includes("payment") || cleanedMsg.includes("receipt") || cleanedMsg.includes("collection")) {
+        const maxPay = await query(
+          `SELECT phone, amount, date, narration 
+           FROM public.payments 
+           WHERE orgcode = $1 
+           ORDER BY amount DESC 
+           LIMIT 1`,
+          [orgcode]
+        );
+
+        if (maxPay.rows.length === 0) {
+          reply = "No payment records found to locate the largest payment transaction.";
+        } else {
+          const pay = maxPay.rows[0];
+          // Find customer name
+          const custName = await query("SELECT name FROM public.slips WHERE orgcode = $1 AND phone = $2 LIMIT 1", [orgcode, pay.phone]);
+          const name = custName.rows[0]?.name || "Unknown Customer";
+          reply = `💰 **Largest Single Payment Logged**\n\n`;
+          reply += `- **Customer:** ${name} (${pay.phone})\n`;
+          reply += `- **Amount:** **₹${parseFloat(pay.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}**\n`;
+          reply += `- **Date:** ${new Date(pay.date).toLocaleDateString()}\n`;
+          reply += `- **Remarks:** *"${pay.narration || "No remarks provided"}*"`;
+        }
+      } else {
+        const maxSlip = await query(
+          `SELECT slipno, name, phone, netamount, date 
+           FROM public.slips 
+           WHERE orgcode = $1 
+           ORDER BY netamount DESC 
+           LIMIT 1`,
+          [orgcode]
+        );
+
+        if (maxSlip.rows.length === 0) {
+          reply = "No invoice/slip records found to locate the largest slip transaction.";
+        } else {
+          const slip = maxSlip.rows[0];
+          reply = `📄 **Largest Single Billing Slip Raised**\n\n`;
+          reply += `- **Slip Number:** #${slip.slipno}\n`;
+          reply += `- **Customer:** ${slip.name} (${slip.phone})\n`;
+          reply += `- **Amount:** **₹${parseFloat(slip.netamount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}**\n`;
+          reply += `- **Date:** ${new Date(slip.date).toLocaleDateString()}`;
+        }
+      }
+      suggestions = ["Show Top Debtors", "Total Outstanding"];
+    }
+
+    // --- INTENT 13: CUSTOMER INQUIRY (Outstanding, Payments, or Returns) ---
     else {
       // Try to find a phone number or customer name in the query
       const phoneMatch = message.match(/\b\d{10}\b/);
