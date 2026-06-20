@@ -21,11 +21,11 @@ function BlurredScreenshot({ src, alt, caption, blurOverlays = [] }: BlurredScre
   return (
     <div className="my-6 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900/50 p-2 shadow-sm">
       {/* Mock Browser Top bar */}
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-850">
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
         <div className="w-3 h-3 rounded-full bg-red-400"></div>
         <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
         <div className="w-3 h-3 rounded-full bg-green-400"></div>
-        <div className="ml-4 flex-1 max-w-md h-5 rounded bg-white dark:bg-slate-800 text-[10px] text-slate-400 dark:text-slate-500 flex items-center px-3 border border-slate-150 dark:border-slate-700/50 truncate font-mono">
+        <div className="ml-4 flex-1 max-w-md h-5 rounded bg-white dark:bg-slate-800 text-[10px] text-slate-400 dark:text-slate-500 flex items-center px-3 border border-slate-200 dark:border-slate-700/50 truncate font-mono">
           http://localhost:3000/dashboard/admin
         </div>
       </div>
@@ -102,7 +102,7 @@ export default function HelpManualPage() {
               placeholder="Search help topics..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-850 dark:text-slate-150 transition-all shadow-sm"
+              className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-200 transition-all shadow-sm"
             />
             <span className="absolute left-3 top-2.5 text-slate-400">🔍</span>
           </div>
@@ -146,7 +146,7 @@ export default function HelpManualPage() {
                   </p>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-150 dark:border-slate-800">
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
                   <h3 className="text-sm font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2">
                     Key Credentials Note
                   </h3>
@@ -156,7 +156,7 @@ export default function HelpManualPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-250 mt-4">1. Accessing the Login Screen</h3>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-200 mt-4">1. Accessing the Login Screen</h3>
                   <p className="text-slate-600 dark:text-slate-400">
                     Type your deployment URL in your web browser. You will be greeted with the secure login portal:
                   </p>
@@ -168,7 +168,7 @@ export default function HelpManualPage() {
                     caption="Figure 1: Parchi Secure Login Screen using Org Code ABC123"
                   />
 
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-250 mt-4">2. Step-by-Step Login Procedure</h3>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-200 mt-4">2. Step-by-Step Login Procedure</h3>
                   <ol className="list-decimal list-inside text-slate-600 dark:text-slate-400 flex flex-col gap-2 mt-2">
                     <li>Enter <strong className="font-mono">ABC123</strong> in the **Organization Code** input field.</li>
                     <li>Enter your assigned username (e.g. <strong className="font-mono">admin</strong>).</li>
@@ -205,8 +205,8 @@ export default function HelpManualPage() {
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                  <div className="p-5 border border-slate-250/50 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">
-                    <h4 className="font-bold text-slate-950 dark:text-slate-150 mb-2">📊 Metric Summary Cards</h4>
+                  <div className="p-5 border border-slate-200/50 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">
+                    <h4 className="font-bold text-slate-950 dark:text-slate-200 mb-2">📊 Metric Summary Cards</h4>
                     <ul className="list-disc list-inside text-sm text-slate-600 dark:text-slate-400 flex flex-col gap-1.5">
                       <li><strong>Total Outstanding:</strong> Sum of all outstanding bills across customers.</li>
                       <li><strong>Today's Revenue:</strong> Value of new slips made today.</li>
@@ -215,8 +215,8 @@ export default function HelpManualPage() {
                     </ul>
                   </div>
 
-                  <div className="p-5 border border-slate-250/50 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">
-                    <h4 className="font-bold text-slate-950 dark:text-slate-150 mb-2">📈 Financial Trend Chart</h4>
+                  <div className="p-5 border border-slate-200/50 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">
+                    <h4 className="font-bold text-slate-950 dark:text-slate-200 mb-2">📈 Financial Trend Chart</h4>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
                       The line graph plots payments, revenue, and returns over the last 7 days. Use this visualization to monitor daily revenue velocity and customer collection health.
                     </p>
@@ -288,7 +288,7 @@ export default function HelpManualPage() {
                     <div className="flex gap-4 items-start">
                       <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
                       <div>
-                        <p className="font-semibold text-slate-800 dark:text-slate-250">Search Customer Phone</p>
+                        <p className="font-semibold text-slate-800 dark:text-slate-200">Search Customer Phone</p>
                         <p className="text-sm text-slate-500">Go to "Log Payment" and search the customer's phone. Their name and current outstanding balance will appear instantly.</p>
                       </div>
                     </div>
@@ -296,7 +296,7 @@ export default function HelpManualPage() {
                     <div className="flex gap-4 items-start">
                       <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
                       <div>
-                        <p className="font-semibold text-slate-800 dark:text-slate-250">Input Amount & Select Mode</p>
+                        <p className="font-semibold text-slate-800 dark:text-slate-200">Input Amount & Select Mode</p>
                         <p className="text-sm text-slate-500">Enter the amount received and select the transaction channel: Cash, UPI / Online, or Cheque.</p>
                       </div>
                     </div>
@@ -304,7 +304,7 @@ export default function HelpManualPage() {
                     <div className="flex gap-4 items-start">
                       <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">3</div>
                       <div>
-                        <p className="font-semibold text-slate-800 dark:text-slate-250">Save Ledger Credit</p>
+                        <p className="font-semibold text-slate-800 dark:text-slate-200">Save Ledger Credit</p>
                         <p className="text-sm text-slate-500">Add any reference remarks (like transaction ID) and click Save Payment. The ledger will reduce immediately.</p>
                       </div>
                     </div>
@@ -338,8 +338,8 @@ export default function HelpManualPage() {
                   ]}
                 />
 
-                <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border border-slate-150 dark:border-slate-800">
-                  <h4 className="font-bold text-slate-950 dark:text-slate-150 mb-2">🔍 Instant Suggestion Tool</h4>
+                <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  <h4 className="font-bold text-slate-950 dark:text-slate-200 mb-2">🔍 Instant Suggestion Tool</h4>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
                     As you type a name or phone number into the search bar, the ledger queries matches. Selecting from the suggestion dropdown populates the screen with three segmented tabs: Slips, Payments, and Returns.
                   </p>
@@ -507,29 +507,29 @@ export default function HelpManualPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-850 rounded-xl bg-white dark:bg-slate-900">
+                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900">
                     <span className="text-slate-700 dark:text-slate-300 font-medium">Go to Dashboard</span>
-                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-350 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + D</kbd>
+                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + D</kbd>
                   </div>
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-850 rounded-xl bg-white dark:bg-slate-900">
+                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900">
                     <span className="text-slate-700 dark:text-slate-300 font-medium">Create Billing Slip</span>
-                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-350 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + S</kbd>
+                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + S</kbd>
                   </div>
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-850 rounded-xl bg-white dark:bg-slate-900">
+                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900">
                     <span className="text-slate-700 dark:text-slate-300 font-medium">Log Payment Receipt</span>
-                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-350 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + P</kbd>
+                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + P</kbd>
                   </div>
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-850 rounded-xl bg-white dark:bg-slate-900">
+                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900">
                     <span className="text-slate-700 dark:text-slate-300 font-medium">Lookup Customer Ledger</span>
-                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-350 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + L</kbd>
+                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + L</kbd>
                   </div>
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-850 rounded-xl bg-white dark:bg-slate-900">
+                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900">
                     <span className="text-slate-700 dark:text-slate-300 font-medium">Financial Reports</span>
-                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-350 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + R</kbd>
+                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Alt + R</kbd>
                   </div>
-                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-850 rounded-xl bg-white dark:bg-slate-900">
+                  <div className="flex justify-between items-center p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900">
                     <span className="text-slate-700 dark:text-slate-300 font-medium">Close Modal / Cancel</span>
-                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-350 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Esc</kbd>
+                    <kbd className="px-2 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-mono font-bold shadow-sm">Esc</kbd>
                   </div>
                 </div>
               </article>
@@ -548,7 +548,7 @@ export default function HelpManualPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <details className="group border border-slate-200 dark:border-slate-850 rounded-xl p-4 bg-white dark:bg-slate-900 cursor-pointer">
+                  <details className="group border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-slate-900 cursor-pointer">
                     <summary className="font-bold text-slate-900 dark:text-slate-200 flex justify-between items-center">
                       <span>How can I reset a user password?</span>
                       <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
@@ -558,7 +558,7 @@ export default function HelpManualPage() {
                     </p>
                   </details>
 
-                  <details className="group border border-slate-200 dark:border-slate-850 rounded-xl p-4 bg-white dark:bg-slate-900 cursor-pointer">
+                  <details className="group border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-slate-900 cursor-pointer">
                     <summary className="font-bold text-slate-900 dark:text-slate-200 flex justify-between items-center">
                       <span>What does a negative outstanding balance indicate?</span>
                       <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
@@ -568,7 +568,7 @@ export default function HelpManualPage() {
                     </p>
                   </details>
 
-                  <details className="group border border-slate-200 dark:border-slate-850 rounded-xl p-4 bg-white dark:bg-slate-900 cursor-pointer">
+                  <details className="group border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-slate-900 cursor-pointer">
                     <summary className="font-bold text-slate-900 dark:text-slate-200 flex justify-between items-center">
                       <span>Are my slips editable or deletable?</span>
                       <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
@@ -578,7 +578,7 @@ export default function HelpManualPage() {
                     </p>
                   </details>
 
-                  <details className="group border border-slate-200 dark:border-slate-850 rounded-xl p-4 bg-white dark:bg-slate-900 cursor-pointer">
+                  <details className="group border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-white dark:bg-slate-900 cursor-pointer">
                     <summary className="font-bold text-slate-900 dark:text-slate-200 flex justify-between items-center">
                       <span>How often are audit security logs purged?</span>
                       <span className="text-slate-400 group-open:rotate-180 transition-transform">▼</span>

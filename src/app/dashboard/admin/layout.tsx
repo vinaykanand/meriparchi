@@ -31,9 +31,10 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState("light");
 
   // AI Assistant Chat Widget State
+  const [isAiEnabled, setIsAiEnabled] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { sender: "ai", text: "Hello! I am your Parchi AI Assistant. Ask me anything about your customer balances, payments, top debtors, or outstanding statistics." }
+    { sender: "ai", text: "Hello! I am your AI Assistant. Ask me anything about your customer balances, payments, top debtors, or outstanding statistics." }
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -63,6 +64,10 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
       if (savedTheme === "dark") {
         document.documentElement.classList.add("dark");
       }
+    }
+    const savedAi = localStorage.getItem("parchi_ai_enabled");
+    if (savedAi !== null) {
+      setIsAiEnabled(savedAi === "true");
     }
   }, []);
 
@@ -142,6 +147,22 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
             <span className="text-slate-500 dark:text-slate-400">User:</span>
             <span className="font-semibold">{session?.userid}</span>
           </div>
+          <button 
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+              isAiEnabled 
+                ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800" 
+                : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700"
+            }`}
+            onClick={() => {
+              const newValue = !isAiEnabled;
+              setIsAiEnabled(newValue);
+              localStorage.setItem("parchi_ai_enabled", String(newValue));
+            }}
+            title="Toggle AI Assistant"
+          >
+            <SparklesIcon className={`w-4 h-4 ${isAiEnabled ? "animate-pulse text-yellow-500" : ""}`} />
+            <span className="hidden md:inline">{isAiEnabled ? "AI Active" : "AI Off"}</span>
+          </button>
           <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={toggleTheme} aria-label="Toggle Theme">
             {theme === "dark" ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
           </button>
@@ -181,105 +202,106 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* FLOATING AI ASSISTANT CHAT WIDGET */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-        {/* Chat window drawer */}
-        {isChatOpen && (
-          <div className="w-[360px] sm:w-[380px] h-[480px] bg-white/95 dark:bg-slate-950/95 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden mb-4 backdrop-blur-xl animate-fade-in relative">
-            {/* Header */}
-            <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex justify-between items-center shadow">
-              <div className="flex items-center gap-2">
-                <SparklesIcon className="w-5 h-5 animate-pulse text-yellow-300" />
-                <div>
-                  <h4 className="font-bold text-sm">Ledger AI Assistant</h4>
-                  <p className="text-[10px] text-blue-100">Ask balance, payments & aging</p>
+      {isAiEnabled && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+          {/* Chat window drawer */}
+          {isChatOpen && (
+            <div className="w-[360px] sm:w-[380px] h-[480px] bg-white/95 dark:bg-slate-950/95 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden mb-4 backdrop-blur-xl animate-fade-in relative">
+              {/* Header */}
+              <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex justify-between items-center shadow">
+                <div className="flex items-center gap-2">
+                  <SparklesIcon className="w-5 h-5 animate-pulse text-yellow-300" />
+                  <div>
+                    <h4 className="font-bold text-sm">AI Assistant</h4>
+                    <p className="text-[10px] text-blue-100">Ask balance, payments & aging</p>
+                  </div>
                 </div>
-              </div>
-              <button 
-                onClick={() => setIsChatOpen(false)}
-                className="w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center text-lg font-bold"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Messages log */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
-              {chatMessages.map((msg, idx) => (
-                <div 
-                  key={idx}
-                  className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm leading-relaxed whitespace-pre-line
-                    ${msg.sender === "user"
-                      ? "bg-blue-600 text-white rounded-tr-none self-end"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none self-start border border-slate-200/50 dark:border-slate-750"}`}
+                <button 
+                  onClick={() => setIsChatOpen(false)}
+                  className="w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center text-lg font-bold"
                 >
-                  {msg.text}
-                </div>
-              ))}
-              {isChatLoading && (
-                <div className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-2xl rounded-tl-none px-3 py-2 self-start flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Scrolling suggestions */}
-            <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none">
-              {chatSuggestions.map((sugg, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendChat(sugg)}
-                  className="px-2.5 py-1 bg-white dark:bg-slate-850 hover:bg-blue-50 dark:hover:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-full text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors shadow-sm shrink-0"
-                >
-                  {sugg}
+                  ×
                 </button>
-              ))}
-            </div>
+              </div>
 
-            {/* Input Form */}
-            <form 
-              onSubmit={(e) => { e.preventDefault(); handleSendChat(chatInput); }}
-              className="p-3 border-t border-slate-250 dark:border-slate-800 flex gap-2 items-center bg-white dark:bg-slate-950"
-            >
-              <input
-                type="text"
-                placeholder="Ask assistant..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                className="flex-1 px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-200"
-              />
-              <button
-                type="submit"
-                disabled={!chatInput.trim() || isChatLoading}
-                className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white transition-colors shadow shadow-blue-500/20"
+              {/* Messages log */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
+                {chatMessages.map((msg, idx) => (
+                  <div 
+                    key={idx}                  className={`px-3 py-2 rounded-2xl max-w-[85%] text-sm shadow-sm leading-relaxed whitespace-pre-line
+                      ${msg.sender === "user"
+                        ? "bg-blue-600 text-white rounded-tr-none self-end"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none self-start border border-slate-200/50 dark:border-slate-700"}`}
+                  >
+                    {msg.text}
+                  </div>
+                ))}
+                {isChatLoading && (
+                  <div className="bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-2xl rounded-tl-none px-3 py-2 self-start flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Scrolling suggestions */}
+              <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none">
+                {chatSuggestions.map((sugg, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSendChat(sugg)}
+                    className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-full text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors shadow-sm shrink-0"
+                  >
+                    {sugg}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input Form */}
+              <form 
+                onSubmit={(e) => { e.preventDefault(); handleSendChat(chatInput); }}
+                className="p-3 border-t border-slate-200 dark:border-slate-800 flex gap-2 items-center bg-white dark:bg-slate-950"
               >
-                <PaperAirplaneIcon className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Floating Bubble Trigger */}
-        <button
-          onClick={() => setIsChatOpen(!isChatOpen)}
-          className="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-[0_8px_30px_rgba(37,99,235,0.45)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center relative hover:shadow-[0_12px_40px_rgba(37,99,235,0.6)]"
-          aria-label="Toggle AI Assistant"
-        >
-          {isChatOpen ? (
-            <span className="text-xl font-black">✕</span>
-          ) : (
-            <>
-              <SparklesIcon className="w-6 h-6 animate-pulse text-yellow-300" />
-              {/* Pulsing indicator ring */}
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full">
-                <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75"></span>
-              </span>
-            </>
+                <input
+                  type="text"
+                  placeholder="Ask assistant..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  className="flex-1 px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-200"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || isChatLoading}
+                  className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white transition-colors shadow shadow-blue-500/20"
+                >
+                  <PaperAirplaneIcon className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
           )}
-        </button>
-      </div>
+
+          {/* Floating Bubble Trigger */}
+          <button
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-[0_8px_30px_rgba(37,99,235,0.45)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center relative hover:shadow-[0_12px_40px_rgba(37,99,235,0.6)]"
+            aria-label="Toggle AI Assistant"
+          >
+            {isChatOpen ? (
+              <span className="text-xl font-black">✕</span>
+            ) : (
+              <>
+                <SparklesIcon className="w-6 h-6 animate-pulse text-yellow-300" />
+                {/* Pulsing indicator ring */}
+                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full">
+                  <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75"></span>
+                </span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
     </div>
   );

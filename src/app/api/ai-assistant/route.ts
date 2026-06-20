@@ -405,7 +405,7 @@ export async function POST(request: Request) {
         suggestions = [`Outstanding for ${foundCustomer.name}`, `Payments for ${foundCustomer.name}`, `Returns for ${foundCustomer.name}`, "Total Outstanding"];
       } else {
         // Fallback response / help manual
-        reply = `Hello! I am your **Parchi AI Assistant**. I can help you search ledgers and analyze details in real time.\n\n**Here are examples of what you can ask me:**\n- *"What is the total outstanding?"*\n- *"Who is the top debtor?"* or *"risky accounts"* (bad debtors)\n- *"Show details for slip #8"*\n- *"What returns were logged today?"*\n- *"Returns for [Customer Name]"*\n- *"Outstanding for [Customer Name or Phone]"*\n- *"Show payments made by [Customer Name or Phone]"*`;
+        reply = `Hello! I am your **AI Assistant**. I can help you search ledgers and analyze details in real time.\n\n**Here are examples of what you can ask me:**\n- *"What is the total outstanding?"*\n- *"Who is the top debtor?"* or *"risky accounts"* (bad debtors)\n- *"Show details for slip #8"*\n- *"What returns were logged today?"*\n- *"Returns for [Customer Name]"*\n- *"Outstanding for [Customer Name or Phone]"*\n- *"Show payments made by [Customer Name or Phone]"*`;
         suggestions = ["Total Outstanding", "Show Top Debtors", "risky accounts", "Show Aging Report", "Today's Stats"];
       }
     }

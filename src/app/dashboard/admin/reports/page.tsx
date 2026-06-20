@@ -407,25 +407,25 @@ export default function AdminReportsPage() {
                       <div className="grid grid-cols-4 gap-1.5 text-center">
                         <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/10">
                           <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 block">0-30d</span>
-                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-250">
+                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-200">
                             ₹{parseFloat((customer.aging_0_30 || 0).toString()).toFixed(0)}
                           </span>
                         </div>
                         <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/10">
                           <span className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 block">31-60d</span>
-                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-250">
+                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-200">
                             ₹{parseFloat((customer.aging_31_60 || 0).toString()).toFixed(0)}
                           </span>
                         </div>
                         <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/10">
                           <span className="text-[9px] font-semibold text-amber-600 dark:text-amber-400 block">61-90d</span>
-                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-250">
+                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-200">
                             ₹{parseFloat((customer.aging_61_90 || 0).toString()).toFixed(0)}
                           </span>
                         </div>
                         <div className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/10">
                           <span className="text-[9px] font-semibold text-rose-600 dark:text-rose-400 block">90d+</span>
-                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-250">
+                          <span className="text-[10px] font-mono font-bold text-slate-800 dark:text-slate-200">
                             ₹{parseFloat((customer.aging_90_plus || 0).toString()).toFixed(0)}
                           </span>
                         </div>
