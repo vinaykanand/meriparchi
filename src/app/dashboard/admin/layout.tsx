@@ -134,6 +134,42 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const renderMessageContent = (msg: ChatMessage) => {
+    if (msg.sender === "user") {
+      return msg.text;
+    }
+
+    // Parse text to find quoted suggestion questions: *"[Question]"* or "[Question]"
+    const regex = /\*?"([^"]+)"\*?/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(msg.text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(msg.text.substring(lastIndex, match.index));
+      }
+      
+      const question = match[1];
+      parts.push(
+        <button
+          key={match.index}
+          onClick={() => handleSendChat(question)}
+          className="inline-block mx-1 my-0.5 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800 text-[11px] font-semibold rounded-lg border border-blue-200/50 dark:border-blue-700/50 transition-colors align-middle cursor-pointer"
+        >
+          "{question}"
+        </button>
+      );
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < msg.text.length) {
+      parts.push(msg.text.substring(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : msg.text;
+  };
+
   const navLinks = [
     { name: "Overview", href: "/dashboard/admin", icon: <ChartBarIcon className="w-5 h-5" /> },
     { name: "Create Slip", href: "/dashboard/admin/slips", icon: <DocumentPlusIcon className="w-5 h-5" /> },
@@ -236,7 +272,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                         ? "bg-blue-600 text-white rounded-tr-none self-end"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none self-start border border-slate-200/50 dark:border-slate-700"}`}
                   >
-                    {msg.text}
+                    {renderMessageContent(msg)}
                   </div>
                 ))}
                 {isChatLoading && (
