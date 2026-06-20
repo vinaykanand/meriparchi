@@ -125,9 +125,27 @@ export async function POST(request: Request) {
       const c = companyData[0];
       await client.query(
         `UPDATE public.company 
-         SET orgname = $1, isactive = $2, enableotp = $3, otpresettime = $4, opentime = $5, closetime = $6, audit_retention_days = $7
-         WHERE orgcode = $8`,
-        [c.orgname, c.isactive, c.enableotp, c.otpresettime, c.opentime, c.closetime, c.audit_retention_days || 15, adminOrgcode]
+         SET orgname = $1, isactive = $2, enableotp = $3, otpresettime = $4, opentime = $5, closetime = $6, audit_retention_days = $7,
+             gdrive_client_id = $8, gdrive_client_secret = $9, gdrive_refresh_token = $10, backup_schedule = $11, last_backup_time = $12,
+             enable_security_logs = $13, enable_ai_assistant = $14
+         WHERE orgcode = $15`,
+        [
+          c.orgname,
+          c.isactive,
+          c.enableotp,
+          c.otpresettime,
+          c.opentime,
+          c.closetime,
+          c.audit_retention_days || 15,
+          c.gdrive_client_id || null,
+          c.gdrive_client_secret || null,
+          c.gdrive_refresh_token || null,
+          c.backup_schedule || null,
+          c.last_backup_time || null,
+          c.enable_security_logs !== undefined ? c.enable_security_logs : null,
+          c.enable_ai_assistant !== undefined ? c.enable_ai_assistant : null,
+          adminOrgcode,
+        ]
       );
     }
 
@@ -163,18 +181,18 @@ export async function POST(request: Request) {
     // 5. Restore Slips
     for (const s of slipsData) {
       await client.query(
-        `INSERT INTO public.slips (id, orgcode, slipno, date, phone, name, address, totalamount, discount)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [s.id, s.orgcode, s.slipno, s.date, s.phone, s.name, s.address, s.totalamount, s.discount]
+        `INSERT INTO public.slips (id, orgcode, slipno, date, phone, name, address, totalamount, discount, netamount)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [s.id, s.orgcode, s.slipno, s.date, s.phone, s.name, s.address, s.totalamount, s.discount, s.netamount]
       );
     }
 
     // 6. Restore Slip Items
     for (const si of slipitemsData) {
       await client.query(
-        `INSERT INTO public.slipitems (id, item, remarks, qty, rate)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [si.id, si.item, si.remarks, si.qty, si.rate]
+        `INSERT INTO public.slipitems (id, item, remarks, qty, rate, amount)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [si.id, si.item, si.remarks, si.qty, si.rate, si.amount]
       );
     }
 
