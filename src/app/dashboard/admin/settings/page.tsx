@@ -112,6 +112,28 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const handleUnlinkGDrive = async () => {
+    const confirmUnlink = window.confirm(
+      "Are you sure you want to unlink Google Drive? Automatic backups and Google Drive restores will be disabled."
+    );
+    if (!confirmUnlink) return;
+
+    try {
+      const res = await fetch("/api/company/backup/gdrive-unlink", { method: "POST" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast("Google Drive unlinked successfully!", "success");
+        setGdriveLinked(false);
+        setGdriveBackups([]);
+        setLastBackupTime("");
+      } else {
+        addToast(data.message || "Failed to unlink Google Drive", "error");
+      }
+    } catch (e) {
+      addToast("Failed to connect to server.", "error");
+    }
+  };
+
   const handleRestore = async (fileId?: string) => {
     const confirmRestore = window.confirm(
       "Are you absolutely sure you want to restore? This will permanently delete and overwrite all current slips, items, users, and payments for this company. This cannot be undone."
@@ -426,21 +448,30 @@ export default function AdminSettingsPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={handleLinkGDrive}
-                  disabled={!hasGdriveConfig}
-                  className="py-2.5 px-4 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all text-sm"
-                >
-                  Link Google Drive
-                </button>
-                {gdriveLinked && (
+                {!gdriveLinked ? (
                   <button
-                    onClick={handleManualGDriveBackup}
-                    disabled={gdriveUploading}
-                    className="py-2.5 px-4 rounded-xl text-white font-medium bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all text-sm"
+                    onClick={handleLinkGDrive}
+                    disabled={!hasGdriveConfig}
+                    className="py-2.5 px-4 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all text-sm"
                   >
-                    {gdriveUploading ? "Uploading Backup..." : "Upload Backup to Drive"}
+                    Link Google Drive
                   </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleManualGDriveBackup}
+                      disabled={gdriveUploading}
+                      className="py-2.5 px-4 rounded-xl text-white font-medium bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all text-sm"
+                    >
+                      {gdriveUploading ? "Uploading Backup..." : "Upload Backup to Drive"}
+                    </button>
+                    <button
+                      onClick={handleUnlinkGDrive}
+                      className="py-2.5 px-4 rounded-xl text-white font-medium bg-rose-600 hover:bg-rose-700 transition-all text-sm"
+                    >
+                      Unlink Google Drive
+                    </button>
+                  </>
                 )}
               </div>
             </div>
