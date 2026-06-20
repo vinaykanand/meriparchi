@@ -126,9 +126,9 @@ export async function POST(request: Request) {
       await client.query(
         `UPDATE public.company 
          SET orgname = $1, isactive = $2, enableotp = $3, otpresettime = $4, opentime = $5, closetime = $6, audit_retention_days = $7,
-             gdrive_client_id = $8, gdrive_client_secret = $9, gdrive_refresh_token = $10, backup_schedule = $11, last_backup_time = $12,
-             enable_security_logs = $13, enable_ai_assistant = $14
-         WHERE orgcode = $15`,
+             gdrive_refresh_token = $8, backup_schedule = $9, last_backup_time = $10,
+             enable_security_logs = $11, enable_ai_assistant = $12
+         WHERE orgcode = $13`,
         [
           c.orgname,
           c.isactive,
@@ -137,8 +137,6 @@ export async function POST(request: Request) {
           c.opentime,
           c.closetime,
           c.audit_retention_days || 15,
-          c.gdrive_client_id || null,
-          c.gdrive_client_secret || null,
           c.gdrive_refresh_token || null,
           c.backup_schedule || null,
           c.last_backup_time || null,

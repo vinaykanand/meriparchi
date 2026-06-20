@@ -27,8 +27,7 @@ export default function AdminSettingsPage() {
   const [auditRetentionDays, setAuditRetentionDays] = useState<number>(15);
   
   // Google Drive config states
-  const [gdriveClientId, setGdriveClientId] = useState("");
-  const [gdriveClientSecret, setGdriveClientSecret] = useState("");
+  const [hasGdriveConfig, setHasGdriveConfig] = useState(false);
   const [backupSchedule, setBackupSchedule] = useState("none");
   const [gdriveLinked, setGdriveLinked] = useState(false);
   const [lastBackupTime, setLastBackupTime] = useState("");
@@ -63,8 +62,8 @@ export default function AdminSettingsPage() {
 
   const handleLinkGDrive = () => {
     if (!session) return;
-    if (!gdriveClientId) {
-      addToast("Please save your Google Client ID first.", "error");
+    if (!hasGdriveConfig) {
+      addToast("Google Drive configuration is missing in server environment variables.", "error");
       return;
     }
     window.location.href = `/api/company/backup/gdrive-auth?orgcode=${session.orgcode}`;
@@ -171,7 +170,7 @@ export default function AdminSettingsPage() {
             if (data.company.audit_retention_days !== undefined) {
               setAuditRetentionDays(data.company.audit_retention_days);
             }
-            setGdriveClientId(data.company.gdrive_client_id || "");
+            setHasGdriveConfig(!!data.company.has_gdrive_config);
             setBackupSchedule(data.company.backup_schedule || "none");
             setGdriveLinked(!!data.company.gdrive_linked);
             setLastBackupTime(data.company.last_backup_time || "");
@@ -207,8 +206,6 @@ export default function AdminSettingsPage() {
           opentime: opentime,
           closetime: closetime,
           audit_retention_days: auditRetentionDays,
-          gdrive_client_id: gdriveClientId,
-          gdrive_client_secret: gdriveClientSecret,
           backup_schedule: backupSchedule,
           enable_security_logs: enableSecurityLogs,
           enable_ai_assistant: enableAiAssistant,
@@ -218,7 +215,6 @@ export default function AdminSettingsPage() {
       if (response.ok && data.success) {
         addToast("Company settings updated successfully", "success");
         window.dispatchEvent(new Event("company-settings-updated"));
-        setGdriveClientSecret(""); // clear secret input on save
         // Re-fetch company details to check link status
         const fetchRes = await fetch(`/api/company?orgcode=${session.orgcode}`);
         const fetchData = await fetchRes.json();
@@ -333,58 +329,7 @@ export default function AdminSettingsPage() {
               <p className="text-xs text-slate-500 mt-1">Number of days to retain audit logs. Older logs are automatically purged.</p>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Google Drive Client ID</label>
-                <div className="group relative flex items-center">
-                  <QuestionMarkCircleIcon className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" />
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 text-white text-xs rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 font-normal leading-relaxed">
-                    <strong>How to get Google Client ID:</strong>
-                    <ol className="list-decimal list-inside mt-1 space-y-1">
-                      <li>Go to Google Cloud Console.</li>
-                      <li>Create a project & enable Google Drive API.</li>
-                      <li>Configure OAuth Consent Screen.</li>
-                      <li>Create Credentials &rarr; OAuth Client ID.</li>
-                      <li>
-                        Set Web App and add redirect URI:
-                        <code className="break-all select-all bg-slate-950 p-1.5 rounded font-mono block mt-1.5 text-[10px] text-emerald-400 select-all cursor-pointer" title="Click to copy or double click to select">
-                          {origin ? `${origin}/api/company/backup/gdrive-callback` : "https://<your-domain>/api/company/backup/gdrive-callback"}
-                        </code>
-                      </li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
-              <input 
-                type="text" 
-                placeholder="Google OAuth Client ID"
-                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
-                value={gdriveClientId} 
-                onChange={(e) => setGdriveClientId(e.target.value)} 
-              />
-            </div>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Google Drive Client Secret</label>
-                <div className="group relative flex items-center">
-                  <QuestionMarkCircleIcon className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 dark:hover:text-slate-300" />
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 text-white text-xs rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 font-normal leading-relaxed">
-                    <strong>How to get Client Secret:</strong>
-                    <p className="mt-1">
-                      The Client Secret is generated automatically alongside the Client ID in the Google Cloud Console Credentials interface. Copy both into these fields.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <input 
-                type="password" 
-                placeholder={gdriveLinked ? "••••••••••••••••" : "Google OAuth Client Secret"}
-                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
-                value={gdriveClientSecret} 
-                onChange={(e) => setGdriveClientSecret(e.target.value)} 
-              />
-            </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Auto Backup Schedule</label>
@@ -443,18 +388,21 @@ export default function AdminSettingsPage() {
                 ) : (
                   <span className="text-sm font-semibold text-red-600 dark:text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">🔴 Not Linked</span>
                 )}
+                {!hasGdriveConfig && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full ml-2">⚠️ Server Credentials Missing</span>
+                )}
               </div>
               {lastBackupTime && (
                 <p className="text-xs text-slate-500 mb-3">Last upload: {new Date(lastBackupTime).toLocaleString()}</p>
               )}
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4">
-                Grant permission to upload backup files to your Google Drive. Save your Client ID and Client Secret in Organization settings first, then authenticate.
+                Grant permission to upload backup files to your Google Drive folder. OAuth credentials must be configured on the server.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={handleLinkGDrive}
-                  disabled={!gdriveClientId}
+                  disabled={!hasGdriveConfig}
                   className="py-2.5 px-4 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all text-sm"
                 >
                   Link Google Drive

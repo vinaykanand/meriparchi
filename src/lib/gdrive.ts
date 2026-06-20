@@ -4,8 +4,15 @@ import { generateBackupZip } from "./backup";
 export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: boolean; fileId?: string; message?: string }> {
   try {
     // 1. Retrieve GDrive configuration
+    const gdrive_client_id = process.env.GOOGLE_DRIVE_CLIENT_ID;
+    const gdrive_client_secret = process.env.GOOGLE_DRIVE_CLIENT_SECRET;
+
+    if (!gdrive_client_id || !gdrive_client_secret) {
+      return { success: false, message: "Google Drive Client ID/Secret is not configured on the server." };
+    }
+
     const configRes = await query(
-      "SELECT gdrive_client_id, gdrive_client_secret, gdrive_refresh_token FROM public.company WHERE orgcode = $1",
+      "SELECT gdrive_refresh_token FROM public.company WHERE orgcode = $1",
       [orgcode]
     );
 
@@ -13,10 +20,10 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
       return { success: false, message: "Company profile not found" };
     }
 
-    const { gdrive_client_id, gdrive_client_secret, gdrive_refresh_token } = configRes.rows[0];
+    const { gdrive_refresh_token } = configRes.rows[0];
 
-    if (!gdrive_client_id || !gdrive_client_secret || !gdrive_refresh_token) {
-      return { success: false, message: "Google Drive is not linked or configured." };
+    if (!gdrive_refresh_token) {
+      return { success: false, message: "Google Drive is not linked." };
     }
 
     // 2. Exchange refresh token for access token
@@ -38,6 +45,46 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
 
     const accessToken = tokenData.access_token;
 
+    // 2.5 Find or create the "MeriParchi" folder
+    let parentFolderId = "";
+    try {
+      const searchRes = await fetch(
+        "https://www.googleapis.com/drive/v3/files?" +
+          new URLSearchParams({
+            q: "name = 'MeriParchi' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+            fields: "files(id)",
+          }),
+        {
+          headers: { "Authorization": `Bearer ${accessToken}` },
+        }
+      );
+      const searchData = await searchRes.json();
+      if (searchRes.ok && searchData.files && searchData.files.length > 0) {
+        parentFolderId = searchData.files[0].id;
+      } else {
+        // Create the folder
+        const createFolderRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: "MeriParchi",
+            mimeType: "application/vnd.google-apps.folder",
+          }),
+        });
+        const createFolderData = await createFolderRes.json();
+        if (createFolderRes.ok && createFolderData.id) {
+          parentFolderId = createFolderData.id;
+        } else {
+          console.error("Failed to create MeriParchi folder:", createFolderData);
+        }
+      }
+    } catch (e) {
+      console.error("Error finding/creating MeriParchi folder:", e);
+    }
+
     // 3. Generate the backup zip file
     const zipBuffer = await generateBackupZip(orgcode);
     const filename = `backup_${orgcode}_${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
@@ -52,6 +99,7 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
       body: JSON.stringify({
         name: filename,
         mimeType: "application/zip",
+        ...(parentFolderId ? { parents: [parentFolderId] } : {}),
       }),
     });
 

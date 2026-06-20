@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
     const result = await query(
       `SELECT orgcode, orgname, isactive, enableotp, otpresettime, opentime, closetime, audit_retention_days, 
-              gdrive_client_id, backup_schedule, last_backup_time, (gdrive_refresh_token IS NOT NULL) as gdrive_linked,
+              backup_schedule, last_backup_time, (gdrive_refresh_token IS NOT NULL) as gdrive_linked,
               enable_security_logs, enable_ai_assistant 
        FROM public.company WHERE orgcode = $1`,
       [orgcode]
@@ -24,7 +24,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, message: "Company not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, company: result.rows[0] });
+    const companyData = {
+      ...result.rows[0],
+      has_gdrive_config: !!process.env.GOOGLE_DRIVE_CLIENT_ID,
+    };
+
+    return NextResponse.json({ success: true, company: companyData });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message || "Server Error" },
@@ -53,7 +58,7 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const { 
       orgcode, orgname, enableotp, isactive, otpresettime, opentime, closetime, 
-      audit_retention_days, gdrive_client_id, gdrive_client_secret, backup_schedule,
+      audit_retention_days, backup_schedule,
       enable_security_logs, enable_ai_assistant 
     } = body;
 
@@ -62,20 +67,15 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }
 
-    // Preserve existing client secret if not supplied
-    const companyRes = await query("SELECT gdrive_client_secret FROM public.company WHERE orgcode = $1", [orgcode]);
-    const existingSecret = companyRes.rows[0]?.gdrive_client_secret;
-    const finalSecret = gdrive_client_secret || existingSecret;
-
     await query(
       `UPDATE public.company 
        SET orgname = $1, enableotp = $2, isactive = $3, otpresettime = $4, opentime = $5, closetime = $6, 
-           audit_retention_days = $7, gdrive_client_id = $8, gdrive_client_secret = $9, backup_schedule = $10,
-           enable_security_logs = $11, enable_ai_assistant = $12 
-       WHERE orgcode = $13`,
+           audit_retention_days = $7, backup_schedule = $8,
+           enable_security_logs = $9, enable_ai_assistant = $10 
+       WHERE orgcode = $11`,
       [
         orgname, enableotp, isactive, otpresettime, opentime, closetime, 
-        audit_retention_days || 15, gdrive_client_id, finalSecret, backup_schedule || 'none', 
+        audit_retention_days || 15, backup_schedule || 'none', 
         enable_security_logs !== false, enable_ai_assistant !== false, orgcode
       ]
     );
@@ -86,7 +86,7 @@ export async function PUT(request: Request) {
       action: "UPDATE_COMPANY_SETTINGS",
       details: { 
         orgname, enableotp, isactive, otpresettime, opentime, closetime, 
-        audit_retention_days, gdrive_client_id, backup_schedule, enable_security_logs,
+        audit_retention_days, backup_schedule, enable_security_logs,
         enable_ai_assistant
       },
     });

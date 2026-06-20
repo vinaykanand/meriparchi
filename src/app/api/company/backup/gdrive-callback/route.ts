@@ -11,20 +11,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, message: "Invalid callback request" }, { status: 400 });
     }
 
-    // Retrieve client credentials
-    const companyRes = await query(
-      "SELECT gdrive_client_id, gdrive_client_secret FROM public.company WHERE orgcode = $1",
-      [orgcode]
-    );
-
-    if (companyRes.rows.length === 0) {
-      return NextResponse.json({ success: false, message: "Company not found" }, { status: 404 });
-    }
-
-    const { gdrive_client_id, gdrive_client_secret } = companyRes.rows[0];
+    // Retrieve client credentials from environment variables
+    const gdrive_client_id = process.env.GOOGLE_DRIVE_CLIENT_ID;
+    const gdrive_client_secret = process.env.GOOGLE_DRIVE_CLIENT_SECRET;
 
     if (!gdrive_client_id || !gdrive_client_secret) {
-      return NextResponse.json({ success: false, message: "Missing Google client configuration" }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Missing Google client configuration in environment variables" }, { status: 500 });
     }
 
     const host = request.headers.get("host");

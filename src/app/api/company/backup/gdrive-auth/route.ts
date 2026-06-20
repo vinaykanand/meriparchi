@@ -10,19 +10,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, message: "Missing orgcode parameter" }, { status: 400 });
     }
 
-    const result = await query(
-      "SELECT gdrive_client_id FROM public.company WHERE orgcode = $1",
-      [orgcode]
-    );
+    const client_id = process.env.GOOGLE_DRIVE_CLIENT_ID;
 
-    if (result.rows.length === 0 || !result.rows[0].gdrive_client_id) {
+    if (!client_id) {
       return NextResponse.json(
-        { success: false, message: "Google Client ID is not configured. Please enter it in Settings first." },
-        { status: 400 }
+        { success: false, message: "Google Client ID is not configured in environment variables." },
+        { status: 500 }
       );
     }
 
-    const client_id = result.rows[0].gdrive_client_id;
     const host = request.headers.get("host");
     const protocol = host?.includes("localhost") ? "http" : "https";
     const redirect_uri = `${protocol}://${host}/api/company/backup/gdrive-callback`;
