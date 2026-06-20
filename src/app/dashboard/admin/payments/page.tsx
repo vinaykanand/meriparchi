@@ -25,7 +25,6 @@ export default function AdminPaymentsPage() {
   const [searchSuggestions, setSearchSuggestions] = useState<{phone: string, name: string, address: string}[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Recent Payments & Deletion States
   const [recentPayments, setRecentPayments] = useState<{
     id: number;
     phone: string;
@@ -33,6 +32,7 @@ export default function AdminPaymentsPage() {
     amount: number;
     narration: string;
     name?: string;
+    address?: string;
   }[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<number[]>([]);
@@ -414,6 +414,9 @@ export default function AdminPaymentsPage() {
                             {p.name || "Unknown"}
                           </div>
                           <div className="text-[10px] text-slate-550 font-mono dark:text-slate-400">{p.phone}</div>
+                          {p.address && (
+                            <div className="text-[10px] text-slate-450 dark:text-slate-500/80 italic mt-0.5">📍 {p.address}</div>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-slate-650 dark:text-slate-450 whitespace-nowrap">
                           {new Date(p.date).toLocaleDateString('en-IN')}

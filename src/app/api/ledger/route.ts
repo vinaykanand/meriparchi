@@ -34,7 +34,8 @@ export async function GET(request: Request) {
       const limit = parseInt(paymentsLimit, 10) || 50;
       const result = await query(
         `SELECT p.id, p.phone, p.date, p.amount, p.narration,
-                (SELECT s.name FROM public.slips s WHERE s.orgcode = p.orgcode AND s.phone = p.phone LIMIT 1) as name
+                (SELECT s.name FROM public.slips s WHERE s.orgcode = p.orgcode AND s.phone = p.phone LIMIT 1) as name,
+                (SELECT s.address FROM public.slips s WHERE s.orgcode = p.orgcode AND s.phone = p.phone LIMIT 1) as address
          FROM public.payments p
          WHERE p.orgcode = $1
          ORDER BY p.date DESC, p.id DESC
