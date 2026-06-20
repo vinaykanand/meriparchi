@@ -18,6 +18,21 @@ export async function logAction({
   const executor = client || { query: query };
   
   try {
+    // Prevent duplicate logs for backup and restore actions within 5 seconds
+    if (action.includes("BACKUP") || action.includes("RESTORE")) {
+      const dupCheck = await executor.query(
+        `SELECT id FROM public.audit_logs 
+         WHERE orgcode = $1 AND userid = $2 AND action = $3 
+           AND timestamp > NOW() - INTERVAL '5 seconds'
+         LIMIT 1`,
+        [orgcode, userid, action]
+      );
+      if (dupCheck.rows.length > 0) {
+        console.log(`[Audit] Skipping duplicate log for action: ${action}`);
+        return;
+      }
+    }
+
     // 1. Insert audit log
     await executor.query(
       `INSERT INTO public.audit_logs (orgcode, userid, action, details)
