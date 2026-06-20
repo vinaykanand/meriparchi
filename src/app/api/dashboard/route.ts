@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const orgcode = searchParams.get("orgcode");
+    const weekOffset = parseInt(searchParams.get("weekOffset") || "0", 10);
 
     if (!orgcode) {
       return NextResponse.json({ success: false, message: "Missing orgcode" }, { status: 400 });
@@ -55,38 +56,40 @@ export async function GET(request: Request) {
     // 5. 7-Day Trend Chart Data
     const trendResult = await query(
       `WITH dates AS (
-         SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date AS d
+          SELECT generate_series((CURRENT_DATE + ($2 * 7)) - INTERVAL '6 days', CURRENT_DATE + ($2 * 7), '1 day')::date AS d
        ),
        daily_slips AS (
-         SELECT date::date as d, SUM(netamount) as revenue 
-         FROM public.slips 
-         WHERE orgcode = $1 AND date::date >= CURRENT_DATE - INTERVAL '6 days'
-         GROUP BY date::date
+          SELECT date::date as d, SUM(netamount) as revenue 
+          FROM public.slips 
+          WHERE orgcode = $1 AND date::date BETWEEN (CURRENT_DATE + ($2 * 7)) - INTERVAL '6 days' AND CURRENT_DATE + ($2 * 7)
+          GROUP BY date::date
        ),
        daily_payments AS (
-         SELECT date::date as d, SUM(amount) as payment 
-         FROM public.payments 
-         WHERE orgcode = $1 AND date::date >= CURRENT_DATE - INTERVAL '6 days'
-         GROUP BY date::date
+          SELECT date::date as d, SUM(amount) as payment 
+          FROM public.payments 
+          WHERE orgcode = $1 AND date::date BETWEEN (CURRENT_DATE + ($2 * 7)) - INTERVAL '6 days' AND CURRENT_DATE + ($2 * 7)
+          GROUP BY date::date
        ),
        daily_returns AS (
-         SELECT s.date::date as d, SUM(ABS(i.amount)) as returns
-         FROM public.slipitems i
-         JOIN public.slips s ON i.id = s.id
-         WHERE s.orgcode = $1 AND s.date::date >= CURRENT_DATE - INTERVAL '6 days' AND i.qty < 0
-         GROUP BY s.date::date
+          SELECT s.date::date as d, SUM(ABS(i.amount)) as returns
+          FROM public.slipitems i
+          JOIN public.slips s ON i.id = s.id
+          WHERE s.orgcode = $1 
+            AND s.date::date BETWEEN (CURRENT_DATE + ($2 * 7)) - INTERVAL '6 days' AND CURRENT_DATE + ($2 * 7) 
+            AND i.qty < 0
+          GROUP BY s.date::date
        )
        SELECT 
-         to_char(dates.d, 'Mon DD') as name,
-         COALESCE(s.revenue, 0) as revenue,
-         COALESCE(p.payment, 0) as payment,
-         COALESCE(r.returns, 0) as returns
+          to_char(dates.d, 'Mon DD') as name,
+          COALESCE(s.revenue, 0) as revenue,
+          COALESCE(p.payment, 0) as payment,
+          COALESCE(r.returns, 0) as returns
        FROM dates
        LEFT JOIN daily_slips s ON dates.d = s.d
        LEFT JOIN daily_payments p ON dates.d = p.d
        LEFT JOIN daily_returns r ON dates.d = r.d
        ORDER BY dates.d ASC`,
-      [orgcode]
+      [orgcode, weekOffset]
     );
 
     // 6. Top Debtors

@@ -8,6 +8,8 @@ export default function AdminOverview() {
   const { session } = useAuth();
 
   const [loading, setLoading] = useState(true);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [trendLoading, setTrendLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState<{
     kpis: {
       totalOutstanding: number;
@@ -36,8 +38,12 @@ export default function AdminOverview() {
     const fetchDashboardData = async () => {
       if (!session?.orgcode) return;
       try {
-        setLoading(true);
-        const res = await fetch(`/api/dashboard?orgcode=${session.orgcode}`);
+        if (weekOffset === 0) {
+          setLoading(true);
+        } else {
+          setTrendLoading(true);
+        }
+        const res = await fetch(`/api/dashboard?orgcode=${session.orgcode}&weekOffset=${weekOffset}`);
         const data = await res.json();
         if (res.ok && data.success) {
           setDashboardData({
@@ -51,11 +57,12 @@ export default function AdminOverview() {
         console.error("Failed to fetch dashboard data", err);
       } finally {
         setLoading(false);
+        setTrendLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [session]);
+  }, [session, weekOffset]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -129,10 +136,52 @@ export default function AdminOverview() {
       </div>
 
       {/* Row 2: 7-Day Trend Chart */}
-      <div className="bg-white/80 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-        <div className="mb-6">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">7-Day Financial Trend</h3>
-          <p className="text-xs text-slate-500">Compare Daily Revenue, Payments, and Returns</p>
+      <div className="bg-white/80 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 relative">
+        {trendLoading && (
+          <div className="absolute inset-0 bg-white/40 dark:bg-slate-950/40 backdrop-blur-[1px] flex items-center justify-center z-10 rounded-2xl">
+            <div className="w-8 h-8 border-4 border-slate-200 dark:border-slate-855 border-t-blue-600 rounded-full animate-spin"></div>
+          </div>
+        )}
+        <div className="mb-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              7-Day Financial Trend
+              {weekOffset !== 0 && (
+                <span className="text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full border border-blue-200/30">
+                  {weekOffset < 0 ? `${Math.abs(weekOffset)} Wk Ago` : `${weekOffset} Wk Ahead`}
+                </span>
+              )}
+            </h3>
+            <p className="text-xs text-slate-500">Compare Daily Revenue, Payments, and Returns</p>
+          </div>
+
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+            <button
+              onClick={() => setWeekOffset(prev => prev - 1)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg hover:bg-white dark:hover:bg-slate-850 text-slate-700 dark:text-slate-300 transition-all hover:shadow-sm"
+              aria-label="Previous Week"
+            >
+              ← Prev Week
+            </button>
+            <button
+              onClick={() => setWeekOffset(0)}
+              disabled={weekOffset === 0}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                weekOffset === 0
+                  ? "bg-blue-650 text-white shadow-sm dark:bg-blue-600"
+                  : "hover:bg-white dark:hover:bg-slate-850 text-slate-750 dark:text-slate-350"
+              }`}
+            >
+              Current
+            </button>
+            <button
+              onClick={() => setWeekOffset(prev => prev + 1)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg hover:bg-white dark:hover:bg-slate-850 text-slate-700 dark:text-slate-300 transition-all hover:shadow-sm"
+              aria-label="Next Week"
+            >
+              Next Week →
+            </button>
+          </div>
         </div>
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
