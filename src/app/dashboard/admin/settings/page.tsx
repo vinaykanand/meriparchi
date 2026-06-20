@@ -41,6 +41,8 @@ export default function AdminSettingsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState<number | null>(null);
+  const [gdriveBackups, setGdriveBackups] = useState<any[]>([]);
+  const [loadingGdriveBackups, setLoadingGdriveBackups] = useState(false);
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -69,6 +71,27 @@ export default function AdminSettingsPage() {
     window.location.href = `/api/company/backup/gdrive-auth?orgcode=${session.orgcode}`;
   };
 
+  const fetchGdriveBackups = async () => {
+    setLoadingGdriveBackups(true);
+    try {
+      const res = await fetch("/api/company/backup/gdrive-list");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setGdriveBackups(data.backups || []);
+      }
+    } catch (e) {
+      console.error("Failed to load Google Drive backups:", e);
+    } finally {
+      setLoadingGdriveBackups(false);
+    }
+  };
+
+  useEffect(() => {
+    if (gdriveLinked) {
+      fetchGdriveBackups();
+    }
+  }, [gdriveLinked]);
+
   const handleManualGDriveBackup = async () => {
     setGdriveUploading(true);
     try {
@@ -89,9 +112,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleRestore = async () => {
-    if (!selectedFile) return;
-
+  const handleRestore = async (fileId?: string) => {
     const confirmRestore = window.confirm(
       "Are you absolutely sure you want to restore? This will permanently delete and overwrite all current slips, items, users, and payments for this company. This cannot be undone."
     );
@@ -100,15 +121,11 @@ export default function AdminSettingsPage() {
     setRestoring(true);
     setRestoreProgress(0);
 
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
     const xhr = new XMLHttpRequest();
 
     xhr.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) {
         const percentComplete = Math.round((event.loaded / event.total) * 100);
-        // Cap upload progress at 99% to indicate server-side DB work is running
         setRestoreProgress(Math.min(percentComplete, 99));
       }
     });
@@ -140,8 +157,17 @@ export default function AdminSettingsPage() {
       setRestoring(false);
     });
 
-    xhr.open("POST", "/api/company/restore");
-    xhr.send(formData);
+    if (fileId) {
+      setRestoreProgress(50);
+      xhr.open("POST", `/api/company/restore?fileId=${fileId}`);
+      xhr.send();
+    } else {
+      if (!selectedFile) return;
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      xhr.open("POST", "/api/company/restore");
+      xhr.send(formData);
+    }
   };
 
   useEffect(() => {
@@ -471,13 +497,67 @@ export default function AdminSettingsPage() {
                 )}
 
                 <button
-                  onClick={handleRestore}
+                  onClick={() => handleRestore()}
                   disabled={!selectedFile || restoring}
                   className="py-2.5 px-4 rounded-xl text-white font-medium bg-rose-600 hover:bg-rose-700 disabled:opacity-50 transition-all shadow-[0_4px_10px_rgba(225,29,72,0.2)] text-sm self-start"
                 >
-                  {restoring ? "Restoring Data..." : "Restore Backup (.zip)"}
+                  {restoring && !restoreProgress ? "Restoring Data..." : "Restore Backup (.zip)"}
                 </button>
               </div>
+
+              {gdriveLinked && (
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-5 mt-5">
+                  <div className="font-semibold text-slate-900 dark:text-slate-100 mb-1">Restore from Google Drive</div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                    Select a backup file stored in your Google Drive's <code className="bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded font-mono">MeriParchi</code> folder to restore.
+                  </p>
+
+                  {loadingGdriveBackups ? (
+                    <div className="text-xs text-slate-550 dark:text-slate-400 py-3">Loading backups list...</div>
+                  ) : gdriveBackups.length === 0 ? (
+                    <div className="text-xs text-slate-550 dark:text-slate-400 py-3 bg-slate-50 dark:bg-slate-900/30 rounded-xl px-4 border border-slate-200/50 dark:border-slate-800">
+                      No backups found in Google Drive folder "MeriParchi".
+                    </div>
+                  ) : (
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden text-xs max-h-60 overflow-y-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-700">
+                            <th className="px-4 py-2.5">Filename</th>
+                            <th className="px-4 py-2.5">Date Created</th>
+                            <th className="px-4 py-2.5">Size</th>
+                            <th className="px-4 py-2.5 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                          {gdriveBackups.map((b) => (
+                            <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                              <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200 truncate max-w-[180px]" title={b.name}>
+                                {b.name}
+                              </td>
+                              <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 whitespace-nowrap">
+                                {new Date(b.createdTime).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 font-mono">
+                                {b.size ? `${(parseInt(b.size) / 1024).toFixed(1)} KB` : "Unknown"}
+                              </td>
+                              <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                                <button
+                                  onClick={() => handleRestore(b.id)}
+                                  disabled={restoring}
+                                  className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                  Restore
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

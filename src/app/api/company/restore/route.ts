@@ -25,15 +25,75 @@ export async function POST(request: Request) {
     const adminOrgcode = sessionCheck.rows[0].orgcode;
     const adminUserid = sessionCheck.rows[0].userid;
 
-    // Parse the multipart form data
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    // Check if restoring from Google Drive fileId
+    const { searchParams } = new URL(request.url);
+    const fileId = searchParams.get("fileId");
 
-    if (!file) {
-      return NextResponse.json({ success: false, message: "No file uploaded" }, { status: 400 });
+    let buffer: Buffer;
+
+    if (fileId) {
+      const gdrive_client_id = process.env.GOOGLE_DRIVE_CLIENT_ID;
+      const gdrive_client_secret = process.env.GOOGLE_DRIVE_CLIENT_SECRET;
+
+      if (!gdrive_client_id || !gdrive_client_secret) {
+        return NextResponse.json(
+          { success: false, message: "Google Drive OAuth credentials are not configured on the server." },
+          { status: 500 }
+        );
+      }
+
+      const configRes = await query(
+        "SELECT gdrive_refresh_token FROM public.company WHERE orgcode = $1",
+        [adminOrgcode]
+      );
+      const { gdrive_refresh_token } = configRes.rows[0] || {};
+      if (!gdrive_refresh_token) {
+        return NextResponse.json({ success: false, message: "Google Drive is not linked." }, { status: 400 });
+      }
+
+      // Exchange refresh token for access token
+      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: gdrive_client_id,
+          client_secret: gdrive_client_secret,
+          refresh_token: gdrive_refresh_token,
+          grant_type: "refresh_token",
+        }),
+      });
+
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) {
+        return NextResponse.json({ success: false, message: tokenData.error_description || "Token refresh failed." }, { status: 400 });
+      }
+
+      const accessToken = tokenData.access_token;
+
+      // Download file contents from Google Drive
+      const downloadRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        {
+          headers: { "Authorization": `Bearer ${accessToken}` },
+        }
+      );
+
+      if (!downloadRes.ok) {
+        return NextResponse.json({ success: false, message: "Failed to download backup file from Google Drive." }, { status: 500 });
+      }
+
+      buffer = Buffer.from(await downloadRes.arrayBuffer());
+    } else {
+      // Parse the multipart form data
+      const formData = await request.formData();
+      const file = formData.get("file") as File | null;
+
+      if (!file) {
+        return NextResponse.json({ success: false, message: "No file uploaded" }, { status: 400 });
+      }
+
+      buffer = Buffer.from(await file.arrayBuffer());
     }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
     let zip;
     try {
       zip = new AdmZip(buffer);
