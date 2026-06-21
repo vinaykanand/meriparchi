@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
     const authtoken = cookieStore.get("authtoken")?.value;
@@ -86,15 +86,25 @@ export async function GET() {
 
     const folderId = searchData.files[0].id;
 
+    // Get page token and page size from query
+    const { searchParams } = new URL(request.url);
+    const pageToken = searchParams.get("pageToken") || "";
+    const limit = searchParams.get("limit") || "10";
+
+    const fetchParams: Record<string, string> = {
+      q: `'${folderId}' in parents and mimeType = 'application/zip' and trashed = false`,
+      orderBy: "createdTime desc",
+      pageSize: limit,
+      fields: "nextPageToken, files(id, name, createdTime, size)",
+    };
+
+    if (pageToken) {
+      fetchParams.pageToken = pageToken;
+    }
+
     // List zip backups inside the folder
     const listRes = await fetch(
-      "https://www.googleapis.com/drive/v3/files?" +
-        new URLSearchParams({
-          q: `'${folderId}' in parents and mimeType = 'application/zip' and trashed = false`,
-          orderBy: "createdTime desc",
-          pageSize: "10",
-          fields: "files(id, name, createdTime, size)",
-        }),
+      "https://www.googleapis.com/drive/v3/files?" + new URLSearchParams(fetchParams),
       {
         headers: { "Authorization": `Bearer ${accessToken}` },
       }
@@ -105,7 +115,11 @@ export async function GET() {
       return NextResponse.json({ success: false, message: "Failed to list backups on Google Drive" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, backups: listData.files || [] });
+    return NextResponse.json({ 
+      success: true, 
+      backups: listData.files || [], 
+      nextPageToken: listData.nextPageToken || null 
+    });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message || "Failed to retrieve Google Drive backups" },

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const result = await query(
       `SELECT orgcode, orgname, isactive, enableotp, otpresettime, opentime, closetime, audit_retention_days, 
               backup_schedule, last_backup_time, (gdrive_refresh_token IS NOT NULL) as gdrive_linked,
-              enable_security_logs, enable_ai_assistant 
+              enable_security_logs, enable_ai_assistant, backup_retention_count 
        FROM public.company WHERE orgcode = $1`,
       [orgcode]
     );
@@ -59,7 +59,7 @@ export async function PUT(request: Request) {
     const { 
       orgcode, orgname, enableotp, isactive, otpresettime, opentime, closetime, 
       audit_retention_days, backup_schedule,
-      enable_security_logs, enable_ai_assistant 
+      enable_security_logs, enable_ai_assistant, backup_retention_count 
     } = body;
 
     // Optional: verify that the user's orgcode matches the request orgcode
@@ -71,12 +71,14 @@ export async function PUT(request: Request) {
       `UPDATE public.company 
        SET orgname = $1, enableotp = $2, isactive = $3, otpresettime = $4, opentime = $5, closetime = $6, 
            audit_retention_days = $7, backup_schedule = $8,
-           enable_security_logs = $9, enable_ai_assistant = $10 
-       WHERE orgcode = $11`,
+           enable_security_logs = $9, enable_ai_assistant = $10,
+           backup_retention_count = $11
+       WHERE orgcode = $12`,
       [
         orgname, enableotp, isactive, otpresettime, opentime, closetime, 
         audit_retention_days || 10, backup_schedule || 'none', 
-        enable_security_logs !== false, enable_ai_assistant !== false, orgcode
+        enable_security_logs !== false, enable_ai_assistant !== false, 
+        backup_retention_count || 5, orgcode
       ]
     );
 
@@ -87,7 +89,7 @@ export async function PUT(request: Request) {
       details: { 
         orgname, enableotp, isactive, otpresettime, opentime, closetime, 
         audit_retention_days, backup_schedule, enable_security_logs,
-        enable_ai_assistant
+        enable_ai_assistant, backup_retention_count
       },
     });
 

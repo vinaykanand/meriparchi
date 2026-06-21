@@ -4,6 +4,7 @@ import { logAction } from "./audit";
 
 // Map schedule intervals to milliseconds
 const INTERVALS: Record<string, number> = {
+  twice_daily: 12 * 60 * 60 * 1000,
   daily: 24 * 60 * 60 * 1000,
   weekly: 7 * 24 * 60 * 60 * 1000,
   monthly: 30 * 24 * 60 * 60 * 1000,

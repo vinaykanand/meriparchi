@@ -12,7 +12,7 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
     }
 
     const configRes = await query(
-      "SELECT gdrive_refresh_token FROM public.company WHERE orgcode = $1",
+      "SELECT gdrive_refresh_token, COALESCE(backup_retention_count, 5) as backup_retention_count FROM public.company WHERE orgcode = $1",
       [orgcode]
     );
 
@@ -20,7 +20,7 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
       return { success: false, message: "Company profile not found" };
     }
 
-    const { gdrive_refresh_token } = configRes.rows[0];
+    const { gdrive_refresh_token, backup_retention_count } = configRes.rows[0];
 
     if (!gdrive_refresh_token) {
       return { success: false, message: "Google Drive is not linked." };
@@ -125,7 +125,35 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
       return { success: false, message: uploadData.error?.message || "Failed to upload file content to GDrive." };
     }
 
-    // 6. Update last backup time
+    // 6. Delete old backups exceeding retention limit
+    try {
+      const listRes = await fetch(
+        "https://www.googleapis.com/drive/v3/files?" +
+          new URLSearchParams({
+            q: `'${parentFolderId}' in parents and mimeType = 'application/zip' and trashed = false`,
+            orderBy: "createdTime desc",
+            fields: "files(id, name, createdTime)",
+          }),
+        {
+          headers: { "Authorization": `Bearer ${accessToken}` },
+        }
+      );
+      const listData = await listRes.json();
+      if (listRes.ok && listData.files && listData.files.length > backup_retention_count) {
+        const toDelete = listData.files.slice(backup_retention_count);
+        for (const file of toDelete) {
+          console.log(`[GDrive] Auto purging old backup: ${file.name} (${file.id})`);
+          await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${accessToken}` },
+          });
+        }
+      }
+    } catch (purgeError) {
+      console.error("Failed to auto-purge old backups:", purgeError);
+    }
+
+    // 7. Update last backup time
     await query(
       "UPDATE public.company SET last_backup_time = NOW() WHERE orgcode = $1",
       [orgcode]

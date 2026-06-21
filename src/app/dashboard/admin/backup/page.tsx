@@ -32,6 +32,10 @@ export default function AdminBackupPage() {
   const [restorePhone, setRestorePhone] = useState("");
   const [inspecting, setInspecting] = useState(false);
   const [inspectResult, setInspectResult] = useState<{ phone: string, name: string, address: string }[]>([]);
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [loadingMoreBackups, setLoadingMoreBackups] = useState(false);
+  const [backupRetentionCount, setBackupRetentionCount] = useState<number>(5);
+  const [savingRetention, setSavingRetention] = useState(false);
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -99,15 +103,33 @@ export default function AdminBackupPage() {
   const fetchGdriveBackups = async () => {
     setLoadingGdriveBackups(true);
     try {
-      const res = await fetch("/api/company/backup/gdrive-list");
+      const res = await fetch("/api/company/backup/gdrive-list?limit=10");
       const data = await res.json();
       if (res.ok && data.success) {
         setGdriveBackups(data.backups || []);
+        setNextPageToken(data.nextPageToken || null);
       }
     } catch (e) {
       console.error("Failed to load Google Drive backups:", e);
     } finally {
       setLoadingGdriveBackups(false);
+    }
+  };
+
+  const fetchMoreGdriveBackups = async () => {
+    if (!nextPageToken || loadingMoreBackups) return;
+    setLoadingMoreBackups(true);
+    try {
+      const res = await fetch(`/api/company/backup/gdrive-list?limit=10&pageToken=${nextPageToken}`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setGdriveBackups((prev) => [...prev, ...(data.backups || [])]);
+        setNextPageToken(data.nextPageToken || null);
+      }
+    } catch (e) {
+      console.error("Failed to load more Google Drive backups:", e);
+    } finally {
+      setLoadingMoreBackups(false);
     }
   };
 
@@ -233,6 +255,9 @@ export default function AdminBackupPage() {
           setGdriveLinked(!!data.company.gdrive_linked);
           setLastBackupTime(data.company.last_backup_time || "");
           setHasGdriveConfig(!!data.company.has_gdrive_config);
+          if (data.company.backup_retention_count !== undefined) {
+            setBackupRetentionCount(data.company.backup_retention_count);
+          }
         }
       } catch (e) {
         console.error("Failed to load company data for backup page");
@@ -268,6 +293,7 @@ export default function AdminBackupPage() {
           backup_schedule: schedule,
           enable_security_logs: c.enable_security_logs,
           enable_ai_assistant: c.enable_ai_assistant,
+          backup_retention_count: backupRetentionCount,
         }),
       });
       const data = await response.json();
@@ -281,6 +307,50 @@ export default function AdminBackupPage() {
       addToast("Failed to connect to server", "error");
     } finally {
       setSavingSchedule(false);
+    }
+  };
+
+  const handleUpdateRetention = async (retentionCount: number) => {
+    if (!session) return;
+    setSavingRetention(true);
+    try {
+      const getRes = await fetch(`/api/company?orgcode=${session.orgcode}`);
+      const getData = await getRes.json();
+      if (!getRes.ok || !getData.success || !getData.company) {
+        addToast("Failed to fetch current settings", "error");
+        return;
+      }
+      const c = getData.company;
+
+      const response = await fetch("/api/company", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgcode: session.orgcode,
+          orgname: c.orgname,
+          enableotp: c.enableotp,
+          isactive: c.isactive,
+          otpresettime: c.otpresettime,
+          opentime: c.opentime ? c.opentime.substring(0, 5) : "09:00",
+          closetime: c.closetime ? c.closetime.substring(0, 5) : "18:00",
+          audit_retention_days: c.audit_retention_days,
+          backup_schedule: c.backup_schedule || "none",
+          enable_security_logs: c.enable_security_logs,
+          enable_ai_assistant: c.enable_ai_assistant,
+          backup_retention_count: retentionCount,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setBackupRetentionCount(retentionCount);
+        addToast("GDrive backup retention limit updated successfully", "success");
+      } else {
+        addToast(data.message || "Failed to update retention limit", "error");
+      }
+    } catch (e) {
+      addToast("Failed to connect to server", "error");
+    } finally {
+      setSavingRetention(false);
     }
   };
 
@@ -409,23 +479,37 @@ export default function AdminBackupPage() {
                 </>
               )}
             </div>
-          </div>
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Auto Backup Schedule</label>
+              <select
+                disabled={savingSchedule}
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer disabled:opacity-50"
+                value={backupSchedule}
+                onChange={(e) => handleUpdateSchedule(e.target.value)}
+              >
+                <option value="none">Disabled (No Auto Backup)</option>
+                <option value="twice_daily">Twice a Day (12 hours)</option>
+                <option value="daily">Daily Backup</option>
+                <option value="weekly">Weekly Backup</option>
+                <option value="monthly">Monthly Backup</option>
+              </select>
+              <p className="text-xs text-slate-500 mt-1">Automatically push backup ZIP files to the linked Google Drive folder on schedule.</p>
+            </div>
 
-          <div className="border-t border-slate-200 dark:border-slate-700 pt-5 flex flex-col gap-2">
-            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Auto Backup Schedule</label>
-            <select
-              disabled={savingSchedule}
-              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer disabled:opacity-50"
-              value={backupSchedule}
-              onChange={(e) => handleUpdateSchedule(e.target.value)}
-            >
-              <option value="none">Disabled (No Auto Backup)</option>
-              <option value="daily">Daily Backup</option>
-              <option value="weekly">Weekly Backup</option>
-              <option value="monthly">Monthly Backup</option>
-            </select>
-            <p className="text-xs text-slate-500 mt-1">Automatically push backup ZIP files to the linked Google Drive folder on schedule.</p>
-          </div>
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Google Drive Backup Retention Limit</label>
+              <input
+                type="number"
+                min="1"
+                disabled={savingRetention}
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
+                value={backupRetentionCount}
+                onChange={(e) => handleUpdateRetention(parseInt(e.target.value) || 5)}
+              />
+              <p className="text-xs text-slate-500 mt-1">Maximum number of backups to keep on Google Drive. Older files are automatically deleted.</p>
+            </div>
+          </div>        </div>
         </div>
       </div>
 
@@ -444,49 +528,63 @@ export default function AdminBackupPage() {
               No backups found in Google Drive folder "MeriParchi".
             </div>
           ) : (
-            <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden text-xs max-h-60 overflow-y-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-700">
-                    <th className="px-4 py-2.5">Filename</th>
-                    <th className="px-4 py-2.5">Date Created</th>
-                    <th className="px-4 py-2.5">Size</th>
-                    <th className="px-4 py-2.5 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                  {gdriveBackups.map((b) => (
-                    <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200 truncate max-w-[280px]" title={b.name}>
-                        {b.name}
-                      </td>
-                      <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 whitespace-nowrap">
-                        {new Date(b.createdTime).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 font-mono">
-                        {b.size ? `${(parseInt(b.size) / 1024).toFixed(1)} KB` : "Unknown"}
-                      </td>
-                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => {
-                            setRestoreFileId(b.id);
-                            setRestorePassword("");
-                            setRestoreType("full");
-                            setRestorePhone("");
-                            setShowRestoreModal(true);
-                            handleInspectBackup(b.id);
-                          }}
-                          disabled={restoring}
-                          className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          Restore
-                        </button>
-                      </td>
+            <>
+              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden text-xs max-h-60 overflow-y-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-700">
+                      <th className="px-4 py-2.5">Filename</th>
+                      <th className="px-4 py-2.5">Date Created</th>
+                      <th className="px-4 py-2.5">Size</th>
+                      <th className="px-4 py-2.5 text-right">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                    {gdriveBackups.map((b) => (
+                      <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200 truncate max-w-[280px]" title={b.name}>
+                          {b.name}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 whitespace-nowrap">
+                          {new Date(b.createdTime).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 font-mono">
+                          {b.size ? `${(parseInt(b.size) / 1024).toFixed(1)} KB` : "Unknown"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              setRestoreFileId(b.id);
+                              setRestorePassword("");
+                              setRestoreType("full");
+                              setRestorePhone("");
+                              setShowRestoreModal(true);
+                              handleInspectBackup(b.id);
+                            }}
+                            disabled={restoring}
+                            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            Restore
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {nextPageToken && (
+                <div className="flex justify-center mt-4">
+                  <button
+                    type="button"
+                    onClick={fetchMoreGdriveBackups}
+                    disabled={loadingMoreBackups}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-205 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 font-semibold rounded-xl text-xs disabled:opacity-50 transition-colors"
+                  >
+                    {loadingMoreBackups ? "Loading older backups..." : "Load More Backups"}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

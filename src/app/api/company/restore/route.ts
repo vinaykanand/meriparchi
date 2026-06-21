@@ -4,6 +4,26 @@ import pool, { query } from "@/lib/db";
 import AdmZip from "adm-zip";
 import { logAction } from "@/lib/audit";
 
+async function dynamicInsert(client: any, tableName: string, dataArray: any[]) {
+  if (!dataArray || dataArray.length === 0) return;
+  for (const row of dataArray) {
+    const columns = Object.keys(row);
+    const columnsStr = columns.map(c => `"${c}"`).join(", ");
+    const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(", ");
+    const values = columns.map(col => {
+      const val = row[col];
+      if (val !== null && typeof val === "object") {
+        return JSON.stringify(val);
+      }
+      return val;
+    });
+    await client.query(
+      `INSERT INTO public.${tableName} (${columnsStr}) VALUES (${placeholders})`,
+      values
+    );
+  }
+}
+
 export async function POST(request: Request) {
   let client;
   try {
@@ -279,85 +299,52 @@ export async function POST(request: Request) {
     // 2. Restore Company settings
     if (companyData.length > 0) {
       const c = companyData[0];
+      const updateColumns = Object.keys(c).filter(k => k !== "orgcode");
+      const setClause = updateColumns.map((col, idx) => `"${col}" = $${idx + 1}`).join(", ");
+      const values = updateColumns.map(col => {
+        const val = c[col];
+        return val !== null && typeof val === "object" ? JSON.stringify(val) : val;
+      });
+      values.push(adminOrgcode);
       await client.query(
-        `UPDATE public.company 
-         SET orgname = $1, isactive = $2, enableotp = $3, otpresettime = $4, opentime = $5, closetime = $6, audit_retention_days = $7,
-             gdrive_refresh_token = $8, backup_schedule = $9, last_backup_time = $10,
-             enable_security_logs = $11, enable_ai_assistant = $12
-         WHERE orgcode = $13`,
-        [
-          c.orgname,
-          c.isactive,
-          c.enableotp,
-          c.otpresettime,
-          c.opentime,
-          c.closetime,
-          c.audit_retention_days || 10,
-          c.gdrive_refresh_token || null,
-          c.backup_schedule || null,
-          c.last_backup_time || null,
-          c.enable_security_logs !== undefined ? c.enable_security_logs : null,
-          c.enable_ai_assistant !== undefined ? c.enable_ai_assistant : null,
-          adminOrgcode,
-        ]
+        `UPDATE public.company SET ${setClause} WHERE orgcode = $${updateColumns.length + 1}`,
+        values
       );
     }
 
     // 3. Restore Users
+    const otherUsers = [];
     for (const u of usersData) {
       if (u.userid === adminUserid) {
-        // Update current admin credentials/details
+        // Update current admin credentials/details dynamically
+        const updateColumns = Object.keys(u).filter(k => k !== "orgcode" && k !== "userid");
+        const setClause = updateColumns.map((col, idx) => `"${col}" = $${idx + 1}`).join(", ");
+        const values = updateColumns.map(col => {
+          const val = u[col];
+          return val !== null && typeof val === "object" ? JSON.stringify(val) : val;
+        });
+        values.push(adminOrgcode, adminUserid);
         await client.query(
-          `UPDATE public.users 
-           SET password = $1, isactive = $2, isadmin = $3, otp = $4, otpexpire = $5
-           WHERE orgcode = $6 AND userid = $7`,
-          [u.password, u.isactive, u.isadmin, u.otp, u.otpexpire, adminOrgcode, adminUserid]
+          `UPDATE public.users SET ${setClause} WHERE orgcode = $${updateColumns.length + 1} AND userid = $${updateColumns.length + 2}`,
+          values
         );
       } else {
-        // Insert other users
-        await client.query(
-          `INSERT INTO public.users (orgcode, userid, password, isadmin, authtoken, isactive, otp, otpexpire, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [u.orgcode, u.userid, u.password, u.isadmin, u.authtoken, u.isactive, u.otp, u.otpexpire, u.created_at]
-        );
+        otherUsers.push(u);
       }
     }
+    await dynamicInsert(client, "users", otherUsers);
 
     // 4. Restore Payments
-    for (const p of paymentsData) {
-      await client.query(
-        `INSERT INTO public.payments (id, orgcode, phone, date, amount, narration)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [p.id, p.orgcode, p.phone, p.date, p.amount, p.narration]
-      );
-    }
+    await dynamicInsert(client, "payments", paymentsData);
 
     // 5. Restore Slips
-    for (const s of slipsData) {
-      await client.query(
-        `INSERT INTO public.slips (id, orgcode, slipno, date, phone, name, address, totalamount, discount)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [s.id, s.orgcode, s.slipno, s.date, s.phone, s.name, s.address, s.totalamount, s.discount]
-      );
-    }
+    await dynamicInsert(client, "slips", slipsData);
 
     // 6. Restore Slip Items
-    for (const si of slipitemsData) {
-      await client.query(
-        `INSERT INTO public.slipitems (id, item, remarks, qty, rate)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [si.id, si.item, si.remarks, si.qty, si.rate]
-      );
-    }
+    await dynamicInsert(client, "slipitems", slipitemsData);
 
     // 6.5. Restore Audit Logs
-    for (const al of auditLogsData) {
-      await client.query(
-        `INSERT INTO public.audit_logs (id, orgcode, userid, action, details, timestamp)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [al.id, al.orgcode, al.userid, al.action, typeof al.details === 'object' ? JSON.stringify(al.details) : al.details, al.timestamp]
-      );
-    }
+    await dynamicInsert(client, "audit_logs", auditLogsData);
 
     // 7. Reset Serial Sequences so new inserts don't conflict with restored IDs
     if (paymentsData.length > 0) {
