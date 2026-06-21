@@ -76,6 +76,7 @@ export default function AdminAuditPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [purging, setPurging] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -83,6 +84,50 @@ export default function AdminAuditPage() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 5000);
+  };
+
+  const handleExportCSV = async () => {
+    if (!session) return;
+    setExportingCsv(true);
+    try {
+      const url = `/api/company/audit-logs?orgcode=${session.orgcode}&page=1&limit=5000&search=${encodeURIComponent(search.trim())}&action=${encodeURIComponent(selectedAction)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (res.ok && data.success && data.logs) {
+        const exportLogs = data.logs;
+        const headers = ["Timestamp", "Operator", "Action Type", "Activity Summary", "Details (JSON)"];
+        const csvRows = exportLogs.map((log: any) => {
+          const timestamp = new Date(log.timestamp).toLocaleString();
+          const operator = log.userid;
+          const actionType = log.action;
+          const summary = formatSummary(log);
+          const details = typeof log.details === "string" ? log.details : JSON.stringify(log.details);
+          
+          return [timestamp, operator, actionType, summary, details].map(field => {
+            const escaped = String(field || "").replace(/"/g, '""');
+            return `"${escaped}"`;
+          }).join(",");
+        });
+        
+        const csvContent = [headers.join(","), ...csvRows].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const timestampStr = new Date().toISOString().slice(0, 10);
+        link.setAttribute("href", downloadUrl);
+        link.setAttribute("download", `audit_log_${session.orgcode}_${timestampStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        addToast("Audit logs exported to CSV successfully!", "success");
+      } else {
+        addToast(data.message || "Failed to fetch logs for export", "error");
+      }
+    } catch (e: any) {
+      addToast("Failed to export CSV: " + (e.message || String(e)), "error");
+    } finally {
+      setExportingCsv(false);
+    }
   };
 
   const fetchLogs = async (pageNum = 1) => {
@@ -349,12 +394,22 @@ export default function AdminAuditPage() {
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="w-full md:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-md shadow-blue-500/20"
-          >
-            Apply Filters
-          </button>
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-md shadow-blue-500/20 text-sm"
+            >
+              Apply Filters
+            </button>
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              disabled={exportingCsv}
+              className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-xl transition-all disabled:opacity-50 text-sm border border-slate-200 dark:border-slate-700 shadow-sm"
+            >
+              {exportingCsv ? "Exporting..." : "Export CSV"}
+            </button>
+          </div>
         </form>
       </div>
 
