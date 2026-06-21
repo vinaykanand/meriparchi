@@ -10,6 +10,8 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const search = searchParams.get("search") || "";
     const actionFilter = searchParams.get("action") || "";
+    const startDate = searchParams.get("startDate") || "";
+    const endDate = searchParams.get("endDate") || "";
 
     const cookieStore = await cookies();
     const authtoken = cookieStore.get("authtoken")?.value;
@@ -45,6 +47,17 @@ export async function GET(request: Request) {
         queryText += ` AND action = ANY($${paramIndex++}::varchar[])`;
         params.push(actions);
       }
+    }
+
+    if (startDate) {
+      queryText += ` AND timestamp >= $${paramIndex++}`;
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      const adjustedEndDate = endDate.includes(" ") || endDate.includes("T") ? endDate : `${endDate} 23:59:59.999`;
+      queryText += ` AND timestamp <= $${paramIndex++}`;
+      params.push(adjustedEndDate);
     }
 
     if (search) {

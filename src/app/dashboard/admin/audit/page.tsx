@@ -66,6 +66,8 @@ export default function AdminAuditPage() {
   });
   const [search, setSearch] = useState("");
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
@@ -90,7 +92,7 @@ export default function AdminAuditPage() {
     if (!session) return;
     setExportingCsv(true);
     try {
-      const url = `/api/company/audit-logs?orgcode=${session.orgcode}&page=1&limit=5000&search=${encodeURIComponent(search.trim())}&action=${encodeURIComponent(selectedActions.join(","))}`;
+      const url = `/api/company/audit-logs?orgcode=${session.orgcode}&page=1&limit=5000&search=${encodeURIComponent(search.trim())}&action=${encodeURIComponent(selectedActions.join(","))}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
       const res = await fetch(url);
       const data = await res.json();
       if (res.ok && data.success && data.logs) {
@@ -140,6 +142,8 @@ export default function AdminAuditPage() {
         limit: pagination.limit.toString(),
         search: search.trim(),
         action: selectedActions.join(","),
+        startDate: startDate,
+        endDate: endDate,
       });
 
       const response = await fetch(`/api/company/audit-logs?${queryParams.toString()}`);
@@ -159,7 +163,7 @@ export default function AdminAuditPage() {
 
   useEffect(() => {
     fetchLogs(1);
-  }, [session, selectedActions]);
+  }, [session, selectedActions, startDate, endDate]);
 
   useEffect(() => {
     const handleGlobalClick = (event: MouseEvent) => {
@@ -343,6 +347,26 @@ export default function AdminAuditPage() {
               />
               <MagnifyingGlassIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-400" />
             </div>
+          </div>
+
+          <div className="w-full md:w-44 flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Start Date</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
+            />
+          </div>
+
+          <div className="w-full md:w-44 flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">End Date</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
+            />
           </div>
 
           <div ref={dropdownRef} className="w-full md:w-64 flex flex-col gap-1.5">
