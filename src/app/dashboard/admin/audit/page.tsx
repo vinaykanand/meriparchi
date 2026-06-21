@@ -361,14 +361,14 @@ export default function AdminAuditPage() {
       {/* Logs Table Card */}
       <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden relative z-10">
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full min-w-[800px] text-left border-collapse">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-                <th className="py-4 px-6">Timestamp</th>
-                <th className="py-4 px-6">Operator</th>
-                <th className="py-4 px-6">Action Type</th>
-                <th className="py-4 px-6">Activity Summary</th>
-                <th className="py-4 px-6 text-right">Details</th>
+                <th className="py-4 px-6 w-[20%] min-w-[150px]">Timestamp</th>
+                <th className="py-4 px-6 w-[12%] min-w-[90px]">Operator</th>
+                <th className="py-4 px-6 w-[18%] min-w-[140px]">Action Type</th>
+                <th className="py-4 px-6 w-[40%]">Activity Summary</th>
+                <th className="py-4 px-6 w-[10%] text-right min-w-[90px]">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -404,7 +404,7 @@ export default function AdminAuditPage() {
                             {log.action.replace(/_/g, " ")}
                           </span>
                         </td>
-                        <td className="py-4 px-6 max-w-md truncate">
+                        <td className="py-4 px-6 whitespace-normal break-words">
                           {formatSummary(log)}
                         </td>
                         <td className="py-4 px-6 text-right whitespace-nowrap">
