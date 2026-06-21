@@ -34,6 +34,50 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
   const [isAiEnabled, setIsAiEnabled] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "help">("chat");
+
+  // Draggable position states
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = React.useRef({ x: 0, y: 0 });
+  const dragDistance = React.useRef(0);
+  const pointerDownPos = React.useRef({ x: 0, y: 0 });
+  const bubbleRef = React.useRef<HTMLButtonElement | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    setIsDragging(true);
+    dragDistance.current = 0;
+    pointerDownPos.current = { x: e.clientX, y: e.clientY };
+    dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+    if (bubbleRef.current) {
+      bubbleRef.current.setPointerCapture(e.pointerId);
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - pointerDownPos.current.x;
+    const dy = e.clientY - pointerDownPos.current.y;
+    dragDistance.current = Math.sqrt(dx * dx + dy * dy);
+
+    const newX = e.clientX - dragStart.current.x;
+    const newY = e.clientY - dragStart.current.y;
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    setIsDragging(false);
+    if (bubbleRef.current) {
+      bubbleRef.current.releasePointerCapture(e.pointerId);
+    }
+    // If user dragged more than 5px, do not toggle the chat drawer
+    if (dragDistance.current > 5) {
+      e.stopPropagation();
+      e.preventDefault();
+    } else {
+      setIsChatOpen((prev) => !prev);
+    }
+  };
+
   const [todayOverview, setTodayOverview] = useState<{
     totalOutstanding: number;
     revenueToday: number;
@@ -295,7 +339,10 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
 
       {/* FLOATING AI ASSISTANT CHAT WIDGET */}
       {isAiEnabled && (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+        <div 
+          className="fixed bottom-6 right-6 z-50 flex flex-col items-end"
+          style={{ transform: `translate3d(${position.x}px, ${position.y}px, 0)` }}
+        >
           {/* Chat window drawer */}
           {isChatOpen && (
             <div className="w-[360px] sm:w-[380px] h-[540px] bg-white/95 dark:bg-slate-950/95 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden mb-4 backdrop-blur-xl animate-fade-in relative">
@@ -528,8 +575,12 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
 
           {/* Floating Bubble Trigger */}
           <button
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-[0_8px_30px_rgba(37,99,235,0.45)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center relative hover:shadow-[0_12px_40px_rgba(37,99,235,0.6)]"
+            ref={bubbleRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className={`w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-[0_8px_30px_rgba(37,99,235,0.45)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center relative hover:shadow-[0_12px_40px_rgba(37,99,235,0.6)] select-none cursor-move ${isDragging ? "opacity-90 scale-95" : ""}`}
+            style={{ touchAction: "none" }}
             aria-label="Toggle AI Assistant"
           >
             {isChatOpen ? (
