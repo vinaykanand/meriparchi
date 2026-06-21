@@ -38,6 +38,9 @@ export default function AdminBackupPage() {
   const [savingRetention, setSavingRetention] = useState(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const BACKUPS_PER_PAGE = 5;
+  const [backupPassword, setBackupPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
 
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
@@ -262,6 +265,9 @@ export default function AdminBackupPage() {
           if (data.company.backup_retention_count !== undefined) {
             setBackupRetentionCount(data.company.backup_retention_count);
           }
+          if (data.company.backup_password !== undefined) {
+            setBackupPassword(data.company.backup_password || "");
+          }
         }
       } catch (e) {
         console.error("Failed to load company data for backup page");
@@ -298,6 +304,7 @@ export default function AdminBackupPage() {
           enable_security_logs: c.enable_security_logs,
           enable_ai_assistant: c.enable_ai_assistant,
           backup_retention_count: backupRetentionCount,
+          backup_password: c.backup_password || "",
         }),
       });
       const data = await response.json();
@@ -342,6 +349,7 @@ export default function AdminBackupPage() {
           enable_security_logs: c.enable_security_logs,
           enable_ai_assistant: c.enable_ai_assistant,
           backup_retention_count: retentionCount,
+          backup_password: c.backup_password || "",
         }),
       });
       const data = await response.json();
@@ -355,6 +363,51 @@ export default function AdminBackupPage() {
       addToast("Failed to connect to server", "error");
     } finally {
       setSavingRetention(false);
+    }
+  };
+
+  const handleUpdateBackupPassword = async (pwd: string) => {
+    if (!session) return;
+    setSavingPassword(true);
+    try {
+      const getRes = await fetch(`/api/company?orgcode=${session.orgcode}`);
+      const getData = await getRes.json();
+      if (!getRes.ok || !getData.success || !getData.company) {
+        addToast("Failed to fetch current settings", "error");
+        return;
+      }
+      const c = getData.company;
+
+      const response = await fetch("/api/company", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgcode: session.orgcode,
+          orgname: c.orgname,
+          enableotp: c.enableotp,
+          isactive: c.isactive,
+          otpresettime: c.otpresettime,
+          opentime: c.opentime ? c.opentime.substring(0, 5) : "09:00",
+          closetime: c.closetime ? c.closetime.substring(0, 5) : "18:00",
+          audit_retention_days: c.audit_retention_days,
+          backup_schedule: c.backup_schedule || "none",
+          enable_security_logs: c.enable_security_logs,
+          enable_ai_assistant: c.enable_ai_assistant,
+          backup_retention_count: c.backup_retention_count || 5,
+          backup_password: pwd,
+        }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setBackupPassword(pwd);
+        addToast("Backup encryption password updated successfully", "success");
+      } else {
+        addToast(data.message || "Failed to update backup password", "error");
+      }
+    } catch (e) {
+      addToast("Failed to connect to server", "error");
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -512,6 +565,20 @@ export default function AdminBackupPage() {
                 onChange={(e) => handleUpdateRetention(parseInt(e.target.value) || 5)}
               />
               <p className="text-xs text-slate-500 mt-1">Maximum number of backups to keep on Google Drive. Older files are automatically deleted.</p>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Backup Encryption Password</label>
+              <input
+                type="text"
+                disabled={savingPassword}
+                placeholder="Optional (Password-protect backups)"
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
+                value={backupPassword}
+                onChange={(e) => setBackupPassword(e.target.value)}
+                onBlur={(e) => handleUpdateBackupPassword(e.target.value)}
+              />
+              <p className="text-xs text-slate-500 mt-1">If set, backup ZIPs will be encrypted. The same password must be configured in settings to restore them.</p>
             </div>
           </div>        </div>
         </div>

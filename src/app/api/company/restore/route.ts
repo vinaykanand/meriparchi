@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import pool, { query } from "@/lib/db";
 import AdmZip from "adm-zip";
 import { logAction } from "@/lib/audit";
+import { decryptBuffer } from "@/lib/backup";
 
 async function dynamicInsert(client: any, tableName: string, dataArray: any[]) {
   if (!dataArray || dataArray.length === 0) return;
@@ -131,6 +132,40 @@ export async function POST(request: Request) {
 
       buffer = Buffer.from(await file.arrayBuffer());
     }
+    // If not a standard zip signature, decrypt using the company's backup_password from settings
+    const isZip = buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04;
+    if (!isZip) {
+      const companyConfig = await query(
+        "SELECT backup_password FROM public.company WHERE orgcode = $1",
+        [adminOrgcode]
+      );
+      const configuredBackupPassword = companyConfig.rows[0]?.backup_password;
+      if (!configuredBackupPassword || !configuredBackupPassword.trim()) {
+        return NextResponse.json(
+          { success: false, message: "This backup file is password-protected. Please set the matching Backup Password in your settings first." },
+          { status: 400 }
+        );
+      }
+
+      try {
+        buffer = decryptBuffer(buffer, configuredBackupPassword.trim());
+      } catch (err) {
+        return NextResponse.json(
+          { success: false, message: "Failed to decrypt the backup file. Please verify that your settings Backup Password is correct." },
+          { status: 400 }
+        );
+      }
+
+      // Check if decrypted buffer is now a zip
+      const isDecryptedZip = buffer[0] === 0x50 && buffer[1] === 0x4b && buffer[2] === 0x03 && buffer[3] === 0x04;
+      if (!isDecryptedZip) {
+        return NextResponse.json(
+          { success: false, message: "Decryption succeeded but the file format is invalid." },
+          { status: 400 }
+        );
+      }
+    }
+
     let zip;
     try {
       zip = new AdmZip(buffer);
