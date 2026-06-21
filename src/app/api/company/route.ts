@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const result = await query(
       `SELECT orgcode, orgname, isactive, enableotp, otpresettime, opentime, closetime, audit_retention_days, 
               backup_schedule, last_backup_time, (gdrive_refresh_token IS NOT NULL) as gdrive_linked,
-              enable_security_logs, enable_ai_assistant, backup_retention_count, backup_password 
+              enable_security_logs, enable_ai_assistant, backup_retention_count, backup_password, email 
        FROM public.company WHERE orgcode = $1`,
       [orgcode]
     );

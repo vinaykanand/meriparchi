@@ -25,6 +25,7 @@ export default function AdminSettingsPage() {
   const [opentime, setOpentime] = useState("09:00");
   const [closetime, setClosetime] = useState("18:00");
   const [auditRetentionDays, setAuditRetentionDays] = useState<number>(10);
+  const [email, setEmail] = useState("");
   
   // Google Drive config states
   const [backupSchedule, setBackupSchedule] = useState("none");
@@ -66,6 +67,9 @@ export default function AdminSettingsPage() {
             }
             if (data.company.enable_ai_assistant !== undefined) {
               setEnableAiAssistant(data.company.enable_ai_assistant);
+            }
+            if (data.company.email !== undefined) {
+              setEmail(data.company.email || "");
             }
           }
         }
@@ -129,6 +133,18 @@ export default function AdminSettingsPage() {
                 value={orgname} 
                 onChange={(e) => setOrgname(e.target.value)} 
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Registered Email Address</label>
+              <input 
+                type="email" 
+                className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900/30 text-slate-500 dark:text-slate-400 outline-none cursor-not-allowed opacity-80" 
+                value={email} 
+                disabled 
+                placeholder="No registered email address set"
+              />
+              <p className="text-[10px] text-slate-500">This email is set by the backend system for registration processes and cannot be modified.</p>
             </div>
 
             <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
