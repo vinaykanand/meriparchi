@@ -34,6 +34,7 @@ export async function POST(request: Request) {
       details: {
         success: result.success,
         fileId: result.success ? (result as any).fileId : undefined,
+        filename: result.success ? (result as any).filename : undefined,
         error: result.success ? undefined : result.message,
       },
     });

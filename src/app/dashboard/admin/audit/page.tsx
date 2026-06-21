@@ -234,11 +234,11 @@ export default function AdminAuditPage() {
           return `Manual local backup exported: ${parsed.filename || ""}`;
         case "MANUAL_BACKUP_GDRIVE":
           return parsed.success 
-            ? `Manual backup uploaded to Google Drive (File ID: ${parsed.fileId || "N/A"})` 
+            ? `Manual backup uploaded to Google Drive: ${parsed.filename || `File ID: ${parsed.fileId || "N/A"}`}` 
             : `Manual backup to Google Drive failed: ${parsed.error || "Unknown error"}`;
         case "AUTO_BACKUP_GDRIVE":
           return parsed.success 
-            ? `Auto backup completed to Google Drive (File ID: ${parsed.fileId || "N/A"})` 
+            ? `Auto backup completed to Google Drive: ${parsed.filename || `File ID: ${parsed.fileId || "N/A"}`}` 
             : `Auto backup to Google Drive failed: ${parsed.error || "Unknown error"}`;
         case "RESTORE_BACKUP_LOCAL":
           return `Database successfully restored from local backup: ${parsed.filename || "local file"}`;

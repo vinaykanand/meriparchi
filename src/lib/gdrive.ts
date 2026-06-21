@@ -1,7 +1,7 @@
 import { query } from "@/lib/db";
 import { generateBackupZip } from "./backup";
 
-export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: boolean; fileId?: string; message?: string }> {
+export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: boolean; fileId?: string; filename?: string; message?: string }> {
   try {
     // 1. Retrieve GDrive configuration
     const gdrive_client_id = process.env.GOOGLE_DRIVE_CLIENT_ID;
@@ -159,7 +159,7 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
       [orgcode]
     );
 
-    return { success: true, fileId, message: "Backup successfully uploaded to Google Drive" };
+    return { success: true, fileId, filename, message: "Backup successfully uploaded to Google Drive" };
   } catch (error: any) {
     console.error("GDrive upload error:", error);
     return { success: false, message: error.message || "An unexpected error occurred during GDrive upload" };

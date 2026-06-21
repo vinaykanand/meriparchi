@@ -52,9 +52,9 @@ export async function checkAndTriggerBackup(orgcode: string) {
             orgcode,
             userid: "system",
             action: "AUTO_BACKUP_GDRIVE",
-            details: { success: true, fileId: result.fileId },
+            details: { success: true, fileId: result.fileId, filename: result.filename },
           });
-          return { triggered: true, success: true, fileId: result.fileId };
+          return { triggered: true, success: true, fileId: result.fileId, filename: result.filename };
         } else {
           console.error(`[Scheduler] Automatic backup failed: ${result.message}`);
           await logAction({

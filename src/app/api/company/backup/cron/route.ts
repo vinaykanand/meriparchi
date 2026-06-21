@@ -37,9 +37,9 @@ export async function GET(request: Request) {
               orgcode,
               userid: "system",
               action: "AUTO_BACKUP_GDRIVE",
-              details: { success: true, fileId: result.fileId, forced: true },
+              details: { success: true, fileId: result.fileId, filename: result.filename, forced: true },
             });
-            results.push({ orgcode, triggered: true, success: true, fileId: result.fileId });
+            results.push({ orgcode, triggered: true, success: true, fileId: result.fileId, filename: result.filename });
           } else {
             // Restore original last backup time on failure
             await query(
