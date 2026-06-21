@@ -36,6 +36,9 @@ export default function AdminBackupPage() {
   const [loadingMoreBackups, setLoadingMoreBackups] = useState(false);
   const [backupRetentionCount, setBackupRetentionCount] = useState<number>(5);
   const [savingRetention, setSavingRetention] = useState(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const BACKUPS_PER_PAGE = 5;
+
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -103,11 +106,12 @@ export default function AdminBackupPage() {
   const fetchGdriveBackups = async () => {
     setLoadingGdriveBackups(true);
     try {
-      const res = await fetch("/api/company/backup/gdrive-list?limit=10");
+      const res = await fetch("/api/company/backup/gdrive-list?limit=100");
       const data = await res.json();
       if (res.ok && data.success) {
         setGdriveBackups(data.backups || []);
         setNextPageToken(data.nextPageToken || null);
+        setCurrentPage(1);
       }
     } catch (e) {
       console.error("Failed to load Google Drive backups:", e);
@@ -120,7 +124,7 @@ export default function AdminBackupPage() {
     if (!nextPageToken || loadingMoreBackups) return;
     setLoadingMoreBackups(true);
     try {
-      const res = await fetch(`/api/company/backup/gdrive-list?limit=10&pageToken=${nextPageToken}`);
+      const res = await fetch(`/api/company/backup/gdrive-list?limit=100&pageToken=${nextPageToken}`);
       const data = await res.json();
       if (res.ok && data.success) {
         setGdriveBackups((prev) => [...prev, ...(data.backups || [])]);
@@ -520,7 +524,6 @@ export default function AdminBackupPage() {
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
             Select a backup file stored in your Google Drive's <code className="bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded font-mono">MeriParchi</code> folder to restore.
           </p>
-
           {loadingGdriveBackups ? (
             <div className="text-xs text-slate-550 dark:text-slate-400 py-3">Loading backups list...</div>
           ) : gdriveBackups.length === 0 ? (
@@ -528,63 +531,96 @@ export default function AdminBackupPage() {
               No backups found in Google Drive folder "MeriParchi".
             </div>
           ) : (
-            <>
-              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden text-xs max-h-60 overflow-y-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-700">
-                      <th className="px-4 py-2.5">Filename</th>
-                      <th className="px-4 py-2.5">Date Created</th>
-                      <th className="px-4 py-2.5">Size</th>
-                      <th className="px-4 py-2.5 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                    {gdriveBackups.map((b) => (
-                      <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200 truncate max-w-[280px]" title={b.name}>
-                          {b.name}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 whitespace-nowrap">
-                          {new Date(b.createdTime).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 font-mono">
-                          {b.size ? `${(parseInt(b.size) / 1024).toFixed(1)} KB` : "Unknown"}
-                        </td>
-                        <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => {
-                              setRestoreFileId(b.id);
-                              setRestorePassword("");
-                              setRestoreType("full");
-                              setRestorePhone("");
-                              setShowRestoreModal(true);
-                              handleInspectBackup(b.id);
-                            }}
-                            disabled={restoring}
-                            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            Restore
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {nextPageToken && (
-                <div className="flex justify-center mt-4">
-                  <button
-                    type="button"
-                    onClick={fetchMoreGdriveBackups}
-                    disabled={loadingMoreBackups}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-205 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 font-semibold rounded-xl text-xs disabled:opacity-50 transition-colors"
-                  >
-                    {loadingMoreBackups ? "Loading older backups..." : "Load More Backups"}
-                  </button>
-                </div>
-              )}
-            </>
+            (() => {
+              const totalPages = Math.ceil(gdriveBackups.length / BACKUPS_PER_PAGE);
+              const effectiveCurrentPage = Math.min(currentPage, totalPages || 1);
+              const displayedBackups = gdriveBackups.slice(
+                (effectiveCurrentPage - 1) * BACKUPS_PER_PAGE,
+                effectiveCurrentPage * BACKUPS_PER_PAGE
+              );
+
+              return (
+                <>
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden text-xs">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-700">
+                          <th className="px-4 py-2.5">Filename</th>
+                          <th className="px-4 py-2.5">Date Created</th>
+                          <th className="px-4 py-2.5">Size</th>
+                          <th className="px-4 py-2.5 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                        {displayedBackups.map((b) => (
+                          <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200 truncate max-w-[280px]" title={b.name}>
+                              {b.name}
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 whitespace-nowrap">
+                              {new Date(b.createdTime).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-2.5 text-slate-550 dark:text-slate-400 font-mono">
+                              {b.size ? `${(parseInt(b.size) / 1024).toFixed(1)} KB` : "Unknown"}
+                            </td>
+                            <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                              <button
+                                onClick={() => {
+                                  setRestoreFileId(b.id);
+                                  setRestorePassword("");
+                                  setRestoreType("full");
+                                  setRestorePhone("");
+                                  setShowRestoreModal(true);
+                                  handleInspectBackup(b.id);
+                                }}
+                                disabled={restoring}
+                                className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                Restore
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4 px-1 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={effectiveCurrentPage === 1}
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl disabled:opacity-40 transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-slate-600 dark:text-slate-400 font-medium">
+                      Page {effectiveCurrentPage} of {totalPages || 1}
+                    </span>
+                    <div className="flex gap-2">
+                      {nextPageToken && effectiveCurrentPage === totalPages && (
+                        <button
+                          type="button"
+                          onClick={fetchMoreGdriveBackups}
+                          disabled={loadingMoreBackups}
+                          className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-450 font-semibold rounded-xl disabled:opacity-50 transition-colors"
+                        >
+                          {loadingMoreBackups ? "Loading..." : "Fetch More"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={effectiveCurrentPage === totalPages}
+                        className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold rounded-xl disabled:opacity-40 transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()
           )}
         </div>
       )}
