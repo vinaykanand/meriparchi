@@ -258,32 +258,14 @@ export async function POST(request: Request) {
       await client.query("DELETE FROM public.slips WHERE orgcode = $1 AND phone = $2", [adminOrgcode, phone]);
       await client.query("DELETE FROM public.payments WHERE orgcode = $1 AND phone = $2", [adminOrgcode, phone]);
 
-      // 2. Restore Payments
-      for (const p of targetPayments) {
-        await client.query(
-          `INSERT INTO public.payments (id, orgcode, phone, date, amount, narration)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [p.id, p.orgcode, p.phone, p.date, p.amount, p.narration]
-        );
-      }
+      // 2. Restore Payments dynamically
+      await dynamicInsert(client, "payments", targetPayments);
 
-      // 3. Restore Slips
-      for (const s of targetSlips) {
-        await client.query(
-          `INSERT INTO public.slips (id, orgcode, slipno, date, phone, name, address, totalamount, discount)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [s.id, s.orgcode, s.slipno, s.date, s.phone, s.name, s.address, s.totalamount, s.discount]
-        );
-      }
+      // 3. Restore Slips dynamically
+      await dynamicInsert(client, "slips", targetSlips);
 
-      // 4. Restore Slip Items
-      for (const si of targetSlipItems) {
-        await client.query(
-          `INSERT INTO public.slipitems (id, item, remarks, qty, rate)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [si.id, si.item, si.remarks, si.qty, si.rate]
-        );
-      }
+      // 4. Restore Slip Items dynamically
+      await dynamicInsert(client, "slipitems", targetSlipItems);
 
       // 5. Reset serial sequences
       await client.query(
