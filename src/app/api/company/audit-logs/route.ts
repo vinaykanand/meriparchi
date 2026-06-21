@@ -40,8 +40,11 @@ export async function GET(request: Request) {
     let paramIndex = 2;
 
     if (actionFilter) {
-      queryText += ` AND action = $${paramIndex++}`;
-      params.push(actionFilter);
+      const actions = actionFilter.split(",").map(a => a.trim()).filter(Boolean);
+      if (actions.length > 0) {
+        queryText += ` AND action = ANY($${paramIndex++}::varchar[])`;
+        params.push(actions);
+      }
     }
 
     if (search) {

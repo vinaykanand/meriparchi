@@ -65,7 +65,7 @@ export default function AdminAuditPage() {
     totalPages: 1,
   });
   const [search, setSearch] = useState("");
-  const [selectedAction, setSelectedAction] = useState("");
+  const [selectedActions, setSelectedActions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
@@ -90,7 +90,7 @@ export default function AdminAuditPage() {
     if (!session) return;
     setExportingCsv(true);
     try {
-      const url = `/api/company/audit-logs?orgcode=${session.orgcode}&page=1&limit=5000&search=${encodeURIComponent(search.trim())}&action=${encodeURIComponent(selectedAction)}`;
+      const url = `/api/company/audit-logs?orgcode=${session.orgcode}&page=1&limit=5000&search=${encodeURIComponent(search.trim())}&action=${encodeURIComponent(selectedActions.join(","))}`;
       const res = await fetch(url);
       const data = await res.json();
       if (res.ok && data.success && data.logs) {
@@ -139,7 +139,7 @@ export default function AdminAuditPage() {
         page: pageNum.toString(),
         limit: pagination.limit.toString(),
         search: search.trim(),
-        action: selectedAction,
+        action: selectedActions.join(","),
       });
 
       const response = await fetch(`/api/company/audit-logs?${queryParams.toString()}`);
@@ -159,7 +159,7 @@ export default function AdminAuditPage() {
 
   useEffect(() => {
     fetchLogs(1);
-  }, [session, selectedAction]);
+  }, [session, selectedActions]);
 
   useEffect(() => {
     const handleGlobalClick = (event: MouseEvent) => {
@@ -353,13 +353,17 @@ export default function AdminAuditPage() {
                 onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white flex items-center justify-between cursor-pointer text-sm font-semibold min-h-[46px]"
               >
-                <span className="truncate">
-                  {selectedAction ? (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(selectedAction)}`}>
-                      {ACTION_TYPES.find(a => a.value === selectedAction)?.label || selectedAction.replace(/_/g, " ")}
+                <span className="truncate flex items-center gap-1.5">
+                  {selectedActions.length === 0 ? (
+                    "All Actions"
+                  ) : selectedActions.length === 1 ? (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(selectedActions[0])}`}>
+                      {ACTION_TYPES.find(a => a.value === selectedActions[0])?.label || selectedActions[0].replace(/_/g, " ")}
                     </span>
                   ) : (
-                    "All Actions"
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30 uppercase tracking-wide">
+                      {selectedActions.length} Actions
+                    </span>
                   )}
                 </span>
                 <span className="text-slate-400 text-xs">▼</span>
@@ -368,27 +372,48 @@ export default function AdminAuditPage() {
 
               {isActionDropdownOpen && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto z-50 py-1 divide-y divide-slate-100 dark:divide-slate-800">
-                  {ACTION_TYPES.map((type) => (
-                    <button
-                      key={type.value}
-                      type="button"
-                      onClick={() => {
-                        setSelectedAction(type.value);
-                        setIsActionDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center"
-                    >
-                      {type.value ? (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(type.value)}`}>
-                          {type.label}
-                        </span>
-                      ) : (
-                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          All Actions
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                  {ACTION_TYPES.map((type) => {
+                    const isChecked = type.value === "" 
+                      ? selectedActions.length === 0 
+                      : selectedActions.includes(type.value);
+
+                    return (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => {
+                          if (type.value === "") {
+                            setSelectedActions([]);
+                          } else {
+                            setSelectedActions((prev) => {
+                              if (prev.includes(type.value)) {
+                                return prev.filter((x) => x !== type.value);
+                              } else {
+                                return [...prev, type.value];
+                              }
+                            });
+                          }
+                        }}
+                        className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-3 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}} // Click handled by button onClick
+                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                        />
+                        {type.value ? (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(type.value)}`}>
+                            {type.label}
+                          </span>
+                        ) : (
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            All Actions
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
