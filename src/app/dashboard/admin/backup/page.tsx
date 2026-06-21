@@ -598,7 +598,11 @@ export default function AdminBackupPage() {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mt-1">If set, backup ZIPs will be encrypted. The same password must be configured in settings to restore them.</p>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                <span className="font-semibold text-emerald-600 dark:text-emerald-500">Recommended:</span> Leave this field blank for simple, password-free restores. If you choose to set a password, your backup ZIPs will be encrypted.
+                <br />
+                <span className="font-semibold text-amber-600 dark:text-amber-500">Warning:</span> Avoid changing this password frequently. If you change this password and later need to restore an older backup, you must temporarily set this field back to the exact password that was in settings when that older backup was created.
+              </p>
             </div>
           </div>        </div>
         </div>
