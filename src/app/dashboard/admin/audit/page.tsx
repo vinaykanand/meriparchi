@@ -334,130 +334,136 @@ export default function AdminAuditPage() {
 
       {/* Filters Card */}
       <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative z-20">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-4 items-end">
-          <div className="flex-1 flex flex-col gap-1.5 w-full">
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Search</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search by operator ID, details, or keywords..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white"
-              />
-              <MagnifyingGlassIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-400" />
+        <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
+          {/* Row 1: Search Bar & Buttons */}
+          <div className="flex flex-col md:flex-row gap-4 items-end w-full">
+            <div className="flex-1 flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Search</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by operator ID, details, or keywords..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white"
+                />
+                <MagnifyingGlassIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-400" />
+              </div>
             </div>
-          </div>
 
-          <div className="w-full md:w-44 flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
-            />
-          </div>
-
-          <div className="w-full md:w-44 flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
-            />
-          </div>
-
-          <div ref={dropdownRef} className="w-full md:w-64 flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Filter Action</label>
-            <div className="relative">
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-md shadow-blue-500/20 text-sm min-h-[46px] w-full sm:w-auto"
+              >
+                Apply Filters
+              </button>
               <button
                 type="button"
-                onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white flex items-center justify-between cursor-pointer text-sm font-semibold min-h-[46px]"
+                onClick={handleExportCSV}
+                disabled={exportingCsv}
+                className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-xl transition-all disabled:opacity-50 text-sm border border-slate-200 dark:border-slate-700 shadow-sm min-h-[46px] w-full sm:w-auto"
               >
-                <span className="truncate flex items-center gap-1.5">
-                  {selectedActions.length === 0 ? (
-                    "All Actions"
-                  ) : selectedActions.length === 1 ? (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(selectedActions[0])}`}>
-                      {ACTION_TYPES.find(a => a.value === selectedActions[0])?.label || selectedActions[0].replace(/_/g, " ")}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30 uppercase tracking-wide">
-                      {selectedActions.length} Actions
-                    </span>
-                  )}
-                </span>
-                <span className="text-slate-400 text-xs">▼</span>
+                {exportingCsv ? "Exporting..." : "Export CSV"}
               </button>
-              <FunnelIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
-
-              {isActionDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto z-50 py-1 divide-y divide-slate-100 dark:divide-slate-800">
-                  {ACTION_TYPES.map((type) => {
-                    const isChecked = type.value === "" 
-                      ? selectedActions.length === 0 
-                      : selectedActions.includes(type.value);
-
-                    return (
-                      <button
-                        key={type.value}
-                        type="button"
-                        onClick={() => {
-                          if (type.value === "") {
-                            setSelectedActions([]);
-                          } else {
-                            setSelectedActions((prev) => {
-                              if (prev.includes(type.value)) {
-                                return prev.filter((x) => x !== type.value);
-                              } else {
-                                return [...prev, type.value];
-                              }
-                            });
-                          }
-                        }}
-                        className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-3 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}} // Click handled by button onClick
-                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 pointer-events-none"
-                        />
-                        {type.value ? (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(type.value)}`}>
-                            {type.label}
-                          </span>
-                        ) : (
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                            All Actions
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-            <button
-              type="submit"
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-md shadow-blue-500/20 text-sm"
-            >
-              Apply Filters
-            </button>
-            <button
-              type="button"
-              onClick={handleExportCSV}
-              disabled={exportingCsv}
-              className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-xl transition-all disabled:opacity-50 text-sm border border-slate-200 dark:border-slate-700 shadow-sm"
-            >
-              {exportingCsv ? "Exporting..." : "Export CSV"}
-            </button>
+          {/* Row 2: Date Filters & Action Filter */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
+              />
+            </div>
+
+            <div ref={dropdownRef} className="flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Filter Action</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white flex items-center justify-between cursor-pointer text-sm font-semibold min-h-[46px]"
+                >
+                  <span className="truncate flex items-center gap-1.5">
+                    {selectedActions.length === 0 ? (
+                      "All Actions"
+                    ) : selectedActions.length === 1 ? (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(selectedActions[0])}`}>
+                        {ACTION_TYPES.find(a => a.value === selectedActions[0])?.label || selectedActions[0].replace(/_/g, " ")}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30 uppercase tracking-wide">
+                        {selectedActions.length} Actions
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-slate-400 text-xs">▼</span>
+                </button>
+                <FunnelIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+
+                {isActionDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto z-50 py-1 divide-y divide-slate-100 dark:divide-slate-800">
+                    {ACTION_TYPES.map((type) => {
+                      const isChecked = type.value === "" 
+                        ? selectedActions.length === 0 
+                        : selectedActions.includes(type.value);
+
+                      return (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => {
+                            if (type.value === "") {
+                              setSelectedActions([]);
+                            } else {
+                              setSelectedActions((prev) => {
+                                if (prev.includes(type.value)) {
+                                  return prev.filter((x) => x !== type.value);
+                                } else {
+                                  return [...prev, type.value];
+                                }
+                              });
+                            }
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-3 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}} // Click handled by button onClick
+                            className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                          />
+                          {type.value ? (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(type.value)}`}>
+                              {type.label}
+                            </span>
+                          ) : (
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                              All Actions
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </form>
       </div>
