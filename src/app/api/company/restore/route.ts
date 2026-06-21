@@ -4,11 +4,23 @@ import pool, { query } from "@/lib/db";
 import AdmZip from "adm-zip";
 import { logAction } from "@/lib/audit";
 import { decryptBuffer } from "@/lib/backup";
-
 async function dynamicInsert(client: any, tableName: string, dataArray: any[]) {
   if (!dataArray || dataArray.length === 0) return;
+
+  // Retrieve any GENERATED ALWAYS columns for this table from the db schema metadata
+  const genColsRes = await client.query(
+    `SELECT column_name 
+     FROM information_schema.columns 
+     WHERE table_schema = 'public' 
+       AND table_name = $1 
+       AND is_generated = 'ALWAYS'`,
+    [tableName]
+  );
+  const generatedColumns = new Set(genColsRes.rows.map((r: any) => r.column_name));
+
   for (const row of dataArray) {
-    const columns = Object.keys(row);
+    // Exclude generated columns from insert statement keys
+    const columns = Object.keys(row).filter(col => !generatedColumns.has(col));
     const columnsStr = columns.map(c => `"${c}"`).join(", ");
     const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(", ");
     const values = columns.map(col => {
