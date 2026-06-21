@@ -68,6 +68,7 @@ export async function POST(request: Request) {
     const fileId = searchParams.get("fileId");
 
     let buffer: Buffer;
+    let filename = "";
 
     if (fileId) {
       const gdrive_client_id = process.env.GOOGLE_DRIVE_CLIENT_ID;
@@ -108,6 +109,26 @@ export async function POST(request: Request) {
 
       const accessToken = tokenData.access_token;
 
+      // Fetch filename from Google Drive metadata
+      try {
+        const metadataRes = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`,
+          {
+            headers: { "Authorization": `Bearer ${accessToken}` },
+          }
+        );
+        if (metadataRes.ok) {
+          const metadata = await metadataRes.json();
+          filename = metadata.name || "Google Drive Backup File";
+        }
+      } catch (err) {
+        console.error("Failed to fetch GDrive filename metadata:", err);
+      }
+
+      if (!filename) {
+        filename = "Google Drive Backup File";
+      }
+
       // Download file contents from Google Drive
       const downloadRes = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
@@ -130,6 +151,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, message: "No file uploaded" }, { status: 400 });
       }
 
+      filename = file.name || "uploaded_backup.zip";
       buffer = Buffer.from(await file.arrayBuffer());
     }
     // If not a standard zip signature, decrypt using the company's backup_password from settings
@@ -284,7 +306,7 @@ export async function POST(request: Request) {
         orgcode: adminOrgcode,
         userid: adminUserid,
         action: fileId ? "RESTORE_PARTIAL_GDRIVE" : "RESTORE_PARTIAL_LOCAL",
-        details: { success: true, fileId: fileId || undefined, phone },
+        details: { success: true, fileId: fileId || undefined, filename, phone },
       });
 
       await client.query("COMMIT");
@@ -391,7 +413,7 @@ export async function POST(request: Request) {
       orgcode: adminOrgcode,
       userid: adminUserid,
       action: fileId ? "RESTORE_BACKUP_GDRIVE" : "RESTORE_BACKUP_LOCAL",
-      details: { success: true, fileId: fileId || undefined },
+      details: { success: true, fileId: fileId || undefined, filename },
     });
 
     await client.query("COMMIT");

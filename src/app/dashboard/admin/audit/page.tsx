@@ -241,13 +241,13 @@ export default function AdminAuditPage() {
             ? `Auto backup completed to Google Drive (File ID: ${parsed.fileId || "N/A"})` 
             : `Auto backup to Google Drive failed: ${parsed.error || "Unknown error"}`;
         case "RESTORE_BACKUP_LOCAL":
-          return `Database successfully restored from local backup file`;
+          return `Database successfully restored from local backup: ${parsed.filename || "local file"}`;
         case "RESTORE_BACKUP_GDRIVE":
-          return `Database successfully restored from Google Drive backup (File ID: ${parsed.fileId || "N/A"})`;
+          return `Database successfully restored from Google Drive backup: ${parsed.filename || `File ID: ${parsed.fileId || "N/A"}`}`;
         case "RESTORE_PARTIAL_LOCAL":
-          return `Database partially restored for phone number: ${parsed.phone || "N/A"} from local backup`;
+          return `Database partially restored for phone number: ${parsed.phone || "N/A"} from local backup: ${parsed.filename || "local file"}`;
         case "RESTORE_PARTIAL_GDRIVE":
-          return `Database partially restored for phone number: ${parsed.phone || "N/A"} from Google Drive backup (File ID: ${parsed.fileId || "N/A"})`;
+          return `Database partially restored for phone number: ${parsed.phone || "N/A"} from Google Drive backup: ${parsed.filename || `File ID: ${parsed.fileId || "N/A"}`}`;
         default:
           return JSON.stringify(parsed);
       }
