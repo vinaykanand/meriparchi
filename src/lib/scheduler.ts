@@ -17,17 +17,21 @@ export async function checkAndTriggerBackup(orgcode: string) {
       [orgcode]
     );
 
-    if (configRes.rows.length === 0) return;
+    if (configRes.rows.length === 0) {
+      return { triggered: false, message: "Company not found" };
+    }
 
     const { backup_schedule, last_backup_time, gdrive_refresh_token } = configRes.rows[0];
 
     // If no schedule set, or Google Drive not linked, skip
     if (!backup_schedule || backup_schedule === "none" || !gdrive_refresh_token) {
-      return;
+      return { triggered: false, message: "No active schedule or Google Drive not linked" };
     }
 
     const intervalMs = INTERVALS[backup_schedule.toLowerCase()];
-    if (!intervalMs) return;
+    if (!intervalMs) {
+      return { triggered: false, message: `Invalid interval schedule: ${backup_schedule}` };
+    }
 
     const lastBackupMs = last_backup_time ? new Date(last_backup_time).getTime() : 0;
     const now = Date.now();
@@ -39,39 +43,47 @@ export async function checkAndTriggerBackup(orgcode: string) {
         [orgcode]
       );
 
-      // 2. Perform the backup asynchronously in the background
-      (async () => {
-        try {
-          console.log(`[Scheduler] Starting automatic backup to Google Drive for organization: ${orgcode}`);
-          const result = await uploadBackupToGDrive(orgcode);
-          if (result.success) {
-            console.log(`[Scheduler] Automatic backup completed: File ID ${result.fileId}`);
-            await logAction({
-              orgcode,
-              userid: "system",
-              action: "AUTO_BACKUP_GDRIVE",
-              details: { success: true, fileId: result.fileId },
-            });
-          } else {
-            console.error(`[Scheduler] Automatic backup failed: ${result.message}`);
-            await logAction({
-              orgcode,
-              userid: "system",
-              action: "AUTO_BACKUP_GDRIVE",
-              details: { success: false, error: result.message },
-            });
-            // Reset last backup time to allow retry on next action
-            await query(
-              "UPDATE public.company SET last_backup_time = $1 WHERE orgcode = $2",
-              [last_backup_time, orgcode]
-            );
-          }
-        } catch (err: any) {
-          console.error("[Scheduler] Background backup error:", err);
+      try {
+        console.log(`[Scheduler] Starting automatic backup to Google Drive for organization: ${orgcode}`);
+        const result = await uploadBackupToGDrive(orgcode);
+        if (result.success) {
+          console.log(`[Scheduler] Automatic backup completed: File ID ${result.fileId}`);
+          await logAction({
+            orgcode,
+            userid: "system",
+            action: "AUTO_BACKUP_GDRIVE",
+            details: { success: true, fileId: result.fileId },
+          });
+          return { triggered: true, success: true, fileId: result.fileId };
+        } else {
+          console.error(`[Scheduler] Automatic backup failed: ${result.message}`);
+          await logAction({
+            orgcode,
+            userid: "system",
+            action: "AUTO_BACKUP_GDRIVE",
+            details: { success: false, error: result.message },
+          });
+          // Reset last backup time to allow retry on next action
+          await query(
+            "UPDATE public.company SET last_backup_time = $1 WHERE orgcode = $2",
+            [last_backup_time, orgcode]
+          );
+          return { triggered: true, success: false, error: result.message };
         }
-      })();
+      } catch (err: any) {
+        console.error("[Scheduler] Background backup error:", err);
+        // Reset last backup time
+        await query(
+          "UPDATE public.company SET last_backup_time = $1 WHERE orgcode = $2",
+          [last_backup_time, orgcode]
+        );
+        return { triggered: true, success: false, error: err.message || String(err) };
+      }
     }
-  } catch (error) {
+
+    return { triggered: false, message: "Backup is not due yet" };
+  } catch (error: any) {
     console.error("[Scheduler] Error checking backup schedule:", error);
+    return { triggered: false, error: error.message || String(error) };
   }
 }
