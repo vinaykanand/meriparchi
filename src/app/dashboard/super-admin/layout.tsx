@@ -10,7 +10,8 @@ import {
   CpuChipIcon,
   TagIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
+  CloudArrowUpIcon
 } from "@heroicons/react/24/outline";
 
 function SuperAdminDashboardContent({ children }: { children: React.ReactNode }) {
@@ -44,6 +45,7 @@ function SuperAdminDashboardContent({ children }: { children: React.ReactNode })
     { name: "Pricing & Coupons", href: "/dashboard/super-admin/pricing", icon: <TagIcon className="w-5 h-5" /> },
     { name: "Global Audit Logs", href: "/dashboard/super-admin/audit-logs", icon: <ClipboardDocumentListIcon className="w-5 h-5" /> },
     { name: "Integrations", href: "/dashboard/super-admin/integrations", icon: <CpuChipIcon className="w-5 h-5" /> },
+    { name: "Backup & Restore", href: "/dashboard/super-admin/backup", icon: <CloudArrowUpIcon className="w-5 h-5" /> },
   ];
 
   return (

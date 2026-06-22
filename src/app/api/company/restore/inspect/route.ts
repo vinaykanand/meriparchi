@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     }
 
     const sessionCheck = await query(
-      "SELECT orgcode, userid, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
+      "SELECT orgcode, userid, isadmin, issuperadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
       [authtoken]
     );
 
@@ -23,6 +23,21 @@ export async function POST(request: Request) {
     }
 
     const adminOrgcode = sessionCheck.rows[0].orgcode;
+    const isSuperAdmin = sessionCheck.rows[0].issuperadmin === true;
+
+    // Block inspect operations for the Super Admin management organization unless requester is super admin
+    if (!isSuperAdmin) {
+      const superAdminCheck = await query(
+        "SELECT userid FROM public.users WHERE orgcode = $1 AND issuperadmin = true LIMIT 1",
+        [adminOrgcode]
+      );
+      if (superAdminCheck.rows.length > 0) {
+        return NextResponse.json(
+          { success: false, message: "Inspect is disabled for the Super Admin management organization" },
+          { status: 403 }
+        );
+      }
+    }
 
     const { searchParams } = new URL(request.url);
     const fileId = searchParams.get("fileId");

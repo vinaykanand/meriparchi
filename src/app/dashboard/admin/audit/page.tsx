@@ -37,6 +37,7 @@ const ACTION_TYPES = [
   { value: "CREATE_SLIP", label: "Create Slip" },
   { value: "DELETE_SLIP", label: "Delete Slip" },
   { value: "LOG_PAYMENT", label: "Log Payment" },
+  { value: "SUBSCRIPTION_PAYMENT", label: "Subscription Payment" },
   { value: "CLOSE_ACCOUNT", label: "Close Account" },
   { value: "UPDATE_COMPANY_SETTINGS", label: "Update Settings" },
   { value: "CREATE_USER", label: "Create User" },
@@ -52,6 +53,12 @@ const ACTION_TYPES = [
   { value: "RESTORE_BACKUP_GDRIVE", label: "Restore Drive Backup" },
   { value: "RESTORE_PARTIAL_LOCAL", label: "Restore Partial Local" },
   { value: "RESTORE_PARTIAL_GDRIVE", label: "Restore Partial Drive" },
+  { value: "SUPER_ADMIN_CHANGE_PRICING", label: "Change Pricing Plans" },
+  { value: "SUPER_ADMIN_CREATE_COUPON", label: "Create Coupon" },
+  { value: "SUPER_ADMIN_UPDATE_COUPON", label: "Update Coupon" },
+  { value: "SUPER_ADMIN_DELETE_COUPON", label: "Delete Coupon" },
+  { value: "SUPER_ADMIN_CREATE_COMPANY", label: "Register Company" },
+  { value: "SUPER_ADMIN_UPDATE_COMPANY", label: "Update Company" },
 ];
 
 export default function AdminAuditPage() {
@@ -236,6 +243,15 @@ export default function AdminAuditPage() {
         return "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800/30";
       case "LOG_PAYMENT":
         return "bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800/30";
+      case "SUBSCRIPTION_PAYMENT":
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-450 border border-emerald-250 dark:border-emerald-800/30 font-bold";
+      case "SUPER_ADMIN_CHANGE_PRICING":
+      case "SUPER_ADMIN_CREATE_COUPON":
+      case "SUPER_ADMIN_UPDATE_COUPON":
+      case "SUPER_ADMIN_DELETE_COUPON":
+      case "SUPER_ADMIN_CREATE_COMPANY":
+      case "SUPER_ADMIN_UPDATE_COMPANY":
+        return "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-850/30 font-bold";
       case "LOGOUT":
         return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
       default:
@@ -263,6 +279,8 @@ export default function AdminAuditPage() {
           return `Deleted slip #${parsed.slipno} for ${parsed.name || parsed.phone}`;
         case "LOG_PAYMENT":
           return `Recorded payment of ₹${parsed.amount} from ${parsed.phone}`;
+        case "SUBSCRIPTION_PAYMENT":
+          return `Subscription renewal: Verified payment of ₹${parsed.amount} for plan '${parsed.planKey}'${parsed.couponCode ? ` (applied coupon ${parsed.couponCode})` : ""}`;
         case "CLOSE_ACCOUNT":
           return `Closed/cleared account for ${parsed.phone}`;
         case "UPDATE_COMPANY_SETTINGS":
@@ -297,6 +315,18 @@ export default function AdminAuditPage() {
           return `Database partially restored for phone number: ${parsed.phone || "N/A"} from local backup: ${parsed.filename || "local file"}`;
         case "RESTORE_PARTIAL_GDRIVE":
           return `Database partially restored for phone number: ${parsed.phone || "N/A"} from Google Drive backup: ${parsed.filename || `File ID: ${parsed.fileId || "N/A"}`}`;
+        case "SUPER_ADMIN_CHANGE_PRICING":
+          return `Pricing settings model updated by super admin`;
+        case "SUPER_ADMIN_CREATE_COUPON":
+          return `Coupon code '${parsed.code}' created (Discount: ${parsed.discount})`;
+        case "SUPER_ADMIN_UPDATE_COUPON":
+          return `Coupon code '${parsed.code}' updated (Discount: ${parsed.discount}, Status: ${parsed.status})`;
+        case "SUPER_ADMIN_DELETE_COUPON":
+          return `Coupon code '${parsed.code}' deleted`;
+        case "SUPER_ADMIN_CREATE_COMPANY":
+          return `New organization '${parsed.orgname}' registered (Code: ${parsed.orgcode})`;
+        case "SUPER_ADMIN_UPDATE_COMPANY":
+          return `Organization settings for '${parsed.orgcode}' updated (Plan: ${parsed.subscriptionType}, Status: ${parsed.isactive ? "Active" : "Inactive"})`;
         default:
           return JSON.stringify(parsed);
       }
@@ -511,7 +541,7 @@ export default function AdminAuditPage() {
                         </td>
                         <td className="py-4 px-6 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(log.action)}`}>
-                            {log.action.replace(/_/g, " ")}
+                            {ACTION_TYPES.find(a => a.value === log.action)?.label || log.action.replace(/_/g, " ")}
                           </span>
                         </td>
                         <td className="py-4 px-6 whitespace-normal break-words">

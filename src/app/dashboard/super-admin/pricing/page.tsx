@@ -485,8 +485,8 @@ export default function PricingAndCouponsPage() {
                     value={couponType}
                     onChange={(e) => setCouponType(e.target.value as "percentage" | "flat")}
                   >
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="flat">Flat Amount (₹)</option>
+                    <option value="percentage" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Percentage (%)</option>
+                    <option value="flat" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Flat Amount (₹)</option>
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">

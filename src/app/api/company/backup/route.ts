@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     const sessionCheck = await query(
-      "SELECT userid, orgcode, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
+      "SELECT userid, orgcode, isadmin, issuperadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
       [authtoken]
     );
 
@@ -24,11 +24,12 @@ export async function GET() {
 
     const orgcode = sessionCheck.rows[0].orgcode;
     const userid = sessionCheck.rows[0].userid;
+    const isSuperAdmin = sessionCheck.rows[0].issuperadmin === true;
 
-    const zipBuffer = await generateBackupZip(orgcode);
+    const zipBuffer = await generateBackupZip(orgcode, isSuperAdmin);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `backup_${orgcode}_${timestamp}.zip`;
+    const filename = isSuperAdmin ? `super_backup_${timestamp}.zip` : `backup_${orgcode}_${timestamp}.zip`;
 
     // Log the backup operation in the audit log
     await logAction({

@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     }
 
     const sessionCheck = await query(
-      "SELECT orgcode, userid, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
+      "SELECT orgcode, userid, isadmin, issuperadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
       [authtoken]
     );
 
@@ -67,6 +67,21 @@ export async function POST(request: Request) {
 
     const adminOrgcode = sessionCheck.rows[0].orgcode;
     const adminUserid = sessionCheck.rows[0].userid;
+    const isSuperAdmin = sessionCheck.rows[0].issuperadmin === true;
+
+    // Block restores for the Super Admin management organization unless requester is super admin
+    if (!isSuperAdmin) {
+      const superAdminCheck = await query(
+        "SELECT userid FROM public.users WHERE orgcode = $1 AND issuperadmin = true LIMIT 1",
+        [adminOrgcode]
+      );
+      if (superAdminCheck.rows.length > 0) {
+        return NextResponse.json(
+          { success: false, message: "Restore is disabled for the Super Admin management organization" },
+          { status: 403 }
+        );
+      }
+    }
 
     const { searchParams } = new URL(request.url);
     const password = searchParams.get("password");
@@ -246,36 +261,43 @@ export async function POST(request: Request) {
       }
     }
 
-    // Validation: Ensure all records in backup belong to the logged-in admin's orgcode
-    for (const row of companyData) {
-      if (row.orgcode !== adminOrgcode) {
-        return NextResponse.json({ success: false, message: "Tenant mismatch in company data." }, { status: 403 });
+    // Validation: Ensure all records in backup belong to the logged-in admin's orgcode unless super admin
+    if (!isSuperAdmin) {
+      for (const row of companyData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in company data." }, { status: 403 });
+        }
       }
-    }
-    for (const row of usersData) {
-      if (row.orgcode !== adminOrgcode) {
-        return NextResponse.json({ success: false, message: "Tenant mismatch in users data." }, { status: 403 });
+      for (const row of usersData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in users data." }, { status: 403 });
+        }
+        row.issuperadmin = false;
       }
-    }
-    for (const row of paymentsData) {
-      if (row.orgcode !== adminOrgcode) {
-        return NextResponse.json({ success: false, message: "Tenant mismatch in payments data." }, { status: 403 });
+      for (const row of paymentsData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in payments data." }, { status: 403 });
+        }
       }
-    }
-    for (const row of slipsData) {
-      if (row.orgcode !== adminOrgcode) {
-        return NextResponse.json({ success: false, message: "Tenant mismatch in slips data." }, { status: 403 });
+      for (const row of slipsData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in slips data." }, { status: 403 });
+        }
       }
-    }
-    for (const row of auditLogsData) {
-      if (row.orgcode !== adminOrgcode) {
-        return NextResponse.json({ success: false, message: "Tenant mismatch in audit logs data." }, { status: 403 });
+      for (const row of auditLogsData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in audit logs data." }, { status: 403 });
+        }
       }
     }
 
     const phone = searchParams.get("phone")?.trim();
 
     if (phone) {
+      if (isSuperAdmin) {
+        return NextResponse.json({ success: false, message: "Partial phone number restore is not supported for system backups." }, { status: 400 });
+      }
+
       // Find data in backup for that phone number
       const targetSlips = slipsData.filter((s: any) => s.phone === phone);
       const targetSlipIds = new Set(targetSlips.map((s: any) => s.id));
@@ -334,7 +356,79 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: `Data for phone number ${phone} restored successfully` });
     }
 
-    // Connect DB client for Transaction (Full Restore)
+    if (isSuperAdmin) {
+      // System wide Super Admin Restore
+      const pricingPlansEntry = zip.getEntry("pricing_plans.json");
+      const couponsEntry = zip.getEntry("coupons.json");
+      const couponUsesEntry = zip.getEntry("coupon_uses.json");
+      const paymentHistoryEntry = zip.getEntry("payment_history.json");
+      const companySubscriptionsEntry = zip.getEntry("company_subscriptions.json");
+
+      if (!pricingPlansEntry || !couponsEntry || !couponUsesEntry || !paymentHistoryEntry || !companySubscriptionsEntry) {
+        return NextResponse.json({ success: false, message: "Super admin backup file is missing required system configuration JSON files." }, { status: 400 });
+      }
+
+      const pricingPlansData = JSON.parse(pricingPlansEntry.getData().toString("utf8"));
+      const couponsData = JSON.parse(couponsEntry.getData().toString("utf8"));
+      const couponUsesData = JSON.parse(couponUsesEntry.getData().toString("utf8"));
+      const paymentHistoryData = JSON.parse(paymentHistoryEntry.getData().toString("utf8"));
+      const companySubscriptionsData = JSON.parse(companySubscriptionsEntry.getData().toString("utf8"));
+
+      client = await pool.connect();
+      await client.query("BEGIN");
+
+      // 1. Truncate all tables Cascade
+      await client.query("TRUNCATE public.slipitems CASCADE");
+      await client.query("TRUNCATE public.slips CASCADE");
+      await client.query("TRUNCATE public.payments CASCADE");
+      await client.query("TRUNCATE public.users CASCADE");
+      await client.query("TRUNCATE public.company CASCADE");
+      await client.query("TRUNCATE public.audit_logs CASCADE");
+      await client.query("TRUNCATE public.pricing_plans CASCADE");
+      await client.query("TRUNCATE public.coupons CASCADE");
+      await client.query("TRUNCATE public.coupon_uses CASCADE");
+      await client.query("TRUNCATE public.payment_history CASCADE");
+      await client.query("TRUNCATE public.company_subscriptions CASCADE");
+
+      // 2. Restore all data
+      await dynamicInsert(client, "company", companyData);
+      await dynamicInsert(client, "users", usersData);
+      await dynamicInsert(client, "payments", paymentsData);
+      await dynamicInsert(client, "slips", slipsData);
+      await dynamicInsert(client, "slipitems", slipitemsData);
+      await dynamicInsert(client, "audit_logs", auditLogsData);
+      await dynamicInsert(client, "pricing_plans", pricingPlansData);
+      await dynamicInsert(client, "coupons", couponsData);
+      await dynamicInsert(client, "coupon_uses", couponUsesData);
+      await dynamicInsert(client, "payment_history", paymentHistoryData);
+      await dynamicInsert(client, "company_subscriptions", companySubscriptionsData);
+
+      // 3. Reset Sequences
+      await client.query("SELECT setval(pg_get_serial_sequence('public.payments', 'id'), COALESCE(MAX(id), 1)) FROM public.payments");
+      await client.query("SELECT setval(pg_get_serial_sequence('public.slips', 'id'), COALESCE(MAX(id), 1)) FROM public.slips");
+      await client.query("SELECT setval(pg_get_serial_sequence('public.slipitems', 'id'), COALESCE(MAX(id), 1)) FROM public.slipitems");
+      await client.query("SELECT setval(pg_get_serial_sequence('public.audit_logs', 'id'), COALESCE(MAX(id), 1)) FROM public.audit_logs");
+      await client.query("SELECT setval(pg_get_serial_sequence('public.coupon_uses', 'id'), COALESCE(MAX(id), 1)) FROM public.coupon_uses");
+      await client.query("SELECT setval(pg_get_serial_sequence('public.payment_history', 'id'), COALESCE(MAX(id), 1)) FROM public.payment_history");
+      
+      const compSubSeq = await client.query("SELECT pg_get_serial_sequence('public.company_subscriptions', 'id')");
+      if (compSubSeq.rows.length > 0 && compSubSeq.rows[0].pg_get_serial_sequence) {
+        await client.query("SELECT setval(pg_get_serial_sequence('public.company_subscriptions', 'id'), COALESCE(MAX(id), 1)) FROM public.company_subscriptions");
+      }
+
+      await logAction({
+        client,
+        orgcode: adminOrgcode,
+        userid: adminUserid,
+        action: fileId ? "RESTORE_BACKUP_GDRIVE" : "RESTORE_BACKUP_LOCAL",
+        details: { success: true, fileId: fileId || undefined, filename },
+      });
+
+      await client.query("COMMIT");
+      return NextResponse.json({ success: true, message: "System restore completed successfully." });
+    }
+
+    // Connect DB client for Transaction (Full Restore for single Client Org)
     client = await pool.connect();
     await client.query("BEGIN");
 

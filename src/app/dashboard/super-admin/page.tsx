@@ -301,9 +301,9 @@ export default function SuperAdminPage() {
                 onChange={(e) => setNewSubscriptionType(e.target.value)}
                 disabled={creating}
               >
-                <option value="trial">Trial Plan (10 Days)</option>
+                <option value="trial" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Trial Plan (10 Days)</option>
                 {pricingPlans.map((p) => (
-                  <option key={p.plan_key} value={p.plan_key}>
+                  <option key={p.plan_key} value={p.plan_key} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                     {p.plan_name} (₹{p.price})
                   </option>
                 ))}
@@ -495,9 +495,9 @@ export default function SuperAdminPage() {
                     }
                   }}
                 >
-                  <option value="trial">Trial Plan (10 Days)</option>
+                  <option value="trial" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Trial Plan (10 Days)</option>
                   {pricingPlans.map((p) => (
-                    <option key={p.plan_key} value={p.plan_key}>
+                    <option key={p.plan_key} value={p.plan_key} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                       {p.plan_name}
                     </option>
                   ))}

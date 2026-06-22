@@ -1,23 +1,27 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
+import { logAction } from "@/lib/audit";
 
-// Helper to verify that the request is made by a super admin
-async function verifySuperAdmin(): Promise<boolean> {
+// Helper to verify that the request is made by a super admin and get session details
+async function getSuperAdminSession(): Promise<{ ok: boolean; orgcode?: string; userid?: string }> {
   try {
     const cookieStore = await cookies();
     const authtoken = cookieStore.get("authtoken")?.value;
     const orgcode = cookieStore.get("orgcode")?.value;
 
-    if (!authtoken || !orgcode) return false;
+    if (!authtoken || !orgcode) return { ok: false };
 
     const result = await query(
-      "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
+      "SELECT userid, issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
       [authtoken, orgcode]
     );
-    return result.rows.length > 0 && result.rows[0].issuperadmin;
+    if (result.rows.length > 0 && result.rows[0].issuperadmin) {
+      return { ok: true, orgcode, userid: result.rows[0].userid };
+    }
+    return { ok: false };
   } catch {
-    return false;
+    return { ok: false };
   }
 }
 
@@ -34,7 +38,7 @@ export async function GET(request: Request) {
          GROUP BY code
        ) u ON c.code = u.code
        ORDER BY c.code ASC`
-    );
+     );
     return NextResponse.json({ success: true, coupons: result.rows });
   } catch (error: any) {
     return NextResponse.json(
@@ -46,8 +50,8 @@ export async function GET(request: Request) {
 
 // POST: Add new coupon
 export async function POST(request: Request) {
-  const isSuperAdmin = await verifySuperAdmin();
-  if (!isSuperAdmin) {
+  const sessionInfo = await getSuperAdminSession();
+  if (!sessionInfo.ok || !sessionInfo.orgcode || !sessionInfo.userid) {
     return NextResponse.json({ success: false, message: "Forbidden: Super Admin access required" }, { status: 403 });
   }
 
@@ -76,6 +80,22 @@ export async function POST(request: Request) {
       [codeUpper, discount.trim(), type, parseFloat(value), status, startDateVal, expiryDateVal]
     );
 
+    // Audit Log for Coupon Creation
+    await logAction({
+      orgcode: sessionInfo.orgcode,
+      userid: sessionInfo.userid,
+      action: "SUPER_ADMIN_CREATE_COUPON",
+      details: {
+        code: codeUpper,
+        discount: discount.trim(),
+        type,
+        value,
+        status,
+        start_date: startDateVal,
+        expiry_date: expiryDateVal
+      }
+    });
+
     return NextResponse.json({ success: true, message: "Coupon created successfully" });
   } catch (error: any) {
     return NextResponse.json(
@@ -87,8 +107,8 @@ export async function POST(request: Request) {
 
 // PUT: Update coupon
 export async function PUT(request: Request) {
-  const isSuperAdmin = await verifySuperAdmin();
-  if (!isSuperAdmin) {
+  const sessionInfo = await getSuperAdminSession();
+  if (!sessionInfo.ok || !sessionInfo.orgcode || !sessionInfo.userid) {
     return NextResponse.json({ success: false, message: "Forbidden: Super Admin access required" }, { status: 403 });
   }
 
@@ -115,6 +135,22 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, message: "Coupon not found" }, { status: 404 });
     }
 
+    // Audit Log for Coupon Modification
+    await logAction({
+      orgcode: sessionInfo.orgcode,
+      userid: sessionInfo.userid,
+      action: "SUPER_ADMIN_UPDATE_COUPON",
+      details: {
+        code: codeUpper,
+        discount: discount.trim(),
+        type,
+        value,
+        status,
+        start_date: startDateVal,
+        expiry_date: expiryDateVal
+      }
+    });
+
     return NextResponse.json({ success: true, message: "Coupon updated successfully" });
   } catch (error: any) {
     return NextResponse.json(
@@ -126,8 +162,8 @@ export async function PUT(request: Request) {
 
 // DELETE: Delete coupon
 export async function DELETE(request: Request) {
-  const isSuperAdmin = await verifySuperAdmin();
-  if (!isSuperAdmin) {
+  const sessionInfo = await getSuperAdminSession();
+  if (!sessionInfo.ok || !sessionInfo.orgcode || !sessionInfo.userid) {
     return NextResponse.json({ success: false, message: "Forbidden: Super Admin access required" }, { status: 403 });
   }
 
@@ -145,6 +181,16 @@ export async function DELETE(request: Request) {
     if (deleteRes.rowCount === 0) {
       return NextResponse.json({ success: false, message: "Coupon not found" }, { status: 404 });
     }
+
+    // Audit Log for Coupon Deletion
+    await logAction({
+      orgcode: sessionInfo.orgcode,
+      userid: sessionInfo.userid,
+      action: "SUPER_ADMIN_DELETE_COUPON",
+      details: {
+        code: codeUpper
+      }
+    });
 
     return NextResponse.json({ success: true, message: "Coupon deleted successfully" });
   } catch (error: any) {

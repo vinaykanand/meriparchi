@@ -20,17 +20,33 @@ export function decryptBuffer(buffer: Buffer, password: string): Buffer {
   return Buffer.concat([decipher.update(encrypted), decipher.final()]);
 }
 
-export async function generateBackupZip(orgcode: string): Promise<Buffer> {
-  // Fetch data from all company-related tables
-  const company = await query("SELECT * FROM public.company WHERE orgcode = $1", [orgcode]);
-  const users = await query("SELECT * FROM public.users WHERE orgcode = $1", [orgcode]);
-  const payments = await query("SELECT * FROM public.payments WHERE orgcode = $1", [orgcode]);
-  const slips = await query("SELECT * FROM public.slips WHERE orgcode = $1", [orgcode]);
-  const slipitems = await query(
-    "SELECT * FROM public.slipitems WHERE id IN (SELECT id FROM public.slips WHERE orgcode = $1)",
-    [orgcode]
-  );
-  const audit_logs = await query("SELECT * FROM public.audit_logs WHERE orgcode = $1", [orgcode]);
+export async function generateBackupZip(orgcode: string, isSuperAdmin: boolean = false): Promise<Buffer> {
+  let company, users, payments, slips, slipitems, audit_logs;
+  let pricing_plans: any, coupons: any, coupon_uses: any, payment_history: any, company_subscriptions: any;
+
+  if (isSuperAdmin) {
+    company = await query("SELECT * FROM public.company");
+    users = await query("SELECT * FROM public.users");
+    payments = await query("SELECT * FROM public.payments");
+    slips = await query("SELECT * FROM public.slips");
+    slipitems = await query("SELECT * FROM public.slipitems");
+    audit_logs = await query("SELECT * FROM public.audit_logs");
+    pricing_plans = await query("SELECT * FROM public.pricing_plans");
+    coupons = await query("SELECT * FROM public.coupons");
+    coupon_uses = await query("SELECT * FROM public.coupon_uses");
+    payment_history = await query("SELECT * FROM public.payment_history");
+    company_subscriptions = await query("SELECT * FROM public.company_subscriptions");
+  } else {
+    company = await query("SELECT * FROM public.company WHERE orgcode = $1", [orgcode]);
+    users = await query("SELECT * FROM public.users WHERE orgcode = $1 AND (issuperadmin = false OR issuperadmin IS NULL)", [orgcode]);
+    payments = await query("SELECT * FROM public.payments WHERE orgcode = $1", [orgcode]);
+    slips = await query("SELECT * FROM public.slips WHERE orgcode = $1", [orgcode]);
+    slipitems = await query(
+      "SELECT * FROM public.slipitems WHERE id IN (SELECT id FROM public.slips WHERE orgcode = $1)",
+      [orgcode]
+    );
+    audit_logs = await query("SELECT * FROM public.audit_logs WHERE orgcode = $1", [orgcode]);
+  }
 
   // Create Zip file
   const zip = new AdmZip();
@@ -40,6 +56,14 @@ export async function generateBackupZip(orgcode: string): Promise<Buffer> {
   zip.addFile("slips.json", Buffer.from(JSON.stringify(slips.rows, null, 2)));
   zip.addFile("slipitems.json", Buffer.from(JSON.stringify(slipitems.rows, null, 2)));
   zip.addFile("audit_logs.json", Buffer.from(JSON.stringify(audit_logs.rows, null, 2)));
+
+  if (isSuperAdmin) {
+    zip.addFile("pricing_plans.json", Buffer.from(JSON.stringify(pricing_plans.rows, null, 2)));
+    zip.addFile("coupons.json", Buffer.from(JSON.stringify(coupons.rows, null, 2)));
+    zip.addFile("coupon_uses.json", Buffer.from(JSON.stringify(coupon_uses.rows, null, 2)));
+    zip.addFile("payment_history.json", Buffer.from(JSON.stringify(payment_history.rows, null, 2)));
+    zip.addFile("company_subscriptions.json", Buffer.from(JSON.stringify(company_subscriptions.rows, null, 2)));
+  }
 
   const zipBuffer = zip.toBuffer();
 

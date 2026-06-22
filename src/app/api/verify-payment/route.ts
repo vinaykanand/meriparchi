@@ -216,6 +216,20 @@ export async function POST(request: Request) {
       }
     });
 
+    // Audit Log for Subscription Payment success
+    await logAction({
+      orgcode,
+      userid,
+      action: "SUBSCRIPTION_PAYMENT",
+      details: {
+        amount: finalPriceRs,
+        planKey,
+        couponCode: validCouponApplied ? couponCode.trim().toUpperCase() : null,
+        durationMonths,
+        newEnd
+      }
+    });
+
     // Audit Log for Subscription Extension
     await logAction({
       orgcode,

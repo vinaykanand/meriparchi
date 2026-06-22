@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     }
 
     const sessionCheck = await query(
-      "SELECT userid, orgcode, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
+      "SELECT userid, orgcode, isadmin, issuperadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
       [authtoken]
     );
 
@@ -24,8 +24,9 @@ export async function POST(request: Request) {
 
     const orgcode = sessionCheck.rows[0].orgcode;
     const userid = sessionCheck.rows[0].userid;
+    const isSuperAdmin = sessionCheck.rows[0].issuperadmin === true;
 
-    const result = await uploadBackupToGDrive(orgcode);
+    const result = await uploadBackupToGDrive(orgcode, isSuperAdmin);
 
     await logAction({
       orgcode,

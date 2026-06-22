@@ -1,7 +1,7 @@
 import { query } from "@/lib/db";
 import { generateBackupZip } from "./backup";
 
-export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: boolean; fileId?: string; filename?: string; message?: string }> {
+export async function uploadBackupToGDrive(orgcode: string, isSuperAdmin: boolean = false): Promise<{ success: boolean; fileId?: string; filename?: string; message?: string }> {
   try {
     // 1. Retrieve GDrive configuration
     const gdrive_client_id = process.env.GOOGLE_DRIVE_CLIENT_ID;
@@ -45,13 +45,14 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
 
     const accessToken = tokenData.access_token;
 
-    // 2.5 Find or create the "MeriParchi" folder
+    // 2.5 Find or create the target folder
     let parentFolderId = "";
+    const folderName = isSuperAdmin ? "parchiadmin" : "MeriParchi";
     try {
       const searchRes = await fetch(
         "https://www.googleapis.com/drive/v3/files?" +
           new URLSearchParams({
-            q: "name = 'MeriParchi' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+            q: `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
             fields: "files(id)",
           }),
         {
@@ -70,7 +71,7 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            name: "MeriParchi",
+            name: folderName,
             mimeType: "application/vnd.google-apps.folder",
           }),
         });
@@ -78,16 +79,18 @@ export async function uploadBackupToGDrive(orgcode: string): Promise<{ success: 
         if (createFolderRes.ok && createFolderData.id) {
           parentFolderId = createFolderData.id;
         } else {
-          console.error("Failed to create MeriParchi folder:", createFolderData);
+          console.error(`Failed to create ${folderName} folder:`, createFolderData);
         }
       }
     } catch (e) {
-      console.error("Error finding/creating MeriParchi folder:", e);
+      console.error(`Error finding/creating ${folderName} folder:`, e);
     }
 
     // 3. Generate the backup zip file
-    const zipBuffer = await generateBackupZip(orgcode);
-    const filename = `backup_${orgcode}_${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
+    const zipBuffer = await generateBackupZip(orgcode, isSuperAdmin);
+    const filename = isSuperAdmin 
+      ? `super_backup_${new Date().toISOString().replace(/[:.]/g, "-")}.zip`
+      : `backup_${orgcode}_${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
 
     // 4. Create metadata on Google Drive
     const metadataRes = await fetch("https://www.googleapis.com/drive/v3/files", {

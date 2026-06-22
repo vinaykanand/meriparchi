@@ -1,23 +1,27 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
+import { logAction } from "@/lib/audit";
 
-// Helper to verify that the request is made by a super admin
-async function verifySuperAdmin(): Promise<boolean> {
+// Helper to verify that the request is made by a super admin and get session details
+async function getSuperAdminSession(): Promise<{ ok: boolean; orgcode?: string; userid?: string }> {
   try {
     const cookieStore = await cookies();
     const authtoken = cookieStore.get("authtoken")?.value;
     const orgcode = cookieStore.get("orgcode")?.value;
 
-    if (!authtoken || !orgcode) return false;
+    if (!authtoken || !orgcode) return { ok: false };
 
     const result = await query(
-      "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
+      "SELECT userid, issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
       [authtoken, orgcode]
     );
-    return result.rows.length > 0 && result.rows[0].issuperadmin;
+    if (result.rows.length > 0 && result.rows[0].issuperadmin) {
+      return { ok: true, orgcode, userid: result.rows[0].userid };
+    }
+    return { ok: false };
   } catch {
-    return false;
+    return { ok: false };
   }
 }
 
@@ -38,8 +42,8 @@ export async function GET(request: Request) {
 
 // PUT: Update pricing plan prices
 export async function PUT(request: Request) {
-  const isSuperAdmin = await verifySuperAdmin();
-  if (!isSuperAdmin) {
+  const sessionInfo = await getSuperAdminSession();
+  if (!sessionInfo.ok || !sessionInfo.orgcode || !sessionInfo.userid) {
     return NextResponse.json({ success: false, message: "Forbidden: Super Admin access required" }, { status: 403 });
   }
 
@@ -62,6 +66,16 @@ export async function PUT(request: Request) {
         [parsedPrice, p.plan_key]
       );
     }
+
+    // Log pricing model change action
+    await logAction({
+      orgcode: sessionInfo.orgcode,
+      userid: sessionInfo.userid,
+      action: "SUPER_ADMIN_CHANGE_PRICING",
+      details: {
+        updatedPlans: plans
+      }
+    });
 
     return NextResponse.json({ success: true, message: "Pricing plans updated successfully" });
   } catch (error: any) {

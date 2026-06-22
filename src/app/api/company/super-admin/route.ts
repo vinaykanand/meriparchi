@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
+import { logAction } from "@/lib/audit";
 
 // Helper to verify that the request is made by a super admin
-async function verifySuperAdmin(): Promise<{ ok: boolean; status: number; message: string; adminOrgcode?: string }> {
+async function verifySuperAdmin(): Promise<{ ok: boolean; status: number; message: string; adminOrgcode?: string; adminUserid?: string }> {
   try {
     const cookieStore = await cookies();
     const authtoken = cookieStore.get("authtoken")?.value;
@@ -14,7 +15,7 @@ async function verifySuperAdmin(): Promise<{ ok: boolean; status: number; messag
     }
 
     const result = await query(
-      "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
+      "SELECT userid, issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
       [authtoken, orgcode]
     );
 
@@ -22,7 +23,7 @@ async function verifySuperAdmin(): Promise<{ ok: boolean; status: number; messag
       return { ok: false, status: 403, message: "Forbidden: Super Admin access required" };
     }
 
-    return { ok: true, status: 200, message: "Authorized", adminOrgcode: orgcode };
+    return { ok: true, status: 200, message: "Authorized", adminOrgcode: orgcode, adminUserid: result.rows[0].userid };
   } catch (error: any) {
     return { ok: false, status: 500, message: error.message || "Internal server error" };
   }
@@ -134,6 +135,19 @@ export async function POST(request: Request) {
       );
     }
 
+    // Audit Log for Company Creation (log in target company's logs)
+    await logAction({
+      orgcode: cleanOrgcode,
+      userid: auth.adminUserid || "superadmin",
+      action: "SUPER_ADMIN_CREATE_COMPANY",
+      details: {
+        orgcode: cleanOrgcode,
+        orgname: orgname.trim(),
+        subscriptionType: plan,
+        email: email ? email.trim() : null
+      }
+    });
+
     return NextResponse.json({
       success: true,
       message: `Company '${orgname}' registered successfully with Org Code: ${cleanOrgcode}.`,
@@ -197,6 +211,21 @@ export async function PUT(request: Request) {
        SET subscription_type = EXCLUDED.subscription_type, subscription_end = EXCLUDED.subscription_end`,
       [orgcode, subscriptionType, endTimestamp]
     );
+
+    // Audit Log for Company Update (log in target company's logs)
+    await logAction({
+      orgcode: orgcode,
+      userid: auth.adminUserid || "superadmin",
+      action: "SUPER_ADMIN_UPDATE_COMPANY",
+      details: {
+        orgcode,
+        orgname: orgname.trim(),
+        subscriptionType,
+        subscriptionEnd: endTimestamp,
+        isactive: isactive !== false,
+        email: email ? email.trim() : null
+      }
+    });
 
     return NextResponse.json({
       success: true,

@@ -5,7 +5,13 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
-    const orgcode = searchParams.get("state"); // state holds the orgcode
+    let orgcode = searchParams.get("state") || ""; // state holds the orgcode
+    let isSuperAdmin = false;
+
+    if (orgcode.startsWith("superadmin_")) {
+      isSuperAdmin = true;
+      orgcode = orgcode.replace("superadmin_", "");
+    }
 
     if (!code || !orgcode) {
       return NextResponse.json({ success: false, message: "Invalid callback request" }, { status: 400 });
@@ -61,8 +67,10 @@ export async function GET(request: Request) {
       );
     }
 
-    // Redirect to admin settings page with success flag
-    const targetUrl = `${protocol}://${host}/dashboard/admin/settings?gdrive=success`;
+    // Redirect with success flag
+    const targetUrl = isSuperAdmin
+      ? `${protocol}://${host}/dashboard/super-admin/backup?gdrive=success`
+      : `${protocol}://${host}/dashboard/admin/settings?gdrive=success`;
     return NextResponse.redirect(targetUrl);
   } catch (error: any) {
     return NextResponse.json(

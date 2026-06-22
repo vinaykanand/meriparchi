@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     }
 
     const sessionCheck = await query(
-      "SELECT orgcode, isadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
+      "SELECT orgcode, isadmin, issuperadmin FROM public.users WHERE authtoken = $1 AND isactive = true",
       [authtoken]
     );
 
@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     }
 
     const orgcode = sessionCheck.rows[0].orgcode;
+    const isSuperAdmin = sessionCheck.rows[0].issuperadmin === true;
 
     const gdrive_client_id = process.env.GOOGLE_DRIVE_CLIENT_ID;
     const gdrive_client_secret = process.env.GOOGLE_DRIVE_CLIENT_SECRET;
@@ -63,11 +64,12 @@ export async function GET(request: Request) {
 
     const accessToken = tokenData.access_token;
 
-    // Find the "MeriParchi" folder
+    // Find the target folder
+    const folderName = isSuperAdmin ? "parchiadmin" : "MeriParchi";
     const searchRes = await fetch(
       "https://www.googleapis.com/drive/v3/files?" +
         new URLSearchParams({
-          q: "name = 'MeriParchi' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+          q: `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
           fields: "files(id)",
         }),
       {
