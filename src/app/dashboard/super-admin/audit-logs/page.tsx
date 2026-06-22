@@ -56,6 +56,11 @@ const ACTION_TYPES = [
   { value: "RESTORE_PARTIAL_GDRIVE", label: "Restore Partial Drive" },
 ];
 
+interface CompanySuggestion {
+  orgcode: string;
+  orgname: string;
+}
+
 export default function SuperAdminAuditPage() {
   const { session } = useAuth();
 
@@ -66,8 +71,17 @@ export default function SuperAdminAuditPage() {
     limit: 20,
     totalPages: 1,
   });
+  
+  // Active search/filter states that trigger API requests
   const [search, setSearch] = useState("");
   const [filterOrg, setFilterOrg] = useState("");
+
+  // Temporary input states
+  const [searchInputVal, setSearchInputVal] = useState("");
+  const [orgcodeInputVal, setOrgcodeInputVal] = useState("");
+  const [showOrgSuggestions, setShowOrgSuggestions] = useState(false);
+  const [availableCompanies, setAvailableCompanies] = useState<CompanySuggestion[]>([]);
+
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -75,6 +89,7 @@ export default function SuperAdminAuditPage() {
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const orgSuggestionsRef = React.useRef<HTMLDivElement>(null);
 
   // Purging and Modal states
   const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false);
@@ -165,14 +180,33 @@ export default function SuperAdminAuditPage() {
     }
   };
 
+  // Fetch available companies list on mount for suggestions
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await fetch("/api/company/super-admin");
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setAvailableCompanies(data.companies || []);
+        }
+      } catch (err) {
+        console.error("Failed to load companies suggestions list", err);
+      }
+    };
+    fetchCompanies();
+  }, []);
+
   useEffect(() => {
     fetchLogs(1);
-  }, [session, selectedActions, startDate, endDate, filterOrg]);
+  }, [session, selectedActions, startDate, endDate, search, filterOrg]);
 
   useEffect(() => {
     const handleGlobalClick = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsActionDropdownOpen(false);
+      }
+      if (orgSuggestionsRef.current && !orgSuggestionsRef.current.contains(event.target as Node)) {
+        setShowOrgSuggestions(false);
       }
     };
     document.addEventListener("click", handleGlobalClick);
@@ -181,7 +215,9 @@ export default function SuperAdminAuditPage() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchLogs(1);
+    setSearch(searchInputVal);
+    setFilterOrg(orgcodeInputVal);
+    setShowOrgSuggestions(false);
   };
 
   const handlePurgeLogs = async (e: React.FormEvent) => {
@@ -345,26 +381,59 @@ export default function SuperAdminAuditPage() {
                 <input
                   type="text"
                   placeholder="Search by operator ID, action details, or logs description..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={searchInputVal}
+                  onChange={(e) => setSearchInputVal(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm"
                 />
                 <MagnifyingGlassIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-400" />
               </div>
             </div>
 
-            {/* Orgcode Input */}
-            <div className="w-full lg:w-48 flex flex-col gap-1.5">
+            {/* Orgcode Input with Suggestions */}
+            <div ref={orgSuggestionsRef} className="w-full lg:w-48 flex flex-col gap-1.5 relative">
               <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Org Code</label>
               <div className="relative">
                 <input
                   type="text"
                   placeholder="All Orgs"
-                  value={filterOrg}
-                  onChange={(e) => setFilterOrg(e.target.value.toUpperCase())}
+                  value={orgcodeInputVal}
+                  onChange={(e) => {
+                    setOrgcodeInputVal(e.target.value.toUpperCase());
+                    setShowOrgSuggestions(true);
+                  }}
+                  onFocus={() => setShowOrgSuggestions(true)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm uppercase"
                 />
                 <BuildingOfficeIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-400" />
+                
+                {showOrgSuggestions && availableCompanies.filter(c =>
+                  c.orgcode.toLowerCase().includes(orgcodeInputVal.toLowerCase()) ||
+                  c.orgname.toLowerCase().includes(orgcodeInputVal.toLowerCase())
+                ).length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto z-50 py-1 divide-y divide-slate-100 dark:divide-slate-800">
+                    {availableCompanies.filter(c =>
+                      c.orgcode.toLowerCase().includes(orgcodeInputVal.toLowerCase()) ||
+                      c.orgname.toLowerCase().includes(orgcodeInputVal.toLowerCase())
+                    ).map((c) => (
+                      <button
+                        key={c.orgcode}
+                        type="button"
+                        onClick={() => {
+                          setOrgcodeInputVal(c.orgcode);
+                          setShowOrgSuggestions(false);
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex flex-col justify-center cursor-pointer"
+                      >
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                          {c.orgname}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                          Code: {c.orgcode}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
