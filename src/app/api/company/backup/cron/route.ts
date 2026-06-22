@@ -7,13 +7,23 @@ import { logAction } from "@/lib/audit";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const force = searchParams.get("force") === "true";
+    let force = searchParams.get("force") === "true";
+    const superadmin = searchParams.get("superadmin") === "true";
+    const targetOrg = searchParams.get("orgcode");
 
-    // 1. Find all companies that have Google Drive linked
-    const companiesResult = await query(
-      "SELECT orgcode, backup_schedule, last_backup_time FROM public.company WHERE gdrive_refresh_token IS NOT NULL AND gdrive_refresh_token != ''"
-    );
+    // 1. Find companies that have Google Drive linked, filtered by target parameters
+    let queryStr = "SELECT orgcode, backup_schedule, last_backup_time FROM public.company WHERE gdrive_refresh_token IS NOT NULL AND gdrive_refresh_token != ''";
+    const queryParams: any[] = [];
 
+    if (superadmin || targetOrg === "SUPER") {
+      queryStr += " AND orgcode = 'SUPER'";
+      force = true; // Always force backup when invoking superadmin/SUPER explicitly
+    } else if (targetOrg) {
+      queryStr += " AND orgcode = $1";
+      queryParams.push(targetOrg);
+    }
+
+    const companiesResult = await query(queryStr, queryParams);
     const companies = companiesResult.rows;
     const results: any[] = [];
 
