@@ -27,10 +27,10 @@ export async function generateBackupZip(orgcode: string, isSuperAdmin: boolean =
   if (isSuperAdmin) {
     company = await query("SELECT * FROM public.company");
     users = await query("SELECT * FROM public.users");
-    payments = await query("SELECT * FROM public.payments");
-    slips = await query("SELECT * FROM public.slips");
-    slipitems = await query("SELECT * FROM public.slipitems");
-    audit_logs = await query("SELECT * FROM public.audit_logs");
+    payments = { rows: [] };
+    slips = { rows: [] };
+    slipitems = { rows: [] };
+    audit_logs = await query("SELECT * FROM public.audit_logs WHERE orgcode = $1", [orgcode]);
     pricing_plans = await query("SELECT * FROM public.pricing_plans");
     coupons = await query("SELECT * FROM public.coupons");
     coupon_uses = await query("SELECT * FROM public.coupon_uses");
