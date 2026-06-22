@@ -491,23 +491,6 @@ export default function SuperAdminBackupPage() {
 
             <div className="border-t border-slate-200 dark:border-slate-700 pt-5 flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Auto Backup Schedule</label>
-                <select
-                  disabled={savingSchedule}
-                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer disabled:opacity-50"
-                  value={backupSchedule}
-                  onChange={(e) => handleUpdateSchedule(e.target.value)}
-                >
-                  <option value="none" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Disabled (No Auto Backup)</option>
-                  <option value="twice_daily" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Twice a Day (12 hours)</option>
-                  <option value="daily" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Daily Backup</option>
-                  <option value="weekly" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Weekly Backup</option>
-                  <option value="monthly" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Monthly Backup</option>
-                </select>
-                <p className="text-xs text-slate-500 mt-1">Automatically push complete system backups to parchiadmin on schedule.</p>
-              </div>
-
-              <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Backup Retention Limit</label>
                 <input
                   type="number"
