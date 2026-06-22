@@ -4,6 +4,8 @@ import { query } from "@/lib/db";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import Razorpay from "razorpay";
+import { logAction } from "@/lib/audit";
 
 function getEnv(key: string): string | undefined {
   try {
@@ -38,17 +40,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    const { orgcode } = sessionCheck.rows[0];
+    const { orgcode, userid } = sessionCheck.rows[0];
 
     const body = await request.json();
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planKey } = body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planKey, couponCode } = body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !planKey) {
       return NextResponse.json({ success: false, message: "Missing required verification fields" }, { status: 400 });
     }
 
+    const keyId = getEnv("RAZORPAY_KEY_ID");
     const keySecret = getEnv("RAZORPAY_KEY_SECRET");
-    if (!keySecret) {
+    if (!keySecret || !keyId) {
       return NextResponse.json({ success: false, message: "Razorpay configuration missing on server" }, { status: 500 });
     }
 
@@ -60,9 +63,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Payment verification failed: Signature mismatch" }, { status: 400 });
     }
 
-    // Retrieve pricing plan duration
-    const planRes = await query("SELECT duration_months FROM public.pricing_plans WHERE plan_key = $1", [planKey]);
-    const durationMonths = planRes.rows.length > 0 ? parseInt(planRes.rows[0].duration_months, 10) : 1;
+    // Retrieve pricing plan duration and original price
+    const planRes = await query("SELECT price, duration_months, plan_name FROM public.pricing_plans WHERE plan_key = $1", [planKey]);
+    if (planRes.rows.length === 0) {
+      return NextResponse.json({ success: false, message: "Plan not found" }, { status: 400 });
+    }
+
+    const planName = planRes.rows[0].plan_name;
+    const priceRs = parseFloat(planRes.rows[0].price);
+    const durationMonths = parseInt(planRes.rows[0].duration_months, 10);
+    let finalPriceRs = priceRs;
+    let appliedDiscountRs = 0;
+
+    // Validate Coupon
+    let validCouponApplied = false;
+    if (couponCode) {
+      const couponCheck = await query(
+        "SELECT code, discount, type, value, status, start_date, expiry_date FROM public.coupons WHERE code = $1",
+        [couponCode.trim().toUpperCase()]
+      );
+
+      if (couponCheck.rows.length > 0) {
+        const coupon = couponCheck.rows[0];
+        const now = new Date();
+        const startDate = new Date(coupon.start_date);
+        const expiryDate = new Date(coupon.expiry_date);
+
+        if (coupon.status === "active" && now >= startDate && now <= expiryDate) {
+          validCouponApplied = true;
+          const couponVal = parseFloat(coupon.value);
+          if (coupon.type === "percentage") {
+            appliedDiscountRs = (priceRs * couponVal) / 100;
+          } else {
+            appliedDiscountRs = couponVal;
+          }
+          finalPriceRs = Math.max(1.00, priceRs - appliedDiscountRs);
+        }
+      }
+    }
 
     // Update Company subscription in independent table
     const subscriptionRes = await query(
@@ -72,18 +110,18 @@ export async function POST(request: Request) {
 
     const now = new Date();
     let currentEnd = now;
-    let subscriptionType = "monthly";
+    let oldSubscriptionType = "trial";
 
     if (subscriptionRes.rows.length > 0) {
       const sub = subscriptionRes.rows[0];
-      subscriptionType = sub.subscription_type;
+      oldSubscriptionType = sub.subscription_type;
       if (sub.subscription_end) {
         currentEnd = new Date(sub.subscription_end);
       }
     }
 
     let newEnd: Date;
-    if (subscriptionType === "trial" || currentEnd < now) {
+    if (oldSubscriptionType === "trial" || currentEnd < now) {
       newEnd = new Date(now.getTime() + durationMonths * 30 * 24 * 60 * 60 * 1000);
     } else {
       newEnd = new Date(currentEnd.getTime() + durationMonths * 30 * 24 * 60 * 60 * 1000);
@@ -97,10 +135,105 @@ export async function POST(request: Request) {
       [orgcode, newEnd]
     );
 
+    // Increment coupon usage and log coupon apply if valid
+    if (validCouponApplied) {
+      await query(
+        "INSERT INTO public.coupon_uses (orgcode, code) VALUES ($1, $2)",
+        [orgcode, couponCode.trim().toUpperCase()]
+      );
+      await query(
+        "UPDATE public.coupons SET total_usage = total_usage + 1 WHERE code = $1",
+        [couponCode.trim().toUpperCase()]
+      );
+      
+      // Audit Log for Coupon Application
+      await logAction({
+        orgcode,
+        userid,
+        action: "COUPON_APPLIED",
+        details: {
+          couponCode: couponCode.trim().toUpperCase(),
+          discount: appliedDiscountRs,
+          originalPrice: priceRs,
+          finalPrice: finalPriceRs
+        }
+      });
+    }
+
+    // Retrieve Company Info for Razorpay Invoice creation
+    const companyRes = await query("SELECT email, orgname FROM public.company WHERE orgcode = $1", [orgcode]);
+    const companyEmail = companyRes.rows.length > 0 ? companyRes.rows[0].email : null;
+    const companyName = companyRes.rows.length > 0 ? companyRes.rows[0].orgname : orgcode;
+
+    // Create Razorpay Invoice
+    let invoiceUrl = null;
+    try {
+      const razorpay = new Razorpay({
+        key_id: keyId,
+        key_secret: keySecret,
+      });
+
+      const invoice = await razorpay.invoices.create({
+        type: "invoice",
+        date: Math.floor(Date.now() / 1000),
+        customer: {
+          name: companyName,
+          email: companyEmail || "billing@example.com",
+        },
+        line_items: [
+          {
+            name: `${planName} Subscription Renewal`,
+            amount: Math.round(finalPriceRs * 100), // in paise
+            currency: "INR",
+            quantity: 1
+          }
+        ]
+      } as any);
+      invoiceUrl = invoice.short_url;
+    } catch (invErr) {
+      console.error("Razorpay Invoice Creation Failed:", invErr);
+    }
+
+    // Record checkout to public.payment_history
+    await query(
+      `INSERT INTO public.payment_history (orgcode, order_id, payment_id, plan_key, amount, coupon_code, invoice_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [orgcode, razorpay_order_id, razorpay_payment_id, planKey, finalPriceRs, validCouponApplied ? couponCode.trim().toUpperCase() : null, invoiceUrl]
+    );
+
+    // Audit Log for Payment success
+    await logAction({
+      orgcode,
+      userid,
+      action: "LOG_PAYMENT",
+      details: {
+        amount: finalPriceRs,
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        planKey,
+        couponCode: validCouponApplied ? couponCode.trim().toUpperCase() : null,
+        invoiceUrl
+      }
+    });
+
+    // Audit Log for Subscription Extension
+    await logAction({
+      orgcode,
+      userid,
+      action: "UPDATE_COMPANY_SETTINGS",
+      details: {
+        subscription_type: "premium_upgraded",
+        durationMonths,
+        oldEnd: currentEnd,
+        newEnd
+      }
+    });
+
     return NextResponse.json({
       success: true,
-      message: "Payment verified successfully. Subscription upgraded/extended by 30 days.",
+      message: "Payment verified successfully. Subscription upgraded/extended.",
       subscription_end: newEnd,
+      invoice_url: invoiceUrl
     });
   } catch (error: any) {
     console.error("Razorpay Verify Payment Error:", error);

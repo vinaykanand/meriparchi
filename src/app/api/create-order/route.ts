@@ -41,20 +41,58 @@ export async function POST(request: Request) {
     const { orgcode } = sessionCheck.rows[0];
 
     const body = await request.json();
-    const { planKey, currency = "INR" } = body;
+    const { planKey, couponCode, currency = "INR" } = body;
 
     if (!planKey) {
       return NextResponse.json({ success: false, message: "planKey parameter is required" }, { status: 400 });
     }
 
     // Retrieve pricing details from DB
-    const planRes = await query("SELECT price FROM public.pricing_plans WHERE plan_key = $1", [planKey]);
+    const planRes = await query("SELECT price, plan_name FROM public.pricing_plans WHERE plan_key = $1", [planKey]);
     if (planRes.rows.length === 0) {
       return NextResponse.json({ success: false, message: "Pricing plan not found" }, { status: 400 });
     }
 
+    const planName = planRes.rows[0].plan_name;
     const priceRs = parseFloat(planRes.rows[0].price);
-    const amountPaise = Math.round(priceRs * 100);
+    let finalPriceRs = priceRs;
+    let appliedDiscountRs = 0;
+
+    // Validate and Apply Coupon if provided
+    if (couponCode) {
+      const couponCheck = await query(
+        "SELECT code, discount, type, value, status, start_date, expiry_date FROM public.coupons WHERE code = $1",
+        [couponCode.trim().toUpperCase()]
+      );
+
+      if (couponCheck.rows.length === 0) {
+        return NextResponse.json({ success: false, message: "Invalid coupon code" }, { status: 400 });
+      }
+
+      const coupon = couponCheck.rows[0];
+      if (coupon.status !== "active") {
+        return NextResponse.json({ success: false, message: "This coupon is inactive" }, { status: 400 });
+      }
+
+      const now = new Date();
+      const startDate = new Date(coupon.start_date);
+      const expiryDate = new Date(coupon.expiry_date);
+
+      if (now < startDate || now > expiryDate) {
+        return NextResponse.json({ success: false, message: "This coupon has expired or is not yet active" }, { status: 400 });
+      }
+
+      const couponVal = parseFloat(coupon.value);
+      if (coupon.type === "percentage") {
+        appliedDiscountRs = (priceRs * couponVal) / 100;
+      } else {
+        appliedDiscountRs = couponVal;
+      }
+
+      finalPriceRs = Math.max(1.00, priceRs - appliedDiscountRs);
+    }
+
+    const amountPaise = Math.round(finalPriceRs * 100);
 
     if (amountPaise < 100) {
       return NextResponse.json({ success: false, message: "Invalid amount. Minimum amount is 100 paise (₹1)." }, { status: 400 });
@@ -84,6 +122,10 @@ export async function POST(request: Request) {
       order_id: order.id,
       amount: order.amount,
       currency: order.currency,
+      originalPrice: priceRs,
+      finalPrice: finalPriceRs,
+      appliedDiscount: appliedDiscountRs,
+      planName
     });
   } catch (error: any) {
     console.error("Razorpay Create Order Error:", error);
