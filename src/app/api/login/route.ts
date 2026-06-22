@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     }
 
     // Check if the user is a super admin
+    let isSuperAdmin = false;
     if (data.authtoken) {
       const superAdminCheck = await query(
         "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2",
@@ -60,7 +61,21 @@ export async function POST(request: Request) {
       );
       if (superAdminCheck.rows.length > 0 && superAdminCheck.rows[0].issuperadmin) {
         data.issuperadmin = true;
+        isSuperAdmin = true;
       }
+    }
+
+    // Only allow superadmin users to login under the SUPER organization code
+    if (orgcode.trim().toUpperCase() === "SUPER" && !isSuperAdmin) {
+      if (enableSecurityLogs) {
+        await logAction({
+          orgcode,
+          userid,
+          action: "LOGIN_FAILED",
+          details: { username: userid, ip, userAgent, message: "Unauthorized access: non-superadmin login attempt on SUPER orgcode" },
+        });
+      }
+      return NextResponse.json({ success: false, message: "Only superadmin can login under this organization code." }, { status: 403 });
     }
 
     // Set the cookie if authtoken is present in the login response
