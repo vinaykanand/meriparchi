@@ -97,7 +97,10 @@ export async function POST(request: Request) {
           } else {
             appliedDiscountRs = couponVal;
           }
-          finalPriceRs = Math.max(1.00, priceRs - appliedDiscountRs);
+          if (priceRs - appliedDiscountRs < 1.00) {
+            appliedDiscountRs = Math.max(0, priceRs - 1.00);
+          }
+          finalPriceRs = priceRs - appliedDiscountRs;
         }
       }
     }

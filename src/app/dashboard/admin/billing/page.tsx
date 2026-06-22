@@ -165,6 +165,13 @@ export default function AdminBillingPage() {
             const selectedPlan = plans.find(p => p.plan_key === selectedPlanKey);
             if (selectedPlan) {
               const price = parseFloat(selectedPlan.price);
+
+              if (price <= 1.00) {
+                addToast("Minimum transaction amount is ₹1.00. Coupon cannot be applied to this plan.", "error");
+                setApplyingCoupon(false);
+                return;
+              }
+
               const value = parseFloat(coupon.value);
               let discount = 0;
               if (coupon.type === "percentage") {
@@ -172,7 +179,13 @@ export default function AdminBillingPage() {
               } else {
                 discount = value;
               }
-              const appliedPrice = Math.max(1.00, price - discount);
+
+              if (price - discount < 1.00) {
+                discount = price - 1.00;
+                addToast("Coupon discount adjusted to maintain the minimum payment of ₹1.00.", "info");
+              }
+
+              const appliedPrice = price - discount;
               setAppliedCouponInfo({
                 code: coupon.code,
                 discountDescription: coupon.discount,
