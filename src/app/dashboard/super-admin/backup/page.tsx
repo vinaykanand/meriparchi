@@ -37,13 +37,6 @@ export default function SuperAdminBackupPage() {
   const [backupPassword, setBackupPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [showBackupPassword, setShowBackupPassword] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setWebhookUrl(`${window.location.origin}/api/company/backup/cron?superadmin=true`);
-    }
-  }, []);
 
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
@@ -497,32 +490,6 @@ export default function SuperAdminBackupPage() {
             </div>
 
             <div className="border-t border-slate-200 dark:border-slate-700 pt-5 flex flex-col gap-4">
-              {webhookUrl && (
-                <div className="flex flex-col gap-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Automated Cron Webhook URL</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={webhookUrl}
-                      className="w-full px-3 py-1.5 text-xs font-mono border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 outline-none select-all"
-                    />
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(webhookUrl);
-                        addToast("Webhook URL copied to clipboard!", "success");
-                      }}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all whitespace-nowrap"
-                    >
-                      Copy URL
-                    </button>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Set up an external scheduled HTTP GET cron job (e.g. via Vercel Cron, GitHub Actions, or cron-job.org) targeting this endpoint to automatically trigger a complete system backup to Google Drive.
-                  </p>
-                </div>
-              )}
-
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Backup Retention Limit</label>
                 <input

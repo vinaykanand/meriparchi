@@ -23,12 +23,17 @@ export async function checkAndTriggerBackup(orgcode: string) {
 
     const { backup_schedule, last_backup_time, gdrive_refresh_token } = configRes.rows[0];
 
+    let schedule = backup_schedule;
+    if (orgcode === "SUPER" && (!schedule || schedule === "none")) {
+      schedule = "daily"; // Default super admin to daily backup schedule
+    }
+
     // If no schedule set, or Google Drive not linked, skip
-    if (!backup_schedule || backup_schedule === "none" || !gdrive_refresh_token) {
+    if (!schedule || schedule === "none" || !gdrive_refresh_token) {
       return { triggered: false, message: "No active schedule or Google Drive not linked" };
     }
 
-    const intervalMs = INTERVALS[backup_schedule.toLowerCase()];
+    const intervalMs = INTERVALS[schedule.toLowerCase()];
     if (!intervalMs) {
       return { triggered: false, message: `Invalid interval schedule: ${backup_schedule}` };
     }
