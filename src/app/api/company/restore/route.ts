@@ -386,12 +386,11 @@ export async function POST(request: Request) {
       client = await pool.connect();
       await client.query("BEGIN");
 
-      // 1. Truncate all tables Cascade
+      // 1. Truncate all tables Cascade (excluding company to preserve foreign keys and prevent cascade deletion)
       await client.query("TRUNCATE public.slipitems CASCADE");
       await client.query("TRUNCATE public.slips CASCADE");
       await client.query("TRUNCATE public.payments CASCADE");
       await client.query("TRUNCATE public.users CASCADE");
-      await client.query("TRUNCATE public.company CASCADE");
       await client.query("TRUNCATE public.audit_logs CASCADE");
       await client.query("TRUNCATE public.pricing_plans CASCADE");
       await client.query("TRUNCATE public.coupons CASCADE");
@@ -400,7 +399,28 @@ export async function POST(request: Request) {
       await client.query("TRUNCATE public.company_subscriptions CASCADE");
 
       // 2. Restore all data
-      await dynamicInsert(client, "company", companyData);
+      // UPSERT company rows to avoid violating referential integrity constraints
+      for (const row of companyData) {
+        const check = await client.query("SELECT orgcode FROM public.company WHERE orgcode = $1", [row.orgcode]);
+        if (check.rows.length > 0) {
+          const columns = Object.keys(row).filter(col => col !== "orgcode");
+          if (columns.length > 0) {
+            const setClause = columns.map((col, idx) => `${sanitizeIdentifier(col)} = $${idx + 1}`).join(", ");
+            const values = columns.map(col => {
+              const val = row[col];
+              return val !== null && typeof val === "object" ? JSON.stringify(val) : val;
+            });
+            values.push(row.orgcode);
+            await client.query(
+              `UPDATE public.company SET ${setClause} WHERE orgcode = $${columns.length + 1}`,
+              values
+            );
+          }
+        } else {
+          await dynamicInsert(client, "company", [row]);
+        }
+      }
+
       await dynamicInsert(client, "users", usersData);
       await dynamicInsert(client, "payments", paymentsData);
       await dynamicInsert(client, "slips", slipsData);
