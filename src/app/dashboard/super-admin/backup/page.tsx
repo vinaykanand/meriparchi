@@ -675,13 +675,14 @@ export default function SuperAdminBackupPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Enter Backup Encryption Password (if applicable)</label>
+              <label className="text-xs font-semibold text-slate-650 dark:text-slate-350">Enter Super Admin Password to Proceed</label>
               <input
                 type="password"
-                placeholder="Leave blank if backup was not encrypted"
+                placeholder="••••••••"
                 value={restorePassword}
                 onChange={(e) => setRestorePassword(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-rose-500 text-slate-800 dark:text-slate-200 outline-none"
+                required
               />
             </div>
 
@@ -696,7 +697,7 @@ export default function SuperAdminBackupPage() {
               </button>
               <button
                 type="button"
-                disabled={restoring}
+                disabled={restoring || !restorePassword}
                 onClick={() => {
                   setShowRestoreModal(false);
                   handleRestore(restoreFileId, restorePassword);
