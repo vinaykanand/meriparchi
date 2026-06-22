@@ -219,28 +219,35 @@ export default function SuperAdminAuditPage() {
       case "CREATE_SLIP":
       case "CREATE_USER":
       case "LOGIN_SUCCESS":
-        return "bg-emerald-950/40 text-emerald-400 border border-emerald-800/30";
+        return "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
       case "MANUAL_BACKUP_LOCAL":
+        return "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800/30";
       case "MANUAL_BACKUP_GDRIVE":
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/30";
       case "AUTO_BACKUP_GDRIVE":
-        return "bg-sky-950/40 text-sky-400 border border-sky-800/30";
+        return "bg-teal-50 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400 border border-teal-200 dark:border-teal-800/30";
       case "RESTORE_BACKUP_LOCAL":
+        return "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/30";
       case "RESTORE_BACKUP_GDRIVE":
+        return "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400 border border-purple-200 dark:border-purple-800/30";
       case "RESTORE_PARTIAL_LOCAL":
+        return "bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400 border border-sky-200 dark:border-sky-800/30";
       case "RESTORE_PARTIAL_GDRIVE":
-        return "bg-indigo-950/40 text-indigo-400 border border-indigo-800/30";
+        return "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30";
       case "DELETE_SLIP":
       case "DELETE_USER":
       case "CLOSE_ACCOUNT":
       case "LOGIN_FAILED":
-        return "bg-rose-950/40 text-rose-400 border border-rose-800/30";
+        return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400 border border-rose-200 dark:border-rose-800/30";
       case "UPDATE_COMPANY_SETTINGS":
       case "UPDATE_USER":
-        return "bg-amber-950/40 text-amber-400 border border-amber-800/30";
+        return "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800/30";
       case "LOG_PAYMENT":
-        return "bg-violet-950/40 text-violet-400 border border-violet-800/30";
+        return "bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800/30";
+      case "LOGOUT":
+        return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
       default:
-        return "bg-slate-900 text-slate-400 border border-slate-800";
+        return "bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
     }
   };
 
@@ -300,21 +307,19 @@ export default function SuperAdminAuditPage() {
     } catch (e) {
       return typeof log.details === "string" ? log.details : JSON.stringify(log.details);
     }
-  };
-
-  return (
-    <div className="flex flex-col gap-6 animate-fade-in relative max-w-7xl mx-auto p-2">
+  };  return (
+    <div className="flex flex-col gap-6 animate-fade-in relative max-w-7xl mx-auto p-2 text-slate-900 dark:text-slate-100">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-100">Global Audit Logs</h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Global Audit Logs</h1>
+          <p className="text-slate-500 text-sm mt-1">
             Monitor system activities, backup logs, and administrator activities across all client organizations.
           </p>
         </div>
         <div className="flex gap-2.5">
           <button
             onClick={() => fetchLogs(pagination.page)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
           >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -330,43 +335,43 @@ export default function SuperAdminAuditPage() {
       </div>
 
       {/* Filters Card */}
-      <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl border border-slate-850 p-5 shadow-sm relative z-20">
+      <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative z-20">
         <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col lg:flex-row gap-4 items-end w-full">
             {/* Search Input */}
             <div className="flex-1 flex flex-col gap-1.5 w-full">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Search</label>
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Search</label>
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Search by operator ID, action details, or logs description..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 outline-none focus:ring-2 focus:ring-violet-500 transition-all text-slate-100 text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm"
                 />
-                <MagnifyingGlassIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-500" />
+                <MagnifyingGlassIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-400" />
               </div>
             </div>
 
             {/* Orgcode Input */}
             <div className="w-full lg:w-48 flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Org Code</label>
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Org Code</label>
               <div className="relative">
                 <input
                   type="text"
                   placeholder="All Orgs"
                   value={filterOrg}
                   onChange={(e) => setFilterOrg(e.target.value.toUpperCase())}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 outline-none focus:ring-2 focus:ring-violet-500 transition-all text-slate-100 text-sm uppercase"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm uppercase"
                 />
-                <BuildingOfficeIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-500" />
+                <BuildingOfficeIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-400" />
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-colors shadow-md shadow-violet-500/20 text-sm min-h-[46px] w-full sm:w-auto"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-md shadow-blue-500/20 text-sm min-h-[46px] w-full sm:w-auto"
               >
                 Apply Filters
               </button>
@@ -374,7 +379,7 @@ export default function SuperAdminAuditPage() {
                 type="button"
                 onClick={handleExportCSV}
                 disabled={exportingCsv}
-                className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl transition-all disabled:opacity-50 text-sm border border-slate-700 shadow-sm min-h-[46px] w-full sm:w-auto"
+                className="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-xl transition-all disabled:opacity-50 text-sm border border-slate-200 dark:border-slate-700 shadow-sm min-h-[46px] w-full sm:w-auto"
               >
                 {exportingCsv ? "Exporting..." : "Export CSV"}
               </button>
@@ -383,32 +388,32 @@ export default function SuperAdminAuditPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
             <div className="flex flex-col gap-1.5 w-full">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Start Date</label>
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Start Date</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 outline-none focus:ring-2 focus:ring-violet-500 transition-all text-slate-100 text-sm font-semibold min-h-[46px]"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5 w-full">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">End Date</label>
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">End Date</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 outline-none focus:ring-2 focus:ring-violet-500 transition-all text-slate-100 text-sm font-semibold min-h-[46px]"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
               />
             </div>
 
             <div ref={dropdownRef} className="flex flex-col gap-1.5 w-full">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Filter Action</label>
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Filter Action</label>
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 outline-none focus:ring-2 focus:ring-violet-500 transition-all text-slate-100 flex items-center justify-between cursor-pointer text-sm font-semibold min-h-[46px]"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white flex items-center justify-between cursor-pointer text-sm font-semibold min-h-[46px]"
                 >
                   <span className="truncate flex items-center gap-1.5">
                     {selectedActions.length === 0 ? (
@@ -418,17 +423,17 @@ export default function SuperAdminAuditPage() {
                         {ACTION_TYPES.find(a => a.value === selectedActions[0])?.label || selectedActions[0].replace(/_/g, " ")}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-950/40 text-violet-400 border border-violet-850 uppercase tracking-wide">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-750 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30 uppercase tracking-wide">
                         {selectedActions.length} Actions
                       </span>
                     )}
                   </span>
-                  <span className="text-slate-500 text-xs">▼</span>
+                  <span className="text-slate-400 text-xs">▼</span>
                 </button>
-                <FunnelIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-500 pointer-events-none" />
+                <FunnelIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
 
                 {isActionDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 rounded-xl shadow-xl border border-slate-700 max-h-64 overflow-y-auto z-50 py-1 divide-y divide-slate-850">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto z-50 py-1 divide-y divide-slate-100 dark:divide-slate-800">
                     {ACTION_TYPES.map((type) => {
                       const isChecked = type.value === "" 
                         ? selectedActions.length === 0 
@@ -440,7 +445,7 @@ export default function SuperAdminAuditPage() {
                           type="button"
                           onClick={() => {
                             if (type.value === "") {
-                                setSelectedActions([]);
+                              setSelectedActions([]);
                             } else {
                               setSelectedActions((prev) => {
                                 if (prev.includes(type.value)) {
@@ -451,20 +456,20 @@ export default function SuperAdminAuditPage() {
                               });
                             }
                           }}
-                          className="w-full text-left px-4 py-2.5 hover:bg-slate-750 transition-colors flex items-center gap-3 cursor-pointer"
+                          className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-3 cursor-pointer"
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => {}} 
-                            className="w-4 h-4 rounded border-slate-600 text-violet-600 focus:ring-violet-500 pointer-events-none bg-slate-900"
+                            className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 pointer-events-none"
                           />
                           {type.value ? (
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(type.value)}`}>
                               {type.label}
                             </span>
                           ) : (
-                            <span className="text-sm font-semibold text-slate-300">
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                               All Actions
                             </span>
                           )}
@@ -480,11 +485,11 @@ export default function SuperAdminAuditPage() {
       </div>
 
       {/* Logs Table Card */}
-      <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl border border-slate-850 shadow-sm overflow-hidden relative z-10">
+      <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden relative z-10">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse table-fixed">
             <thead>
-              <tr className="border-b border-slate-850 bg-slate-900/30 text-slate-400 text-xs font-bold uppercase tracking-wider">
+              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
                 <th className="py-4 px-6 w-[18%] min-w-[120px]">Timestamp</th>
                 <th className="py-4 px-6 w-[10%] min-w-[80px]">Org Code</th>
                 <th className="py-4 px-6 w-[12%] min-w-[80px]">Operator</th>
@@ -493,19 +498,19 @@ export default function SuperAdminAuditPage() {
                 <th className="py-4 px-6 w-[10%] text-right min-w-[80px]">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-850">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {loading && logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-3">
-                      <ArrowPathIcon className="w-8 h-8 animate-spin text-violet-500" />
+                      <ArrowPathIcon className="w-8 h-8 animate-spin text-blue-500" />
                       <span>Loading logs...</span>
                     </div>
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-500">
                     No matching audit logs found.
                   </td>
                 </tr>
@@ -514,11 +519,11 @@ export default function SuperAdminAuditPage() {
                   const isExpanded = expandedLogId === log.id;
                   return (
                     <React.Fragment key={log.id}>
-                      <tr className="hover:bg-slate-800/10 transition-colors text-sm text-slate-300">
-                        <td className="py-4 px-6 whitespace-nowrap font-medium text-slate-400">
+                      <tr className="hover:bg-slate-50/30 dark:hover:bg-slate-700/10 transition-colors text-sm text-slate-700 dark:text-slate-200">
+                        <td className="py-4 px-6 whitespace-nowrap font-medium text-slate-500 dark:text-slate-400">
                           {new Date(log.timestamp).toLocaleString()}
                         </td>
-                        <td className="py-4 px-6 whitespace-nowrap font-bold text-violet-400 uppercase tracking-wide font-mono">
+                        <td className="py-4 px-6 whitespace-nowrap font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide font-mono">
                           {log.orgcode}
                         </td>
                         <td className="py-4 px-6 whitespace-nowrap font-semibold">
@@ -535,7 +540,7 @@ export default function SuperAdminAuditPage() {
                         <td className="py-4 px-6 text-right whitespace-nowrap">
                           <button
                             onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                            className="text-xs font-bold text-violet-400 hover:text-violet-300 hover:underline"
+                            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
                           >
                             {isExpanded ? "Hide JSON" : "View JSON"}
                           </button>
@@ -543,8 +548,8 @@ export default function SuperAdminAuditPage() {
                       </tr>
                       {isExpanded && (
                         <tr>
-                          <td colSpan={6} className="py-4 px-6 bg-slate-900/40 border-t border-b border-slate-850">
-                            <pre className="text-xs font-mono text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-850 max-h-60 overflow-y-auto">
+                          <td colSpan={6} className="py-4 px-6 bg-slate-50/80 dark:bg-slate-900/50 border-t border-b border-slate-100 dark:border-slate-800">
+                            <pre className="text-xs font-mono text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 max-h-60 overflow-y-auto shadow-inner">
                               {formatDetails(log.details)}
                             </pre>
                           </td>
@@ -560,22 +565,22 @@ export default function SuperAdminAuditPage() {
 
         {/* Pagination bar */}
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-850 bg-slate-900/30">
-            <span className="text-xs text-slate-400">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20">
+            <span className="text-xs text-slate-500 dark:text-slate-400">
               Showing page <strong>{pagination.page}</strong> of <strong>{pagination.totalPages}</strong> ({pagination.total} total logs)
             </span>
             <div className="flex gap-2">
               <button
                 onClick={() => fetchLogs(pagination.page - 1)}
                 disabled={pagination.page <= 1 || loading}
-                className="p-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeftIcon className="w-4 h-4" />
               </button>
               <button
                 onClick={() => fetchLogs(pagination.page + 1)}
                 disabled={pagination.page >= pagination.totalPages || loading}
-                className="p-2 rounded-lg border border-slate-700 bg-slate-800 text-slate-400 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRightIcon className="w-4 h-4" />
               </button>
@@ -586,13 +591,13 @@ export default function SuperAdminAuditPage() {
 
       {/* Confirmation Modal */}
       {isPurgeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-100 mb-2">Purge Action Audit Logs</h3>
-            <p className="text-sm text-slate-400 mb-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Purge Action Audit Logs</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
               Warning: You are about to permanently delete action audit logs. This action cannot be undone.
               {filterOrg.trim() && (
-                <span className="block mt-2 font-semibold text-rose-400">
+                <span className="block mt-2 font-semibold text-rose-600 dark:text-rose-400">
                   Target Org Code: {filterOrg.trim().toUpperCase()} Only
                 </span>
               )}
@@ -602,7 +607,7 @@ export default function SuperAdminAuditPage() {
             <form onSubmit={handlePurgeLogs} className="flex flex-col gap-4">
               <input
                 type="password"
-                className="w-full px-4 py-2 text-sm border border-slate-700 rounded-xl bg-slate-900 text-slate-100 outline-none focus:ring-2 focus:ring-rose-500 transition-all font-mono"
+                className="w-full px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-rose-500 transition-all font-mono"
                 placeholder="Super Admin Password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -616,14 +621,14 @@ export default function SuperAdminAuditPage() {
                     setIsPurgeModalOpen(false);
                     setConfirmPassword("");
                   }}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-700 font-semibold text-sm transition-colors"
+                  className="px-4 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium text-sm transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={purging}
-                  className="px-5 py-2 rounded-xl text-white font-bold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 transition-all text-sm shadow-md shadow-rose-500/20"
+                  className="px-5 py-2 rounded-xl text-white font-semibold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 transition-all text-sm shadow-md shadow-rose-500/20"
                 >
                   {purging ? "Purging..." : "Confirm Purge"}
                 </button>

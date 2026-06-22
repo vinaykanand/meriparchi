@@ -196,7 +196,7 @@ export default function SuperAdminPage() {
   );
 
   return (
-    <div className="text-slate-100 flex flex-col relative">
+    <div className="text-slate-900 dark:text-slate-100 flex flex-col relative">
       {/* Toast Notification Container */}
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full">
         {toasts.map((toast) => (
@@ -215,17 +215,17 @@ export default function SuperAdminPage() {
       </div>
 
       {/* Header Panel */}
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800 mb-8">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-250 dark:border-slate-800 mb-8">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-100">Clients & Pricing</h1>
-            <p className="text-sm text-slate-400">Manage client organizations, service pricing plans, and subscriptions.</p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Clients & Pricing</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Manage client organizations, service pricing plans, and subscriptions.</p>
           </div>
         </div>
         <div className="flex gap-3">
           <button 
             onClick={fetchCompanies}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 text-sm font-semibold text-slate-200 transition-all shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 transition-all shadow-sm"
           >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Sync
@@ -237,18 +237,18 @@ export default function SuperAdminPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Column: Create Company Form */}
-        <div className="bg-slate-800/50 backdrop-blur-md border border-slate-800 rounded-2xl p-6 shadow-sm h-fit">
-          <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
-            <PlusIcon className="w-5 h-5 text-violet-500" />
+        <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl h-fit">
+          <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-100">
+            <PlusIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Register New Company
           </h2>
           <form onSubmit={handleCreateCompany} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Organization Code</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Code</label>
               <input
                 type="text"
                 placeholder="e.g. CLI101"
-                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold uppercase"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold uppercase text-slate-900 dark:text-white"
                 value={newOrgcode}
                 onChange={(e) => setNewOrgcode(e.target.value.toUpperCase())}
                 disabled={creating}
@@ -257,11 +257,11 @@ export default function SuperAdminPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Organization Name</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Name</label>
               <input
                 type="text"
                 placeholder="e.g. Acme Corp"
-                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
                 value={newOrgname}
                 onChange={(e) => setNewOrgname(e.target.value)}
                 disabled={creating}
@@ -270,11 +270,11 @@ export default function SuperAdminPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Admin Email Address</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Email Address</label>
               <input
                 type="email"
                 placeholder="e.g. admin@acme.com"
-                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 disabled={creating}
@@ -282,11 +282,11 @@ export default function SuperAdminPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Initial Admin Password</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Initial Admin Password</label>
               <input
                 type="password"
                 placeholder="Defaults to admin@123"
-                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold font-mono"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono text-slate-900 dark:text-white"
                 value={newAdminPassword}
                 onChange={(e) => setNewAdminPassword(e.target.value)}
                 disabled={creating}
@@ -294,9 +294,9 @@ export default function SuperAdminPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Service Plan Model</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Service Plan Model</label>
               <select
-                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold text-slate-200 mt-1"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-700 dark:text-slate-200 mt-1"
                 value={newSubscriptionType}
                 onChange={(e) => setNewSubscriptionType(e.target.value)}
                 disabled={creating}
@@ -313,7 +313,7 @@ export default function SuperAdminPage() {
             <button
               type="submit"
               disabled={creating}
-              className="w-full py-2.5 mt-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold rounded-xl transition-all shadow-md shadow-violet-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-2.5 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {creating ? (
                 <>
@@ -327,28 +327,26 @@ export default function SuperAdminPage() {
           </form>
         </div>
 
-
-
         {/* Right Column: Listing Table */}
         <div className="lg:col-span-2 flex flex-col gap-4">
           {/* Search bar */}
-          <div className="bg-slate-800/50 backdrop-blur-md border border-slate-800 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+          <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center gap-3">
             <MagnifyingGlassIcon className="w-5 h-5 text-slate-400" />
             <input
               type="text"
               placeholder="Search companies by name or organization code..."
-              className="flex-1 bg-transparent outline-none border-none text-sm text-slate-100 placeholder-slate-400 font-semibold"
+              className="flex-1 bg-transparent outline-none border-none text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 font-semibold"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
           {/* Companies Grid */}
-          <div className="bg-slate-800/50 backdrop-blur-md border border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900/30 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                  <tr className="border-b border-slate-250 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
                     <th className="py-4 px-6">Company</th>
                     <th className="py-4 px-6">Service Plan</th>
                     <th className="py-4 px-6">Expiry & Remaining</th>
@@ -356,12 +354,12 @@ export default function SuperAdminPage() {
                     <th className="py-4 px-6 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 text-sm">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-750 text-sm">
                   {loading && companies.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-slate-500">
                         <div className="flex flex-col items-center justify-center gap-2">
-                          <ArrowPathIcon className="w-6 h-6 animate-spin text-violet-500" />
+                           <ArrowPathIcon className="w-6 h-6 animate-spin text-blue-500" />
                           <span>Fetching companies...</span>
                         </div>
                       </td>
@@ -376,31 +374,31 @@ export default function SuperAdminPage() {
                     filteredCompanies.map((c) => {
                       const isExpired = c.remaining_days <= 0;
                       return (
-                        <tr key={c.orgcode} className="hover:bg-slate-800/20 transition-colors">
+                        <tr key={c.orgcode} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/10 transition-colors">
                           <td className="py-4 px-6">
                             <div className="flex flex-col">
-                              <span className="font-bold text-slate-100">{c.orgname}</span>
-                              <span className="text-xs text-slate-400 font-mono uppercase">Code: {c.orgcode}</span>
+                              <span className="font-bold text-slate-900 dark:text-slate-100">{c.orgname}</span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono uppercase">Code: {c.orgcode}</span>
                               {c.email && <span className="text-xs text-slate-500">{c.email}</span>}
                               {c.subscription_start && (
-                                <span className="text-xs text-slate-500">
+                                <span className="text-xs text-slate-550 dark:text-slate-500">
                                   Registered: {new Date(c.subscription_start).toLocaleDateString()}
                                 </span>
                               )}
                             </div>
                           </td>
                           <td className="py-4 px-6">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                              c.subscription_type === "monthly"
-                                ? "bg-indigo-950/40 text-indigo-400 border-indigo-800"
-                                : "bg-violet-950/40 text-violet-400 border-violet-800"
+                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                              c.subscription_type === "trial"
+                                ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-350 dark:border-slate-700"
+                                : "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800/30"
                             }`}>
-                              {c.subscription_type === "monthly" ? "Monthly Plan" : "Trial Plan"}
+                              {c.subscription_type === "trial" ? "Trial Plan" : (pricingPlans.find(p => p.plan_key === c.subscription_type)?.plan_name || c.subscription_type)}
                             </span>
                           </td>
                           <td className="py-4 px-6">
                             <div className="flex flex-col gap-0.5">
-                              <span className={`font-semibold text-xs ${isExpired ? "text-rose-400" : "text-emerald-400"}`}>
+                              <span className={`font-semibold text-xs ${isExpired ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                                 {isExpired ? "Expired" : `${Math.ceil(c.remaining_days)} days left`}
                               </span>
                               <span className="text-xs text-slate-500 flex items-center gap-1">
@@ -410,10 +408,10 @@ export default function SuperAdminPage() {
                             </div>
                           </td>
                           <td className="py-4 px-6">
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
                               c.isactive && !isExpired
-                                ? "bg-emerald-950/30 text-emerald-400 border border-emerald-900"
-                                : "bg-rose-950/30 text-rose-400 border border-rose-900"
+                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border border-emerald-250 dark:border-emerald-900"
+                                : "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border border-rose-250 dark:border-rose-900"
                             }`}>
                               {c.isactive && !isExpired ? (
                                 <>
@@ -431,7 +429,7 @@ export default function SuperAdminPage() {
                           <td className="py-4 px-6 text-right">
                             <button
                               onClick={() => handleStartEdit(c)}
-                              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-all border border-slate-700 shadow-sm"
+                              className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-all border border-slate-200 dark:border-slate-700 shadow-sm"
                               title="Edit settings or update subscription plan"
                             >
                               <PencilSquareIcon className="w-4 h-4" />
@@ -451,17 +449,17 @@ export default function SuperAdminPage() {
 
       {/* Edit Subscription Modal */}
       {editingCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-100 mb-2">Edit {editingCompany.orgname} Settings</h3>
-            <p className="text-xs text-slate-400 mb-5">Modify client details, suspend the account, or extend subscription duration.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-up">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Edit {editingCompany.orgname} Settings</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">Modify client details, suspend the account, or extend subscription duration.</p>
             
             <form onSubmit={handleUpdateCompany} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-400">Company Name</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Company Name</label>
                 <input
                   type="text"
-                  className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
                   value={editOrgname}
                   onChange={(e) => setEditOrgname(e.target.value)}
                   required
@@ -469,19 +467,19 @@ export default function SuperAdminPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-400">Email Address</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Email Address</label>
                 <input
                   type="email"
-                  className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-400">Subscription Plan Type</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Subscription Plan Type</label>
                 <select
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold text-slate-200 mt-1"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-700 dark:text-slate-200 mt-1"
                   value={editSubscriptionType}
                   onChange={(e) => {
                     const nextVal = e.target.value;
@@ -507,10 +505,10 @@ export default function SuperAdminPage() {
               </div>
               {editSubscriptionType !== "trial" && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-400 font-sans">Subscription End Date</label>
+                  <label className="text-xs font-semibold text-slate-550 dark:text-slate-400 font-sans">Subscription End Date</label>
                   <input
                     type="date"
-                    className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
                     value={editSubscriptionEnd}
                     onChange={(e) => setEditSubscriptionEnd(e.target.value)}
                     required
@@ -522,25 +520,25 @@ export default function SuperAdminPage() {
                 <input
                   type="checkbox"
                   id="editIsActive"
-                  className="w-4 h-4 rounded text-violet-600 focus:ring-violet-500 border-slate-700 bg-slate-900"
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/50"
                   checked={editIsActive}
                   onChange={(e) => setEditIsActive(e.target.checked)}
                 />
-                <label htmlFor="editIsActive" className="text-sm font-semibold text-slate-300">Organization Account Active</label>
+                <label htmlFor="editIsActive" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Organization Account Active</label>
               </div>
 
               <div className="flex gap-3 justify-end mt-4">
                 <button
                   type="button"
                   onClick={() => setEditingCompany(null)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-700 font-semibold text-sm transition-all"
+                  className="px-4 py-2 rounded-xl text-slate-650 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold text-sm transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={updating}
-                  className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm transition-all shadow-md shadow-violet-500/20"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all shadow-md shadow-blue-500/20"
                 >
                   {updating ? "Saving..." : "Save Settings"}
                 </button>
