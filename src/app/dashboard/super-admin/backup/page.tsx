@@ -704,7 +704,7 @@ export default function SuperAdminBackupPage() {
                 }}
                 className="px-5 py-2.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl transition-colors shadow-md shadow-rose-500/20"
               >
-                Wipe & Restore DB
+                Restore
               </button>
             </div>
           </div>
