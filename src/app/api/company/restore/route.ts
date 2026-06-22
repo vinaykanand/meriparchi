@@ -4,8 +4,17 @@ import pool, { query } from "@/lib/db";
 import AdmZip from "adm-zip";
 import { logAction } from "@/lib/audit";
 import { decryptBuffer } from "@/lib/backup";
+function sanitizeIdentifier(ident: string): string {
+  if (!/^[a-zA-Z0-9_]+$/.test(ident)) {
+    throw new Error(`Invalid identifier: ${ident}`);
+  }
+  return `"${ident}"`;
+}
+
 async function dynamicInsert(client: any, tableName: string, dataArray: any[]) {
   if (!dataArray || dataArray.length === 0) return;
+
+  const cleanTableName = sanitizeIdentifier(tableName);
 
   // Retrieve any GENERATED ALWAYS columns for this table from the db schema metadata
   const genColsRes = await client.query(
@@ -21,7 +30,7 @@ async function dynamicInsert(client: any, tableName: string, dataArray: any[]) {
   for (const row of dataArray) {
     // Exclude generated columns from insert statement keys
     const columns = Object.keys(row).filter(col => !generatedColumns.has(col));
-    const columnsStr = columns.map(c => `"${c}"`).join(", ");
+    const columnsStr = columns.map(c => sanitizeIdentifier(c)).join(", ");
     const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(", ");
     const values = columns.map(col => {
       const val = row[col];
@@ -31,7 +40,7 @@ async function dynamicInsert(client: any, tableName: string, dataArray: any[]) {
       return val;
     });
     await client.query(
-      `INSERT INTO public.${tableName} (${columnsStr}) VALUES (${placeholders})`,
+      `INSERT INTO public.${cleanTableName} (${columnsStr}) VALUES (${placeholders})`,
       values
     );
   }
@@ -351,7 +360,7 @@ export async function POST(request: Request) {
     if (companyData.length > 0) {
       const c = companyData[0];
       const updateColumns = Object.keys(c).filter(k => k !== "orgcode");
-      const setClause = updateColumns.map((col, idx) => `"${col}" = $${idx + 1}`).join(", ");
+      const setClause = updateColumns.map((col, idx) => `${sanitizeIdentifier(col)} = $${idx + 1}`).join(", ");
       const values = updateColumns.map(col => {
         const val = c[col];
         return val !== null && typeof val === "object" ? JSON.stringify(val) : val;
@@ -369,7 +378,7 @@ export async function POST(request: Request) {
       if (u.userid === adminUserid) {
         // Update current admin credentials/details dynamically
         const updateColumns = Object.keys(u).filter(k => k !== "orgcode" && k !== "userid");
-        const setClause = updateColumns.map((col, idx) => `"${col}" = $${idx + 1}`).join(", ");
+        const setClause = updateColumns.map((col, idx) => `${sanitizeIdentifier(col)} = $${idx + 1}`).join(", ");
         const values = updateColumns.map(col => {
           const val = u[col];
           return val !== null && typeof val === "object" ? JSON.stringify(val) : val;
