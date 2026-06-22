@@ -17,7 +17,8 @@ import {
   ShieldCheckIcon,
   SparklesIcon,
   PaperAirplaneIcon,
-  CloudArrowUpIcon
+  CloudArrowUpIcon,
+  CreditCardIcon
 } from "@heroicons/react/24/outline";
 
 interface ChatMessage {
@@ -311,6 +312,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
     { name: "Reports & Filters", href: "/dashboard/admin/reports", icon: <PresentationChartLineIcon className="w-5 h-5" /> },
     { name: "Manage Users", href: "/dashboard/admin/users", icon: <UsersIcon className="w-5 h-5" /> },
     { name: "Organization Settings", href: "/dashboard/admin/settings", icon: <Cog6ToothIcon className="w-5 h-5" /> },
+    { name: "Billing & Plans", href: "/dashboard/admin/billing", icon: <CreditCardIcon className="w-5 h-5" /> },
     { name: "Backup & Restore", href: "/dashboard/admin/backup", icon: <CloudArrowUpIcon className="w-5 h-5" /> },
     { name: "Audit Logs", href: "/dashboard/admin/audit", icon: <ShieldCheckIcon className="w-5 h-5" /> },
   ];
@@ -329,21 +331,19 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-2 sm:gap-4">
           {subscription && (
             <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border ${
-              subscription.type === "trial"
-                ? "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400"
-                : subscription.remaining_days <= 0
-                  ? "bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400"
+              subscription.remaining_days <= 0
+                ? "bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400"
+                : subscription.type === "trial"
+                  ? "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400"
                   : "bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400"
             }`}>
               <span className="font-bold uppercase tracking-wider text-xs">
                 {subscription.type === "trial" ? "Trial Mode" : "Subscription"}
               </span>
               <span className="text-xs opacity-85">
-                {subscription.type === "trial"
-                  ? `(${subscription.slips_count}/10 Slips, ${subscription.payments_count}/10 Payments)`
-                  : subscription.remaining_days <= 0
-                    ? "Expired"
-                    : `(${Math.ceil(subscription.remaining_days)} days left)`}
+                {subscription.remaining_days <= 0
+                  ? "Expired"
+                  : `(${Math.ceil(subscription.remaining_days)} days left)`}
               </span>
             </div>
           )}

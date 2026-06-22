@@ -17,7 +17,7 @@ import {
 interface Company {
   orgcode: string;
   orgname: string;
-  subscription_type: "trial" | "monthly";
+  subscription_type: string;
   subscription_start: string;
   subscription_end: string;
   isactive: boolean;
@@ -43,17 +43,20 @@ export default function SuperAdminPage() {
   const [newOrgname, setNewOrgname] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
-  const [newSubscriptionType, setNewSubscriptionType] = useState<"trial" | "monthly">("trial");
+  const [newSubscriptionType, setNewSubscriptionType] = useState<string>("trial");
   const [creating, setCreating] = useState(false);
 
   // Edit Company states
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [editOrgname, setEditOrgname] = useState("");
   const [editEmail, setEditEmail] = useState("");
-  const [editSubscriptionType, setEditSubscriptionType] = useState<"trial" | "monthly">("trial");
+  const [editSubscriptionType, setEditSubscriptionType] = useState<string>("trial");
   const [editSubscriptionEnd, setEditSubscriptionEnd] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [pricingPlans, setPricingPlans] = useState<{ plan_key: string; plan_name: string; price: string; duration_months: number }[]>([]);
+
+
 
   const addToast = (message: string, type: "success" | "error") => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -80,8 +83,23 @@ export default function SuperAdminPage() {
     }
   };
 
+
+
+  const fetchPricingPlans = async () => {
+    try {
+      const res = await fetch("/api/pricing-plans");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPricingPlans(data.plans || []);
+      }
+    } catch (e) {
+      console.error("Failed to load plans", e);
+    }
+  };
+
   useEffect(() => {
     fetchCompanies();
+    fetchPricingPlans();
   }, []);
 
   const handleCreateCompany = async (e: React.FormEvent) => {
@@ -178,7 +196,7 @@ export default function SuperAdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans p-6 sm:p-10 relative">
+    <div className="text-slate-100 flex flex-col relative">
       {/* Toast Notification Container */}
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full">
         {toasts.map((toast) => (
@@ -199,28 +217,18 @@ export default function SuperAdminPage() {
       {/* Header Panel */}
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800 mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-tr from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/20">
-            <BuildingOfficeIcon className="w-6 h-6 text-white" />
-          </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Super Admin Hub</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-100">Clients & Pricing</h1>
             <p className="text-sm text-slate-400">Manage client organizations, service pricing plans, and subscriptions.</p>
           </div>
         </div>
         <div className="flex gap-3">
           <button 
             onClick={fetchCompanies}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 text-sm font-semibold transition-all shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 text-sm font-semibold text-slate-200 transition-all shadow-sm"
           >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Sync
-          </button>
-          <button 
-            onClick={logout}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-sm font-semibold text-white transition-all shadow-md shadow-rose-500/20"
-          >
-            <ArrowRightOnRectangleIcon className="w-4 h-4" />
-            Logout
           </button>
         </div>
       </header>
@@ -287,32 +295,19 @@ export default function SuperAdminPage() {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Service Plan Model</label>
-              <div className="grid grid-cols-2 gap-3 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setNewSubscriptionType("trial")}
-                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                    newSubscriptionType === "trial"
-                      ? "bg-violet-600 border-violet-500 text-white"
-                      : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800"
-                  }`}
-                  disabled={creating}
-                >
-                  Trial Plan (10 Limit)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewSubscriptionType("monthly")}
-                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                    newSubscriptionType === "monthly"
-                      ? "bg-violet-600 border-violet-500 text-white"
-                      : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800"
-                  }`}
-                  disabled={creating}
-                >
-                  Monthly Subscription
-                </button>
-              </div>
+              <select
+                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold text-slate-200 mt-1"
+                value={newSubscriptionType}
+                onChange={(e) => setNewSubscriptionType(e.target.value)}
+                disabled={creating}
+              >
+                <option value="trial">Trial Plan (10 Days)</option>
+                {pricingPlans.map((p) => (
+                  <option key={p.plan_key} value={p.plan_key}>
+                    {p.plan_name} (₹{p.price})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <button
@@ -331,6 +326,8 @@ export default function SuperAdminPage() {
             </button>
           </form>
         </div>
+
+
 
         {/* Right Column: Listing Table */}
         <div className="lg:col-span-2 flex flex-col gap-4">
@@ -377,7 +374,7 @@ export default function SuperAdminPage() {
                     </tr>
                   ) : (
                     filteredCompanies.map((c) => {
-                      const isExpired = c.subscription_type === "monthly" && c.remaining_days <= 0;
+                      const isExpired = c.remaining_days <= 0;
                       return (
                         <tr key={c.orgcode} className="hover:bg-slate-800/20 transition-colors">
                           <td className="py-4 px-6">
@@ -403,19 +400,13 @@ export default function SuperAdminPage() {
                           </td>
                           <td className="py-4 px-6">
                             <div className="flex flex-col gap-0.5">
-                              {c.subscription_type === "trial" ? (
-                                <span className="text-xs text-slate-400">10 Slip & 10 Pay Limit</span>
-                              ) : (
-                                <>
-                                  <span className={`font-semibold text-xs ${isExpired ? "text-rose-400" : "text-emerald-400"}`}>
-                                    {isExpired ? "Expired" : `${Math.ceil(c.remaining_days)} days left`}
-                                  </span>
-                                  <span className="text-xs text-slate-500 flex items-center gap-1">
-                                    <CalendarDaysIcon className="w-3.5 h-3.5" />
-                                    {new Date(c.subscription_end).toLocaleDateString()}
-                                  </span>
-                                </>
-                              )}
+                              <span className={`font-semibold text-xs ${isExpired ? "text-rose-400" : "text-emerald-400"}`}>
+                                {isExpired ? "Expired" : `${Math.ceil(c.remaining_days)} days left`}
+                              </span>
+                              <span className="text-xs text-slate-500 flex items-center gap-1">
+                                <CalendarDaysIcon className="w-3.5 h-3.5" />
+                                {new Date(c.subscription_end).toLocaleDateString()}
+                              </span>
                             </div>
                           </td>
                           <td className="py-4 px-6">
@@ -489,33 +480,32 @@ export default function SuperAdminPage() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-400">Subscription Plan Type</label>
-                <div className="grid grid-cols-2 gap-3 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => setEditSubscriptionType("trial")}
-                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                      editSubscriptionType === "trial"
-                        ? "bg-violet-600 border-violet-500 text-white"
-                        : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800"
-                    }`}
-                  >
-                    Trial Plan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditSubscriptionType("monthly")}
-                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                      editSubscriptionType === "monthly"
-                        ? "bg-violet-600 border-violet-500 text-white"
-                        : "bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800"
-                    }`}
-                  >
-                    Monthly Subscription
-                  </button>
-                </div>
+                <select
+                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-semibold text-slate-200 mt-1"
+                  value={editSubscriptionType}
+                  onChange={(e) => {
+                    const nextVal = e.target.value;
+                    setEditSubscriptionType(nextVal);
+                    if (nextVal !== "trial") {
+                      const durationMonths = pricingPlans.find(p => p.plan_key === nextVal)?.duration_months || 1;
+                      const end = new Date();
+                      end.setMonth(end.getMonth() + durationMonths);
+                      const yyyy = end.getFullYear();
+                      const mm = String(end.getMonth() + 1).padStart(2, '0');
+                      const dd = String(end.getDate()).padStart(2, '0');
+                      setEditSubscriptionEnd(`${yyyy}-${mm}-${dd}`);
+                    }
+                  }}
+                >
+                  <option value="trial">Trial Plan (10 Days)</option>
+                  {pricingPlans.map((p) => (
+                    <option key={p.plan_key} value={p.plan_key}>
+                      {p.plan_name}
+                    </option>
+                  ))}
+                </select>
               </div>
-
-              {editSubscriptionType === "monthly" && (
+              {editSubscriptionType !== "trial" && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-400 font-sans">Subscription End Date</label>
                   <input

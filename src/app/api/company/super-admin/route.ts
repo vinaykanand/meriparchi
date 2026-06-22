@@ -38,13 +38,14 @@ export async function GET(request: Request) {
   try {
     // Select companies, calculating remaining days
     const result = await query(
-      `SELECT orgcode, orgname, subscription_type, subscription_start, subscription_end, isactive, email,
+      `SELECT c.orgcode, c.orgname, s.subscription_type, s.subscription_start, s.subscription_end, c.isactive, c.email,
               CASE 
-                WHEN subscription_end IS NULL THEN 0
-                ELSE EXTRACT(EPOCH FROM (subscription_end - NOW())) / 86400.0
+                WHEN s.subscription_end IS NULL THEN 0
+                ELSE EXTRACT(EPOCH FROM (s.subscription_end - NOW())) / 86400.0
               END as remaining_days
-       FROM public.company
-       ORDER BY orgcode ASC`
+       FROM public.company c
+       LEFT JOIN public.company_subscriptions s ON c.orgcode = s.orgcode
+       ORDER BY c.orgcode ASC`
     );
 
     return NextResponse.json({
@@ -86,16 +87,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Company with this Organization Code already exists" }, { status: 400 });
     }
 
-    const plan = subscriptionType === "monthly" ? "monthly" : "trial";
-    const durationDays = plan === "monthly" ? 30 : 30; // Default subscription period is 30 days
+    const plan = subscriptionType && subscriptionType !== "trial" ? subscriptionType : "trial";
+    let durationDays = 10;
+    if (plan !== "trial") {
+      const planResult = await query("SELECT duration_months FROM public.pricing_plans WHERE plan_key = $1", [plan]);
+      if (planResult.rows.length > 0) {
+        durationDays = planResult.rows[0].duration_months * 30;
+      } else {
+        durationDays = 30;
+      }
+    }
     const endTimestamp = new Date();
     endTimestamp.setDate(endTimestamp.getDate() + durationDays);
 
     // Insert company
     await query(
-      `INSERT INTO public.company (orgcode, orgname, subscription_type, subscription_start, subscription_end, email)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4, $5)`,
-      [cleanOrgcode, orgname.trim(), plan, endTimestamp, email ? email.trim() : null]
+      `INSERT INTO public.company (orgcode, orgname, isactive, email)
+       VALUES ($1, $2, true, $3)`,
+      [cleanOrgcode, orgname.trim(), email ? email.trim() : null]
+    );
+
+    // Insert company subscription record
+    await query(
+      `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_start, subscription_end)
+       VALUES ($1, $2, CURRENT_TIMESTAMP, $3)`,
+      [cleanOrgcode, plan, endTimestamp]
     );
 
     // Check if user admin was auto-created by Supabase trigger, or if we need to insert it
@@ -146,18 +162,40 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, message: "Organization Code is required" }, { status: 400 });
     }
 
-    const checkCompany = await query("SELECT orgcode FROM public.company WHERE orgcode = $1", [orgcode]);
+    const checkCompany = await query(
+      `SELECT c.orgcode, s.subscription_start 
+       FROM public.company c
+       LEFT JOIN public.company_subscriptions s ON c.orgcode = s.orgcode
+       WHERE c.orgcode = $1`, 
+      [orgcode]
+    );
     if (checkCompany.rows.length === 0) {
       return NextResponse.json({ success: false, message: "Company not found" }, { status: 404 });
     }
 
-    const endTimestamp = subscriptionEnd ? new Date(subscriptionEnd) : new Date();
+    let endTimestamp;
+    if (subscriptionType === "trial") {
+      const start = checkCompany.rows[0].subscription_start 
+        ? new Date(checkCompany.rows[0].subscription_start) 
+        : new Date();
+      endTimestamp = new Date(start.getTime() + 10 * 24 * 60 * 60 * 1000);
+    } else {
+      endTimestamp = subscriptionEnd ? new Date(subscriptionEnd) : new Date();
+    }
 
     await query(
       `UPDATE public.company
-       SET orgname = $2, subscription_type = $3, subscription_end = $4, isactive = $5, email = $6
+       SET orgname = $2, isactive = $3, email = $4
        WHERE orgcode = $1`,
-      [orgcode, orgname.trim(), subscriptionType, endTimestamp, isactive !== false, email ? email.trim() : null]
+      [orgcode, orgname.trim(), isactive !== false, email ? email.trim() : null]
+    );
+
+    await query(
+      `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_end)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (orgcode) DO UPDATE 
+       SET subscription_type = EXCLUDED.subscription_type, subscription_end = EXCLUDED.subscription_end`,
+      [orgcode, subscriptionType, endTimestamp]
     );
 
     return NextResponse.json({

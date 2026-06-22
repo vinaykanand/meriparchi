@@ -43,10 +43,9 @@ export default function AuthProvider({
       try {
         const res = await fetch("/api/auth/verify");
         const data = await res.json();
-        
         if (res.ok && data.success) {
           if (data.issuperadmin) {
-            if (pathname !== "/dashboard/super-admin") {
+            if (!pathname.startsWith("/dashboard/super-admin")) {
               router.push("/dashboard/super-admin");
               return;
             }

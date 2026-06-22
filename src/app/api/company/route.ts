@@ -13,11 +13,13 @@ export async function GET(request: Request) {
     }
 
     const result = await query(
-      `SELECT orgcode, orgname, isactive, enableotp, otpresettime, opentime, closetime, audit_retention_days, 
-              backup_schedule, last_backup_time, (gdrive_refresh_token IS NOT NULL) as gdrive_linked,
-              enable_security_logs, enable_ai_assistant, backup_retention_count, backup_password, email,
-              subscription_type, subscription_start, subscription_end 
-       FROM public.company WHERE orgcode = $1`,
+      `SELECT c.orgcode, c.orgname, c.isactive, c.enableotp, c.otpresettime, c.opentime, c.closetime, c.audit_retention_days, 
+              c.backup_schedule, c.last_backup_time, (c.gdrive_refresh_token IS NOT NULL) as gdrive_linked,
+              c.enable_security_logs, c.enable_ai_assistant, c.backup_retention_count, c.backup_password, c.email,
+              s.subscription_type, s.subscription_start, s.subscription_end 
+       FROM public.company c
+       LEFT JOIN public.company_subscriptions s ON c.orgcode = s.orgcode
+       WHERE c.orgcode = $1`,
       [orgcode]
     );
 

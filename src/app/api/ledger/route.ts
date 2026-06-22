@@ -195,7 +195,10 @@ export async function POST(request: Request) {
     if (orgcode) {
       // 1. Fetch company subscription status
       const companyRes = await query(
-        "SELECT subscription_type, subscription_end, isactive FROM public.company WHERE orgcode = $1",
+        `SELECT c.isactive, s.subscription_type, s.subscription_end 
+         FROM public.company c
+         LEFT JOIN public.company_subscriptions s ON c.orgcode = s.orgcode
+         WHERE c.orgcode = $1`,
         [orgcode]
       );
 
@@ -221,27 +224,12 @@ export async function POST(request: Request) {
           );
         }
 
-        // If trial plan, enforce 10 limits
-        if (isTrial) {
-          if (type === "slip") {
-            const countRes = await query("SELECT COUNT(*) as count FROM public.slips WHERE orgcode = $1", [orgcode]);
-            const count = parseInt(countRes.rows[0]?.count || "0", 10);
-            if (count >= 10) {
-              return NextResponse.json(
-                { success: false, message: "Trial limit reached: You can create a maximum of 10 slips under the trial plan. Please upgrade to a monthly plan." },
-                { status: 400 }
-              );
-            }
-          } else if (type === "payment") {
-            const countRes = await query("SELECT COUNT(*) as count FROM public.payments WHERE orgcode = $1", [orgcode]);
-            const count = parseInt(countRes.rows[0]?.count || "0", 10);
-            if (count >= 10) {
-              return NextResponse.json(
-                { success: false, message: "Trial limit reached: You can log a maximum of 10 payments under the trial plan. Please upgrade to a monthly plan." },
-                { status: 400 }
-              );
-            }
-          }
+        // If trial period has expired, block entries
+        if (isTrial && isExpired) {
+          return NextResponse.json(
+            { success: false, message: "Your trial period has expired. Please upgrade to a monthly plan to continue." },
+            { status: 403 }
+          );
         }
       }
     }
