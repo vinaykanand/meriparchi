@@ -30,6 +30,42 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [theme, setTheme] = useState("light");
 
+  // Subscription State
+  const [subscription, setSubscription] = useState<{
+    type: "trial" | "monthly";
+    remaining_days: number;
+    slips_count: number;
+    payments_count: number;
+  } | null>(null);
+
+  const fetchSubscription = async () => {
+    if (!session?.orgcode) return;
+    try {
+      const res = await fetch(`/api/company?orgcode=${session.orgcode}`);
+      const data = await res.json();
+      if (res.ok && data.success && data.company?.subscription) {
+        const sub = data.company.subscription;
+        let remaining_days = 0;
+        if (sub.end) {
+          const diffTime = new Date(sub.end).getTime() - new Date().getTime();
+          remaining_days = diffTime / (1000 * 60 * 60 * 24);
+        }
+        setSubscription({
+          type: sub.type,
+          remaining_days,
+          slips_count: sub.slips_count,
+          payments_count: sub.payments_count,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load subscription details:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubscription();
+  }, [session, pathname]);
+
   // AI Assistant Chat Widget State
   const [isAiEnabled, setIsAiEnabled] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -291,6 +327,26 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
+          {subscription && (
+            <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border ${
+              subscription.type === "trial"
+                ? "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400"
+                : subscription.remaining_days <= 0
+                  ? "bg-rose-50/80 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400"
+                  : "bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400"
+            }`}>
+              <span className="font-bold uppercase tracking-wider text-xs">
+                {subscription.type === "trial" ? "Trial Mode" : "Subscription"}
+              </span>
+              <span className="text-xs opacity-85">
+                {subscription.type === "trial"
+                  ? `(${subscription.slips_count}/10 Slips, ${subscription.payments_count}/10 Payments)`
+                  : subscription.remaining_days <= 0
+                    ? "Expired"
+                    : `(${Math.ceil(subscription.remaining_days)} days left)`}
+              </span>
+            </div>
+          )}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
             <span className="text-slate-500 dark:text-slate-400">Org Code:</span>
             <span className="font-semibold">{session?.orgcode}</span>

@@ -45,7 +45,9 @@ export default function LoginPage() {
       try {
         const data = JSON.parse(saved);
         if (data.authtoken) {
-          if (data.isadmin) {
+          if (data.issuperadmin) {
+            router.push("/dashboard/super-admin");
+          } else if (data.isadmin) {
             router.push("/dashboard/admin");
           } else {
             router.push("/dashboard/user");
@@ -131,12 +133,15 @@ export default function LoginPage() {
             orgcode: data.orgcode,
             userid: data.userid,
             isadmin: data.isadmin,
+            issuperadmin: !!data.issuperadmin,
           };
           localStorage.setItem("parchi_session", JSON.stringify(sessionObj));
-          setUserData(sessionObj);
+          setUserData(sessionObj as any);
           addToast("Authentication Successful!", "success");
 
-          if (data.isadmin) {
+          if (data.issuperadmin) {
+            router.push("/dashboard/super-admin");
+          } else if (data.isadmin) {
             router.push("/dashboard/admin");
           } else {
             router.push("/dashboard/user");

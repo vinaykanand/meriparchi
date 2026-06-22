@@ -539,206 +539,6 @@ $function$
 
 ```
 
-## Function: `login_user`
-```sql
-CREATE OR REPLACE FUNCTION public.login_user(p_orgcode character varying, p_userid character varying, p_password character varying, p_otp integer DEFAULT NULL::integer)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_user public.users%ROWTYPE;
-    v_enableotp boolean;
-    v_opentime time;
-    v_closetime time;
-BEGIN
-
-    ---------------------------------------------------
-    -- Validate Company
-    ---------------------------------------------------
-    SELECT
-        enableotp,
-        opentime,
-        closetime
-    INTO
-        v_enableotp,
-        v_opentime,
-        v_closetime
-    FROM public.company
-    WHERE orgcode = p_orgcode;
-
-    IF NOT FOUND THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Company does not exist'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Validate User
-    ---------------------------------------------------
-    SELECT *
-    INTO v_user
-    FROM public.users
-    WHERE orgcode = p_orgcode
-      AND userid = p_userid;
-
-    IF NOT FOUND THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'User does not exist'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- User Active Check
-    ---------------------------------------------------
-    IF COALESCE(v_user.isactive, false) = false THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'User is disabled'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Password Check
-    ---------------------------------------------------
-    IF COALESCE(v_user.password, '') <> p_password THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', 'Invalid password'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Business Hours Check (Non Admin Only)
-    ---------------------------------------------------
-    IF COALESCE(v_user.isadmin, false) = false THEN
-
-        IF v_opentime IS NOT NULL
-           AND CURRENT_TIME < v_opentime THEN
-
-            RETURN json_build_object(
-                'success', false,
-                'message',
-                'Login allowed only between '
-                || to_char(v_opentime, 'HH24:MI')
-                || ' and '
-                || to_char(v_closetime, 'HH24:MI')
-            );
-
-        END IF;
-
-        IF v_closetime IS NOT NULL
-           AND CURRENT_TIME > v_closetime THEN
-
-            RETURN json_build_object(
-                'success', false,
-                'message',
-                'Login allowed only between '
-                || to_char(v_opentime, 'HH24:MI')
-                || ' and '
-                || to_char(v_closetime, 'HH24:MI')
-            );
-
-        END IF;
-
-    END IF;
-
-    ---------------------------------------------------
-    -- Admin User (No OTP Required)
-    ---------------------------------------------------
-    IF COALESCE(v_user.isadmin, false) = true THEN
-        RETURN json_build_object(
-            'success', true,
-            'otprequired', false,
-            'message', 'Login successful',
-            'authtoken', v_user.authtoken,
-            'orgcode', v_user.orgcode,
-            'userid', v_user.userid,
-            'isadmin', true
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Non Admin + OTP Disabled
-    ---------------------------------------------------
-    IF COALESCE(v_enableotp, false) = false THEN
-        RETURN json_build_object(
-            'success', true,
-            'otprequired', false,
-            'message', 'Login successful',
-            'authtoken', v_user.authtoken,
-            'orgcode', v_user.orgcode,
-            'userid', v_user.userid,
-            'isadmin', false
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- OTP Required (First Call)
-    ---------------------------------------------------
-    IF p_otp IS NULL THEN
-        RETURN json_build_object(
-            'success', true,
-            'otprequired', true,
-            'message', 'OTP required'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- OTP Expiry Check
-    ---------------------------------------------------
-    IF v_user.otpexpire IS NULL THEN
-        RETURN json_build_object(
-            'success', false,
-            'otprequired', true,
-            'message', 'OTP expired'
-        );
-    END IF;
-
-    IF v_user.otpexpire < CURRENT_TIMESTAMP THEN
-        RETURN json_build_object(
-            'success', false,
-            'otprequired', true,
-            'message', 'OTP expired'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- OTP Validation
-    ---------------------------------------------------
-    IF COALESCE(v_user.otp, 0) <> p_otp THEN
-        RETURN json_build_object(
-            'success', false,
-            'otprequired', true,
-            'message', 'Invalid OTP'
-        );
-    END IF;
-
-    ---------------------------------------------------
-    -- Successful Login
-    ---------------------------------------------------
-    RETURN json_build_object(
-        'success', true,
-        'otprequired', false,
-        'message', 'Login successful',
-        'authtoken', v_user.authtoken,
-        'orgcode', v_user.orgcode,
-        'userid', v_user.userid,
-        'isadmin', false
-    );
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN json_build_object(
-            'success', false,
-            'message', SQLERRM
-        );
-END;
-$function$
-
-```
-
 ## Function: `get_account_details_by_date`
 ```sql
 CREATE OR REPLACE FUNCTION public.get_account_details_by_date(p_orgcode character varying, p_phone character varying, p_date date)
@@ -1028,6 +828,219 @@ EXCEPTION
         );
 END;
 $function$
+
+```
+
+## Function: `login_user`
+```sql
+CREATE OR REPLACE FUNCTION public.login_user(p_orgcode character varying, p_userid character varying, p_password character varying, p_otp integer DEFAULT NULL::integer)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_user public.users%ROWTYPE;
+    v_enableotp boolean;
+    v_opentime time;
+    v_closetime time;
+BEGIN
+
+    ---------------------------------------------------
+    -- Validate Company
+    ---------------------------------------------------
+    SELECT
+        enableotp,
+        opentime,
+        closetime
+    INTO
+        v_enableotp,
+        v_opentime,
+        v_closetime
+    FROM public.company
+    WHERE orgcode = p_orgcode;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'Company does not exist'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Validate User
+    ---------------------------------------------------
+    SELECT *
+    INTO v_user
+    FROM public.users
+    WHERE orgcode = p_orgcode
+      AND userid = p_userid;
+
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'User does not exist'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- User Active Check
+    ---------------------------------------------------
+    IF COALESCE(v_user.isactive, false) = false THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'User is disabled'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Password Check
+    ---------------------------------------------------
+    IF COALESCE(v_user.password, '') <> p_password THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'Invalid password'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Business Hours Check (Non Admin Only)
+    ---------------------------------------------------
+    IF COALESCE(v_user.isadmin, false) = false THEN
+
+        IF v_opentime IS NOT NULL
+           AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time < v_opentime THEN
+
+            RETURN json_build_object(
+                'success', false,
+                'message',
+                'Login allowed only between '
+                || to_char(v_opentime, 'HH24:MI')
+                || ' and '
+                || to_char(v_closetime, 'HH24:MI')
+            );
+
+        END IF;
+
+        IF v_closetime IS NOT NULL
+           AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::time > v_closetime THEN
+
+            RETURN json_build_object(
+                'success', false,
+                'message',
+                'Login allowed only between '
+                || to_char(v_opentime, 'HH24:MI')
+                || ' and '
+                || to_char(v_closetime, 'HH24:MI')
+            );
+
+        END IF;
+
+    END IF;
+
+    ---------------------------------------------------
+    -- Admin User (No OTP Required)
+    ---------------------------------------------------
+    IF COALESCE(v_user.isadmin, false) = true THEN
+        RETURN json_build_object(
+            'success', true,
+            'otprequired', false,
+            'message', 'Login successful',
+            'authtoken', v_user.authtoken,
+            'orgcode', v_user.orgcode,
+            'userid', v_user.userid,
+            'isadmin', true
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Non Admin + OTP Disabled
+    ---------------------------------------------------
+    IF COALESCE(v_enableotp, false) = false THEN
+        RETURN json_build_object(
+            'success', true,
+            'otprequired', false,
+            'message', 'Login successful',
+            'authtoken', v_user.authtoken,
+            'orgcode', v_user.orgcode,
+            'userid', v_user.userid,
+            'isadmin', false
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Check/Regenerate Expired OTP
+    ---------------------------------------------------
+    IF v_user.otp IS NULL OR v_user.otpexpire IS NULL OR v_user.otpexpire < CURRENT_TIMESTAMP THEN
+        DECLARE
+            v_otpresettime integer;
+            v_new_otp integer;
+        BEGIN
+            SELECT COALESCE(otpresettime, 24) INTO v_otpresettime
+            FROM public.company
+            WHERE orgcode = p_orgcode;
+
+            v_new_otp := FLOOR(1000 + RANDOM() * 9000)::int;
+
+            UPDATE public.users
+            SET otp = v_new_otp,
+                otpexpire = CURRENT_TIMESTAMP + (v_otpresettime * INTERVAL '1 hour')
+            WHERE orgcode = p_orgcode AND userid = p_userid;
+            
+            -- If user submitted an OTP, we notify them it expired and has been regenerated
+            IF p_otp IS NOT NULL THEN
+                RETURN json_build_object(
+                    'success', false,
+                    'otprequired', true,
+                    'message', 'OTP expired. A new OTP has been generated. Please contact administrator.'
+                );
+            END IF;
+
+            v_user.otp := v_new_otp;
+            v_user.otpexpire := CURRENT_TIMESTAMP + (v_otpresettime * INTERVAL '1 hour');
+        END;
+    END IF;
+
+    ---------------------------------------------------
+    -- OTP Required (First Call)
+    ---------------------------------------------------
+    IF p_otp IS NULL THEN
+        RETURN json_build_object(
+            'success', true,
+            'otprequired', true,
+            'message', 'OTP required'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- OTP Validation
+    ---------------------------------------------------
+    IF COALESCE(v_user.otp, 0) <> p_otp THEN
+        RETURN json_build_object(
+            'success', false,
+            'otprequired', true,
+            'message', 'Invalid OTP'
+        );
+    END IF;
+
+    ---------------------------------------------------
+    -- Successful Login
+    ---------------------------------------------------
+    RETURN json_build_object(
+        'success', true,
+        'otprequired', false,
+        'message', 'Login successful',
+        'authtoken', v_user.authtoken,
+        'orgcode', v_user.orgcode,
+        'userid', v_user.userid,
+        'isadmin', false
+    );
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', SQLERRM
+        );
+END;$function$
 
 ```
 

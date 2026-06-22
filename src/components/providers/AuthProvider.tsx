@@ -7,6 +7,7 @@ export interface Session {
   orgcode: string;
   userid: string;
   isadmin: boolean;
+  issuperadmin?: boolean;
 }
 
 interface AuthContextType {
@@ -26,9 +27,11 @@ export const useAuth = () => useContext(AuthContext);
 export default function AuthProvider({
   children,
   requireAdmin = false,
+  requireSuperAdmin = false,
 }: {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  requireSuperAdmin?: boolean;
 }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,19 +45,31 @@ export default function AuthProvider({
         const data = await res.json();
         
         if (res.ok && data.success) {
-          if (requireAdmin && !data.isadmin) {
-            router.push("/dashboard/user");
-            return;
-          }
-          if (!requireAdmin && data.isadmin) {
-            router.push("/dashboard/admin");
-            return;
+          if (data.issuperadmin) {
+            if (pathname !== "/dashboard/super-admin") {
+              router.push("/dashboard/super-admin");
+              return;
+            }
+          } else {
+            if (requireSuperAdmin) {
+              router.push(data.isadmin ? "/dashboard/admin" : "/dashboard/user");
+              return;
+            }
+            if (requireAdmin && !data.isadmin) {
+              router.push("/dashboard/user");
+              return;
+            }
+            if (!requireAdmin && data.isadmin) {
+              router.push("/dashboard/admin");
+              return;
+            }
           }
           
           const sessionObj = {
             orgcode: data.orgcode,
             userid: data.userid,
             isadmin: data.isadmin,
+            issuperadmin: !!data.issuperadmin,
           };
           localStorage.setItem("parchi_session", JSON.stringify(sessionObj));
           setSession(sessionObj);
@@ -73,7 +88,7 @@ export default function AuthProvider({
       }
     };
     checkAuth();
-  }, [requireAdmin, router]);
+  }, [requireAdmin, requireSuperAdmin, pathname, router]);
 
   const logout = () => {
     if (session) {

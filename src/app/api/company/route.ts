@@ -15,7 +15,8 @@ export async function GET(request: Request) {
     const result = await query(
       `SELECT orgcode, orgname, isactive, enableotp, otpresettime, opentime, closetime, audit_retention_days, 
               backup_schedule, last_backup_time, (gdrive_refresh_token IS NOT NULL) as gdrive_linked,
-              enable_security_logs, enable_ai_assistant, backup_retention_count, backup_password, email 
+              enable_security_logs, enable_ai_assistant, backup_retention_count, backup_password, email,
+              subscription_type, subscription_start, subscription_end 
        FROM public.company WHERE orgcode = $1`,
       [orgcode]
     );
@@ -24,9 +25,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, message: "Company not found" }, { status: 404 });
     }
 
+    const slipsCountRes = await query("SELECT COUNT(*) as count FROM public.slips WHERE orgcode = $1", [orgcode]);
+    const paymentsCountRes = await query("SELECT COUNT(*) as count FROM public.payments WHERE orgcode = $1", [orgcode]);
+
     const companyData = {
       ...result.rows[0],
       has_gdrive_config: !!process.env.GOOGLE_DRIVE_CLIENT_ID,
+      subscription: {
+        type: result.rows[0].subscription_type || 'trial',
+        start: result.rows[0].subscription_start,
+        end: result.rows[0].subscription_end,
+        slips_count: parseInt(slipsCountRes.rows[0]?.count || "0", 10),
+        payments_count: parseInt(paymentsCountRes.rows[0]?.count || "0", 10),
+      }
     };
 
     return NextResponse.json({ success: true, company: companyData });

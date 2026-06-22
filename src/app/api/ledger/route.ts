@@ -190,6 +190,61 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const { orgcode, type } = body;
+
+    if (orgcode) {
+      // 1. Fetch company subscription status
+      const companyRes = await query(
+        "SELECT subscription_type, subscription_end, isactive FROM public.company WHERE orgcode = $1",
+        [orgcode]
+      );
+
+      if (companyRes.rows.length > 0) {
+        const company = companyRes.rows[0];
+
+        // If company is suspended, block entries
+        if (company.isactive === false) {
+          return NextResponse.json(
+            { success: false, message: "This organization account is currently suspended. Please contact the administrator." },
+            { status: 403 }
+          );
+        }
+
+        const isTrial = company.subscription_type === "trial";
+        const isExpired = company.subscription_end && new Date(company.subscription_end) < new Date();
+
+        // If subscription has expired (under monthly plan), block entries
+        if (company.subscription_type === "monthly" && isExpired) {
+          return NextResponse.json(
+            { success: false, message: "Your subscription plan has expired. Please contact the administrator to renew." },
+            { status: 403 }
+          );
+        }
+
+        // If trial plan, enforce 10 limits
+        if (isTrial) {
+          if (type === "slip") {
+            const countRes = await query("SELECT COUNT(*) as count FROM public.slips WHERE orgcode = $1", [orgcode]);
+            const count = parseInt(countRes.rows[0]?.count || "0", 10);
+            if (count >= 10) {
+              return NextResponse.json(
+                { success: false, message: "Trial limit reached: You can create a maximum of 10 slips under the trial plan. Please upgrade to a monthly plan." },
+                { status: 400 }
+              );
+            }
+          } else if (type === "payment") {
+            const countRes = await query("SELECT COUNT(*) as count FROM public.payments WHERE orgcode = $1", [orgcode]);
+            const count = parseInt(countRes.rows[0]?.count || "0", 10);
+            if (count >= 10) {
+              return NextResponse.json(
+                { success: false, message: "Trial limit reached: You can log a maximum of 10 payments under the trial plan. Please upgrade to a monthly plan." },
+                { status: 400 }
+              );
+            }
+          }
+        }
+      }
+    }
 
     const response = await fetch("https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/ledger", {
       method: "POST",

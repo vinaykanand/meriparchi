@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { query } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -21,6 +22,17 @@ export async function GET() {
     });
 
     const data = await response.json();
+    
+    if (response.ok && data.success) {
+      const superAdminCheck = await query(
+        "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2",
+        [authtoken, data.orgcode]
+      );
+      if (superAdminCheck.rows.length > 0 && superAdminCheck.rows[0].issuperadmin) {
+        data.issuperadmin = true;
+      }
+    }
+    
     return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
     return NextResponse.json(

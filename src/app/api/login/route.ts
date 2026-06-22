@@ -52,6 +52,17 @@ export async function POST(request: Request) {
       return NextResponse.json(data || { success: false, message: "Login failed" }, { status: 400 });
     }
 
+    // Check if the user is a super admin
+    if (data.authtoken) {
+      const superAdminCheck = await query(
+        "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2",
+        [data.authtoken, data.orgcode || orgcode]
+      );
+      if (superAdminCheck.rows.length > 0 && superAdminCheck.rows[0].issuperadmin) {
+        data.issuperadmin = true;
+      }
+    }
+
     // Set the cookie if authtoken is present in the login response
     if (data.authtoken) {
       const cookieStore = await cookies();
