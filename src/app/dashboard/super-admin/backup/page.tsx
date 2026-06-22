@@ -383,7 +383,7 @@ export default function SuperAdminBackupPage() {
             </p>
             <button
               onClick={handleBackup}
-              className="py-2.5 px-4 rounded-xl text-white font-medium bg-emerald-650 hover:bg-emerald-750 transition-all shadow-[0_4px_10px_rgba(16,185,129,0.2)] text-sm"
+              className="py-2.5 px-4 rounded-xl text-white font-medium bg-emerald-600 hover:bg-emerald-700 transition-all shadow-[0_4px_10px_rgba(16,185,129,0.2)] text-sm"
             >
               Export System Backup (.zip)
             </button>
@@ -430,7 +430,7 @@ export default function SuperAdminBackupPage() {
                   setShowRestoreModal(true);
                 }}
                 disabled={!selectedFile || restoring}
-                className="py-2.5 px-4 rounded-xl text-white font-medium bg-rose-605 hover:bg-rose-705 disabled:opacity-50 transition-all shadow-[0_4px_10px_rgba(225,29,72,0.2)] text-sm self-start"
+                className="py-2.5 px-4 rounded-xl text-white font-medium bg-rose-600 hover:bg-rose-700 disabled:opacity-50 transition-all shadow-[0_4px_10px_rgba(225,29,72,0.2)] text-sm self-start"
               >
                 {restoring && !restoreProgress ? "Rebuilding System..." : "Restore System Backup (.zip)"}
               </button>
@@ -466,7 +466,7 @@ export default function SuperAdminBackupPage() {
                 <button
                   onClick={handleLinkGDrive}
                   disabled={!hasGdriveConfig}
-                  className="py-2.5 px-4 rounded-xl text-white font-medium bg-blue-650 hover:bg-blue-750 disabled:opacity-50 transition-all text-sm shadow-md shadow-blue-500/20"
+                  className="py-2.5 px-4 rounded-xl text-white font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all text-sm shadow-md shadow-blue-500/20"
                 >
                   Link Google Drive
                 </button>
@@ -475,13 +475,13 @@ export default function SuperAdminBackupPage() {
                   <button
                     onClick={handleManualGDriveBackup}
                     disabled={gdriveUploading}
-                    className="py-2.5 px-4 rounded-xl text-white font-medium bg-emerald-650 hover:bg-emerald-750 disabled:opacity-50 transition-all text-sm shadow-md shadow-emerald-500/20"
+                    className="py-2.5 px-4 rounded-xl text-white font-medium bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all text-sm shadow-md shadow-emerald-500/20"
                   >
                     {gdriveUploading ? "Uploading Backup..." : "Upload System Backup to Drive"}
                   </button>
                   <button
                     onClick={handleUnlinkGDrive}
-                    className="py-2.5 px-4 rounded-xl text-white font-medium bg-rose-650 hover:bg-rose-755 transition-all text-sm"
+                    className="py-2.5 px-4 rounded-xl text-white font-medium bg-rose-600 hover:bg-rose-700 transition-all text-sm"
                   >
                     Unlink Google Drive
                   </button>
