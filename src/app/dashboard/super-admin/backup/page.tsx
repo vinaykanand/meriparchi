@@ -498,11 +498,11 @@ export default function SuperAdminBackupPage() {
                   value={backupSchedule}
                   onChange={(e) => handleUpdateSchedule(e.target.value)}
                 >
-                  <option value="none">Disabled (No Auto Backup)</option>
-                  <option value="twice_daily">Twice a Day (12 hours)</option>
-                  <option value="daily">Daily Backup</option>
-                  <option value="weekly">Weekly Backup</option>
-                  <option value="monthly">Monthly Backup</option>
+                  <option value="none" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Disabled (No Auto Backup)</option>
+                  <option value="twice_daily" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Twice a Day (12 hours)</option>
+                  <option value="daily" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Daily Backup</option>
+                  <option value="weekly" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Weekly Backup</option>
+                  <option value="monthly" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Monthly Backup</option>
                 </select>
                 <p className="text-xs text-slate-500 mt-1">Automatically push complete system backups to parchiadmin on schedule.</p>
               </div>

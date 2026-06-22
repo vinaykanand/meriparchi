@@ -413,7 +413,7 @@ export default function SuperAdminAuditPage() {
                   placeholder="Search by operator ID, action details, or logs description..."
                   value={searchInputVal}
                   onChange={(e) => setSearchInputVal(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 dark:text-white text-sm"
                 />
                 <MagnifyingGlassIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-400" />
               </div>
@@ -432,7 +432,7 @@ export default function SuperAdminAuditPage() {
                     setShowOrgSuggestions(true);
                   }}
                   onFocus={() => setShowOrgSuggestions(true)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm uppercase"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 dark:text-white text-sm uppercase"
                 />
                 <BuildingOfficeIcon className="absolute left-3.5 top-3 w-5 h-5 text-slate-400" />
                 
@@ -492,7 +492,7 @@ export default function SuperAdminAuditPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 dark:text-white text-sm font-semibold min-h-[46px]"
               />
             </div>
 
@@ -502,7 +502,7 @@ export default function SuperAdminAuditPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white text-sm font-semibold min-h-[46px]"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 dark:text-white text-sm font-semibold min-h-[46px]"
               />
             </div>
 
@@ -512,7 +512,7 @@ export default function SuperAdminAuditPage() {
                 <button
                   type="button"
                   onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all dark:text-white flex items-center justify-between cursor-pointer text-sm font-semibold min-h-[46px]"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-900/50 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 dark:text-white flex items-center justify-between cursor-pointer text-sm font-semibold min-h-[46px]"
                 >
                   <span className="truncate flex items-center gap-1.5">
                     {selectedActions.length === 0 ? (
