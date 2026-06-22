@@ -439,11 +439,6 @@ export async function POST(request: Request) {
       await client.query("SELECT setval(pg_get_serial_sequence('public.audit_logs', 'id'), COALESCE(MAX(id), 1)) FROM public.audit_logs");
       await client.query("SELECT setval(pg_get_serial_sequence('public.coupon_uses', 'id'), COALESCE(MAX(id), 1)) FROM public.coupon_uses");
       await client.query("SELECT setval(pg_get_serial_sequence('public.payment_history', 'id'), COALESCE(MAX(id), 1)) FROM public.payment_history");
-      
-      const compSubSeq = await client.query("SELECT pg_get_serial_sequence('public.company_subscriptions', 'id')");
-      if (compSubSeq.rows.length > 0 && compSubSeq.rows[0].pg_get_serial_sequence) {
-        await client.query("SELECT setval(pg_get_serial_sequence('public.company_subscriptions', 'id'), COALESCE(MAX(id), 1)) FROM public.company_subscriptions");
-      }
 
       await logAction({
         client,
