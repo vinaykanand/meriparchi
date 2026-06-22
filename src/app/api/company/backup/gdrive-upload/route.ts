@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
     const orgcode = sessionCheck.rows[0].orgcode;
     const userid = sessionCheck.rows[0].userid;
-    const isSuperAdmin = sessionCheck.rows[0].issuperadmin === true;
+    const isSuperAdmin = sessionCheck.rows[0].issuperadmin === true || orgcode === "SUPER";
 
     const result = await uploadBackupToGDrive(orgcode, isSuperAdmin);
 

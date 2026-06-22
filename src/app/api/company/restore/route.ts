@@ -238,18 +238,27 @@ export async function POST(request: Request) {
     const slipsEntry = zip.getEntry("slips.json");
     const slipitemsEntry = zip.getEntry("slipitems.json");
 
-    if (!companyEntry || !usersEntry || !paymentsEntry || !slipsEntry || !slipitemsEntry) {
+    // Standard client backup requires all 5 core files
+    if (!isSuperAdmin && (!companyEntry || !usersEntry || !paymentsEntry || !slipsEntry || !slipitemsEntry)) {
       return NextResponse.json(
         { success: false, message: "Backup file is missing required table data JSON files." },
         { status: 400 }
       );
     }
 
-    const companyData = JSON.parse(companyEntry.getData().toString("utf8"));
-    const usersData = JSON.parse(usersEntry.getData().toString("utf8"));
-    const paymentsData = JSON.parse(paymentsEntry.getData().toString("utf8"));
-    const slipsData = JSON.parse(slipsEntry.getData().toString("utf8"));
-    const slipitemsData = JSON.parse(slipitemsEntry.getData().toString("utf8"));
+    // Super admin restore requires at least company and users
+    if (isSuperAdmin && (!companyEntry || !usersEntry)) {
+      return NextResponse.json(
+        { success: false, message: "Super admin backup file is missing required company and users configuration." },
+        { status: 400 }
+      );
+    }
+
+    const companyData = companyEntry ? JSON.parse(companyEntry.getData().toString("utf8")) : [];
+    const usersData = usersEntry ? JSON.parse(usersEntry.getData().toString("utf8")) : [];
+    const paymentsData = paymentsEntry ? JSON.parse(paymentsEntry.getData().toString("utf8")) : [];
+    const slipsData = slipsEntry ? JSON.parse(slipsEntry.getData().toString("utf8")) : [];
+    const slipitemsData = slipitemsEntry ? JSON.parse(slipitemsEntry.getData().toString("utf8")) : [];
 
     const auditLogsEntry = zip.getEntry("audit_logs.json");
     let auditLogsData = [];

@@ -24,7 +24,9 @@ export async function generateBackupZip(orgcode: string, isSuperAdmin: boolean =
   let company, users, payments, slips, slipitems, audit_logs;
   let pricing_plans: any, coupons: any, coupon_uses: any, payment_history: any, company_subscriptions: any;
 
-  if (isSuperAdmin) {
+  const actualIsSuperAdmin = isSuperAdmin || orgcode === "SUPER";
+
+  if (actualIsSuperAdmin) {
     company = await query("SELECT * FROM public.company");
     users = await query("SELECT * FROM public.users");
     payments = { rows: [] };
@@ -52,12 +54,14 @@ export async function generateBackupZip(orgcode: string, isSuperAdmin: boolean =
   const zip = new AdmZip();
   zip.addFile("company.json", Buffer.from(JSON.stringify(company.rows, null, 2)));
   zip.addFile("users.json", Buffer.from(JSON.stringify(users.rows, null, 2)));
-  zip.addFile("payments.json", Buffer.from(JSON.stringify(payments.rows, null, 2)));
-  zip.addFile("slips.json", Buffer.from(JSON.stringify(slips.rows, null, 2)));
-  zip.addFile("slipitems.json", Buffer.from(JSON.stringify(slipitems.rows, null, 2)));
+  if (!actualIsSuperAdmin) {
+    zip.addFile("payments.json", Buffer.from(JSON.stringify(payments.rows, null, 2)));
+    zip.addFile("slips.json", Buffer.from(JSON.stringify(slips.rows, null, 2)));
+    zip.addFile("slipitems.json", Buffer.from(JSON.stringify(slipitems.rows, null, 2)));
+  }
   zip.addFile("audit_logs.json", Buffer.from(JSON.stringify(audit_logs.rows, null, 2)));
 
-  if (isSuperAdmin) {
+  if (actualIsSuperAdmin) {
     zip.addFile("pricing_plans.json", Buffer.from(JSON.stringify(pricing_plans.rows, null, 2)));
     zip.addFile("coupons.json", Buffer.from(JSON.stringify(coupons.rows, null, 2)));
     zip.addFile("coupon_uses.json", Buffer.from(JSON.stringify(coupon_uses.rows, null, 2)));

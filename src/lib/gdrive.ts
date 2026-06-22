@@ -45,9 +45,11 @@ export async function uploadBackupToGDrive(orgcode: string, isSuperAdmin: boolea
 
     const accessToken = tokenData.access_token;
 
+    const actualIsSuperAdmin = isSuperAdmin || orgcode === "SUPER";
+
     // 2.5 Find or create the target folder
     let parentFolderId = "";
-    const folderName = isSuperAdmin ? "parchiadmin" : "MeriParchi";
+    const folderName = actualIsSuperAdmin ? "parchiadmin" : "MeriParchi";
     try {
       const searchRes = await fetch(
         "https://www.googleapis.com/drive/v3/files?" +
@@ -87,8 +89,8 @@ export async function uploadBackupToGDrive(orgcode: string, isSuperAdmin: boolea
     }
 
     // 3. Generate the backup zip file
-    const zipBuffer = await generateBackupZip(orgcode, isSuperAdmin);
-    const filename = isSuperAdmin 
+    const zipBuffer = await generateBackupZip(orgcode, actualIsSuperAdmin);
+    const filename = actualIsSuperAdmin 
       ? `super_backup_${new Date().toISOString().replace(/[:.]/g, "-")}.zip`
       : `backup_${orgcode}_${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
 

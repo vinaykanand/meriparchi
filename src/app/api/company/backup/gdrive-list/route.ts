@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     }
 
     const orgcode = sessionCheck.rows[0].orgcode;
-    const isSuperAdmin = sessionCheck.rows[0].issuperadmin === true;
+    const isSuperAdmin = sessionCheck.rows[0].issuperadmin === true || orgcode === "SUPER";
 
     const gdrive_client_id = process.env.GOOGLE_DRIVE_CLIENT_ID;
     const gdrive_client_secret = process.env.GOOGLE_DRIVE_CLIENT_SECRET;
