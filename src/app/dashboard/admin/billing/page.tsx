@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { CreditCardIcon, CalendarIcon, ArrowPathIcon, TagIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline";
+import { CreditCardIcon, CalendarIcon, ArrowPathIcon, TagIcon, ArrowDownTrayIcon, CheckIcon } from "@heroicons/react/24/outline";
 
 interface Toast {
   id: number;
@@ -459,6 +459,7 @@ export default function AdminBillingPage() {
             <div className="flex flex-col gap-3 mb-5">
               {plans.map((p) => {
                 const isSelected = selectedPlanKey === p.plan_key;
+                const isActivePlan = subscription && subscription.type === p.plan_key && !isExpired;
                 return (
                   <button
                     key={p.plan_key}
@@ -470,7 +471,14 @@ export default function AdminBillingPage() {
                         : "border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-900/30 text-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900"
                     }`}
                   >
-                    <span className="font-bold text-slate-900 dark:text-slate-100">{p.plan_name}</span>
+                    <div className="flex justify-between items-center w-full">
+                      <span className="font-bold text-slate-900 dark:text-slate-100">{p.plan_name}</span>
+                      {isActivePlan && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          <CheckIcon className="w-3 h-3 stroke-[3]" /> Active Plan
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-500">{p.duration_months} Month(s) Validity</span>
                     <span className="font-extrabold text-lg mt-1 text-blue-600 dark:text-blue-400">₹{p.price}</span>
                   </button>
