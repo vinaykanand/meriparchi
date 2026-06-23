@@ -54,6 +54,7 @@ export default function SuperAdminPage() {
   const [editSubscriptionEnd, setEditSubscriptionEnd] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [forceResetDate, setForceResetDate] = useState(false);
   const [pricingPlans, setPricingPlans] = useState<{ plan_key: string; plan_name: string; price: string; duration_months: number }[]>([]);
 
 
@@ -147,6 +148,7 @@ export default function SuperAdminPage() {
     setEditEmail(company.email || "");
     setEditSubscriptionType(company.subscription_type);
     setEditIsActive(company.isactive);
+    setForceResetDate(false);
     
     // Format subscription_end to YYYY-MM-DD for date input
     const end = new Date(company.subscription_end);
@@ -486,7 +488,9 @@ export default function SuperAdminPage() {
                     setEditSubscriptionType(nextVal);
                     if (nextVal !== "trial") {
                       const durationMonths = pricingPlans.find(p => p.plan_key === nextVal)?.duration_months || 1;
-                      const end = new Date();
+                      const currentEnd = new Date(editingCompany.subscription_end);
+                      const baseDate = (!forceResetDate && currentEnd > new Date()) ? currentEnd : new Date();
+                      const end = new Date(baseDate);
                       end.setMonth(end.getMonth() + durationMonths);
                       const yyyy = end.getFullYear();
                       const mm = String(end.getMonth() + 1).padStart(2, '0');
@@ -503,6 +507,34 @@ export default function SuperAdminPage() {
                   ))}
                 </select>
               </div>
+              {editSubscriptionType !== "trial" && (
+                <div className="flex items-center gap-3 py-1 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                  <input
+                    type="checkbox"
+                    id="forceResetDate"
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/50 cursor-pointer"
+                    checked={forceResetDate}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setForceResetDate(checked);
+                      
+                      const durationMonths = pricingPlans.find(p => p.plan_key === editSubscriptionType)?.duration_months || 1;
+                      const currentEnd = new Date(editingCompany.subscription_end);
+                      const baseDate = (!checked && currentEnd > new Date()) ? currentEnd : new Date();
+                      
+                      const end = new Date(baseDate);
+                      end.setMonth(end.getMonth() + durationMonths);
+                      const yyyy = end.getFullYear();
+                      const mm = String(end.getMonth() + 1).padStart(2, '0');
+                      const dd = String(end.getDate()).padStart(2, '0');
+                      setEditSubscriptionEnd(`${yyyy}-${mm}-${dd}`);
+                    }}
+                  />
+                  <label htmlFor="forceResetDate" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none leading-normal">
+                    Reset/Override end date starting from today (ignore remaining days)
+                  </label>
+                </div>
+              )}
               {editSubscriptionType !== "trial" && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-550 dark:text-slate-400 font-sans">Subscription End Date</label>
