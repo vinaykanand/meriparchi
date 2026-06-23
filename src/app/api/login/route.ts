@@ -61,22 +61,39 @@ export async function POST(request: Request) {
       return NextResponse.json(data, { status: 200 });
     }
 
-    const result = await query(
-      "SELECT public.login_user($1, $2, $3, $4) as result",
-      [orgcode, userid, password, otp || null]
+    // Read company status and security logging preference
+    const companyCheck = await query(
+      "SELECT isactive, enable_security_logs FROM public.company WHERE orgcode = $1",
+      [targetOrgcode]
     );
 
-    // Read security logging preference
-    const companyCheck = await query(
-      "SELECT enable_security_logs FROM public.company WHERE orgcode = $1",
-      [orgcode]
+    if (companyCheck.rows.length === 0) {
+      return NextResponse.json({ success: false, message: "Company does not exist" }, { status: 400 });
+    }
+
+    const enableSecurityLogs = companyCheck.rows[0].enable_security_logs !== false;
+
+    if (companyCheck.rows[0].isactive === false) {
+      if (enableSecurityLogs) {
+        await logAction({
+          orgcode: targetOrgcode,
+          userid,
+          action: "LOGIN_FAILED",
+          details: { username: userid, ip, userAgent, message: "Company account is suspended" },
+        });
+      }
+      return NextResponse.json({ success: false, message: "Your account is suspended. Please contact support." }, { status: 403 });
+    }
+
+    const result = await query(
+      "SELECT public.login_user($1, $2, $3, $4) as result",
+      [targetOrgcode, userid, password, otp || null]
     );
-    const enableSecurityLogs = companyCheck.rows.length > 0 && companyCheck.rows[0].enable_security_logs !== false;
 
     if (result.rows.length === 0) {
       if (enableSecurityLogs) {
         await logAction({
-          orgcode,
+          orgcode: targetOrgcode,
           userid,
           action: "LOGIN_FAILED",
           details: { username: userid, ip, userAgent, message: "Database query returned no rows" },
@@ -88,15 +105,19 @@ export async function POST(request: Request) {
     const data = result.rows[0].result;
 
     if (!data || !data.success) {
+      let failMessage = data?.message || "Login failed";
+      if (failMessage === "User is disabled") {
+        failMessage = "Your account is suspended. Please contact support.";
+      }
       if (enableSecurityLogs) {
         await logAction({
-          orgcode,
+          orgcode: targetOrgcode,
           userid,
           action: "LOGIN_FAILED",
-          details: { username: userid, ip, userAgent, message: data?.message || "Invalid credentials" },
+          details: { username: userid, ip, userAgent, message: failMessage },
         });
       }
-      return NextResponse.json(data || { success: false, message: "Login failed" }, { status: 400 });
+      return NextResponse.json({ success: false, message: failMessage }, { status: 400 });
     }
 
     // Check if the user is a super admin
@@ -104,7 +125,7 @@ export async function POST(request: Request) {
     if (data.authtoken) {
       const superAdminCheck = await query(
         "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2",
-        [data.authtoken, data.orgcode || orgcode]
+        [data.authtoken, data.orgcode || targetOrgcode]
       );
       if (superAdminCheck.rows.length > 0 && superAdminCheck.rows[0].issuperadmin) {
         data.issuperadmin = true;
@@ -113,10 +134,10 @@ export async function POST(request: Request) {
     }
 
     // Only allow superadmin users to login under the SUPER organization code
-    if (orgcode.trim().toUpperCase() === "SUPER" && !isSuperAdmin) {
+    if (targetOrgcode === "SUPER" && !isSuperAdmin) {
       if (enableSecurityLogs) {
         await logAction({
-          orgcode,
+          orgcode: targetOrgcode,
           userid,
           action: "LOGIN_FAILED",
           details: { username: userid, ip, userAgent, message: "Unauthorized access: non-superadmin login attempt on SUPER orgcode" },
@@ -135,7 +156,7 @@ export async function POST(request: Request) {
         path: "/",
         maxAge: 60 * 60 * 24 * 7, // 1 week
       });
-      cookieStore.set("orgcode", data.orgcode || body.orgcode, {
+      cookieStore.set("orgcode", data.orgcode || targetOrgcode, {
         httpOnly: false,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
@@ -146,7 +167,7 @@ export async function POST(request: Request) {
 
     if (enableSecurityLogs) {
       await logAction({
-        orgcode,
+        orgcode: targetOrgcode,
         userid: data.userid || userid,
         action: "LOGIN_SUCCESS",
         details: { username: data.userid || userid, ip, userAgent },
