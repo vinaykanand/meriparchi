@@ -53,6 +53,7 @@ export default function SuperAdminPage() {
   const [editOrgname, setEditOrgname] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editAdminPassword, setEditAdminPassword] = useState("");
   const [editSubscriptionType, setEditSubscriptionType] = useState<string>("trial");
   const [editSubscriptionEnd, setEditSubscriptionEnd] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
@@ -152,6 +153,7 @@ export default function SuperAdminPage() {
     setEditOrgname(company.orgname);
     setEditEmail(company.email || "");
     setEditPhone(company.phone || "");
+    setEditAdminPassword("");
     setEditSubscriptionType(company.subscription_type);
     setEditIsActive(company.isactive);
     setForceResetDate(false);
@@ -177,6 +179,7 @@ export default function SuperAdminPage() {
           orgname: editOrgname.trim(),
           email: editEmail.trim() || undefined,
           phone: editPhone.trim() || undefined,
+          adminPassword: editAdminPassword.trim() || undefined,
           subscriptionType: editSubscriptionType,
           subscriptionEnd: editSubscriptionEnd,
           isactive: editIsActive,
@@ -187,6 +190,7 @@ export default function SuperAdminPage() {
       if (res.ok && data.success) {
         addToast(data.message || "Company updated successfully", "success");
         setEditingCompany(null);
+        setEditAdminPassword("");
         fetchCompanies();
       } else {
         addToast(data.message || "Failed to update company", "error");
@@ -531,6 +535,17 @@ export default function SuperAdminPage() {
                   className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Reset Admin Password (optional)</label>
+                <input
+                  type="password"
+                  placeholder="Enter new password to reset"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white font-mono"
+                  value={editAdminPassword}
+                  onChange={(e) => setEditAdminPassword(e.target.value)}
                 />
               </div>
 

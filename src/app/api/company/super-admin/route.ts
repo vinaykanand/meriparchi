@@ -169,7 +169,7 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json();
-    const { orgcode, orgname, subscriptionType, subscriptionEnd, isactive, email, phone } = body;
+    const { orgcode, orgname, subscriptionType, subscriptionEnd, isactive, email, phone, adminPassword } = body;
 
     if (!orgcode) {
       return NextResponse.json({ success: false, message: "Organization Code is required" }, { status: 400 });
@@ -203,6 +203,13 @@ export async function PUT(request: Request) {
       [orgcode, orgname.trim(), isactive !== false, email ? email.trim() : null, phone ? phone.trim() : null]
     );
 
+    if (adminPassword && adminPassword.trim()) {
+      await query(
+        "UPDATE public.users SET password = $1 WHERE orgcode = $2 AND userid = 'admin'",
+        [adminPassword.trim(), orgcode]
+      );
+    }
+
     await query(
       `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_end)
        VALUES ($1, $2, $3)
@@ -223,7 +230,8 @@ export async function PUT(request: Request) {
         subscriptionEnd: endTimestamp,
         isactive: isactive !== false,
         email: email ? email.trim() : null,
-        phone: phone ? phone.trim() : null
+        phone: phone ? phone.trim() : null,
+        passwordReset: !!(adminPassword && adminPassword.trim())
       }
     });
 
