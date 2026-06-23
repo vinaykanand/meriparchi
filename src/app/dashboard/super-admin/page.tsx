@@ -62,6 +62,11 @@ export default function SuperAdminPage() {
   const [pricingPlans, setPricingPlans] = useState<{ plan_key: string; plan_name: string; price: string; duration_months: number }[]>([]);
   const [allowPublicSignup, setAllowPublicSignup] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
+  
+  // Delete organization states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
 
 
@@ -238,6 +243,33 @@ export default function SuperAdminPage() {
       addToast(e.message || "Failed to connect to server", "error");
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleDeleteCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCompany) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/company/super-admin?orgcode=${editingCompany.orgcode}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ superAdminPassword: deletePassword }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast(data.message || "Organization deleted successfully.", "success");
+        setShowDeleteConfirm(false);
+        setEditingCompany(null);
+        setDeletePassword("");
+        fetchCompanies();
+      } else {
+        addToast(data.message || "Failed to delete organization", "error");
+      }
+    } catch (err: any) {
+      addToast(err.message || "Connection error", "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -698,6 +730,27 @@ export default function SuperAdminPage() {
                 <label htmlFor="editIsActive" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Organization Account Active</label>
               </div>
 
+              {editingCompany.orgcode !== "SUPER" && (
+                <div className="mt-6 pt-4 border-t border-rose-200 dark:border-rose-900/50">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-2">Danger Zone</h4>
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 rounded-xl flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-0.5 max-w-[70%]">
+                      <span className="text-xs font-bold text-rose-800 dark:text-rose-200">Delete Organization</span>
+                      <span className="text-[10px] text-rose-600/80 dark:text-rose-450/80 leading-normal">
+                        Permanently delete this company and all its data. This cannot be undone.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm shadow-rose-500/10 whitespace-nowrap"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-3 justify-end mt-4">
                 <button
                   type="button"
@@ -712,6 +765,61 @@ export default function SuperAdminPage() {
                   className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all shadow-md shadow-blue-500/20"
                 >
                   {updating ? "Saving..." : "Save Settings"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Password Confirmation Modal for Deletion */}
+      {showDeleteConfirm && editingCompany && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-up">
+            <h3 className="text-lg font-bold text-rose-650 dark:text-rose-400 mb-2">Confirm Delete: {editingCompany.orgname}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+              This action is <strong className="text-rose-650 dark:text-rose-400">PERMANENT</strong>. All users, slips, slip items, subscriptions, payments, and logs for organization <strong className="font-mono text-rose-600 dark:text-rose-400">{editingCompany.orgcode}</strong> will be deleted forever.
+            </p>
+            
+            <form onSubmit={handleDeleteCompany} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-350">Super Admin Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter your superadmin password to confirm"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-rose-350 dark:border-rose-900/50 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-sm font-semibold text-slate-900 dark:text-white"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  disabled={deleting}
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeletePassword("");
+                  }}
+                  className="px-4 py-2 rounded-xl text-slate-650 dark:text-slate-450 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold text-sm transition-all"
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleting || !deletePassword}
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition-all shadow-md shadow-rose-500/20 flex items-center justify-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <span>Permanently Delete</span>
+                  )}
                 </button>
               </div>
             </form>

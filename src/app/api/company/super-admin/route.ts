@@ -247,3 +247,87 @@ export async function PUT(request: Request) {
     );
   }
 }
+
+// DELETE: Delete a company and all its data permanently
+export async function DELETE(request: Request) {
+  const auth = await verifySuperAdmin();
+  if (!auth.ok) {
+    return NextResponse.json({ success: false, message: auth.message }, { status: auth.status });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    let targetOrgcode = searchParams.get("orgcode");
+
+    const body = await request.json().catch(() => ({}));
+    const { superAdminPassword } = body;
+
+    if (!targetOrgcode) {
+      targetOrgcode = body.orgcode;
+    }
+
+    if (!targetOrgcode) {
+      return NextResponse.json({ success: false, message: "Organization Code is required" }, { status: 400 });
+    }
+
+    const cleanOrgcode = targetOrgcode.trim().toUpperCase();
+    if (cleanOrgcode === "SUPER") {
+      return NextResponse.json({ success: false, message: "Unauthorized: Cannot delete SUPER admin organization." }, { status: 400 });
+    }
+
+    if (!superAdminPassword || !superAdminPassword.trim()) {
+      return NextResponse.json({ success: false, message: "Super Admin password confirmation is required" }, { status: 400 });
+    }
+
+    // Verify Super Admin Password
+    const superUserRes = await query(
+      "SELECT password FROM public.users WHERE orgcode = 'SUPER' AND userid = $1 AND issuperadmin = true AND isactive = true",
+      [auth.adminUserid]
+    );
+
+    if (superUserRes.rows.length === 0 || superUserRes.rows[0].password !== superAdminPassword.trim()) {
+      return NextResponse.json({ success: false, message: "Invalid Super Admin password confirmation." }, { status: 401 });
+    }
+
+    // Perform transaction deletion
+    await query("BEGIN");
+
+    try {
+      await query("DELETE FROM public.slipitems WHERE id IN (SELECT id FROM public.slips WHERE orgcode = $1)", [cleanOrgcode]);
+      await query("DELETE FROM public.slips WHERE orgcode = $1", [cleanOrgcode]);
+      await query("DELETE FROM public.payments WHERE orgcode = $1", [cleanOrgcode]);
+      await query("DELETE FROM public.users WHERE orgcode = $1", [cleanOrgcode]);
+      await query("DELETE FROM public.company_subscriptions WHERE orgcode = $1", [cleanOrgcode]);
+      await query("DELETE FROM public.coupon_uses WHERE orgcode = $1", [cleanOrgcode]);
+      await query("DELETE FROM public.payment_history WHERE orgcode = $1", [cleanOrgcode]);
+      await query("DELETE FROM public.audit_logs WHERE orgcode = $1", [cleanOrgcode]);
+      await query("DELETE FROM public.company WHERE orgcode = $1", [cleanOrgcode]);
+
+      await query("COMMIT");
+    } catch (txErr) {
+      await query("ROLLBACK");
+      throw txErr;
+    }
+
+    // Log audit log under SUPER organization
+    await logAction({
+      orgcode: "SUPER",
+      userid: auth.adminUserid || "superadmin",
+      action: "SUPER_ADMIN_DELETE_COMPANY",
+      details: {
+        targetOrgcode: cleanOrgcode
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Organization '${cleanOrgcode}' and all associated data have been permanently deleted.`
+    });
+  } catch (error: any) {
+    console.error("Super Admin DELETE Company Error:", error);
+    return NextResponse.json(
+      { success: false, message: error.message || "Server Error" },
+      { status: 500 }
+    );
+  }
+}
