@@ -59,6 +59,7 @@ const ACTION_TYPES = [
   { value: "SUPER_ADMIN_DELETE_COUPON", label: "Delete Coupon" },
   { value: "SUPER_ADMIN_CREATE_COMPANY", label: "Register Company" },
   { value: "SUPER_ADMIN_UPDATE_COMPANY", label: "Update Company" },
+  { value: "SUPER_ADMIN_IMPERSONATE", label: "Impersonate" },
 ];
 
 export default function AdminAuditPage() {
@@ -540,7 +541,7 @@ export default function AdminAuditPage() {
                           {log.userid}
                         </td>
                         <td className="py-4 px-6 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(log.action)}`}>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${getActionBadgeColor(log.action)}`}>
                             {ACTION_TYPES.find(a => a.value === log.action)?.label || log.action.replace(/_/g, " ")}
                           </span>
                         </td>
