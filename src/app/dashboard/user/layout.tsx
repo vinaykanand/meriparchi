@@ -46,6 +46,11 @@ function UserDashboardContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 font-sans text-slate-900 dark:text-slate-100 overflow-hidden relative flex flex-col">
+      {session?.isImpersonation && (
+        <div className="w-full bg-amber-500 text-slate-950 font-bold text-center py-2 text-xs uppercase tracking-wider flex items-center justify-center gap-2 relative z-30 shadow-[0_2px_8px_rgba(245,158,11,0.3)] animate-pulse">
+          <span>⚠️ Impersonation Mode: Logged in as Super Admin. You have read-only access to slips & payments.</span>
+        </div>
+      )}
       {/* Top Navbar */}
       <header className="flex justify-between items-center p-4 sm:px-6 lg:px-8 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md relative z-20">
         <div className="flex items-center gap-3">

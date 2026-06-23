@@ -8,6 +8,7 @@ export interface Session {
   userid: string;
   isadmin: boolean;
   issuperadmin?: boolean;
+  isImpersonation?: boolean;
 }
 
 interface AuthContextType {
@@ -44,13 +45,13 @@ export default function AuthProvider({
         const res = await fetch("/api/auth/verify");
         const data = await res.json();
         if (res.ok && data.success) {
-          if (data.issuperadmin) {
+          if (data.issuperadmin && !data.isImpersonation) {
             if (!pathname.startsWith("/dashboard/super-admin")) {
               router.push("/dashboard/super-admin");
               return;
             }
           } else {
-            if (requireSuperAdmin) {
+            if (requireSuperAdmin && !data.isImpersonation) {
               router.push(data.isadmin ? "/dashboard/admin" : "/dashboard/user");
               return;
             }
@@ -58,7 +59,7 @@ export default function AuthProvider({
               router.push("/dashboard/user");
               return;
             }
-            if (!requireAdmin && data.isadmin) {
+            if (!requireAdmin && data.isadmin && !data.isImpersonation) {
               router.push("/dashboard/admin");
               return;
             }
@@ -69,6 +70,7 @@ export default function AuthProvider({
             userid: data.userid,
             isadmin: data.isadmin,
             issuperadmin: !!data.issuperadmin,
+            isImpersonation: !!data.isImpersonation,
           };
           localStorage.setItem("parchi_session", JSON.stringify(sessionObj));
           setSession(sessionObj);

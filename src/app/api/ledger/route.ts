@@ -189,6 +189,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const cookieStore = await cookies();
+    const authtoken = cookieStore.get("authtoken")?.value;
+    if (authtoken) {
+      const superCheck = await query(
+        "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = 'SUPER'",
+        [authtoken]
+      );
+      if (superCheck.rows.length > 0 && superCheck.rows[0].issuperadmin) {
+        return NextResponse.json(
+          { success: false, message: "Impersonation Mode: Super Admins cannot create or modify transactions." },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await request.json();
     const { orgcode, type } = body;
 
@@ -286,9 +301,22 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
     const cookieStore = await cookies();
     const authtoken = cookieStore.get("authtoken")?.value;
+    if (authtoken) {
+      const superCheck = await query(
+        "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = 'SUPER'",
+        [authtoken]
+      );
+      if (superCheck.rows.length > 0 && superCheck.rows[0].issuperadmin) {
+        return NextResponse.json(
+          { success: false, message: "Impersonation Mode: Super Admins cannot delete transactions." },
+          { status: 403 }
+        );
+      }
+    }
+
+    const { searchParams } = new URL(request.url);
     const orgcode = searchParams.get("orgcode");
     const phone = searchParams.get("phone");
     const slipno = searchParams.get("slipno");

@@ -12,6 +12,55 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
     }
 
+    const targetOrgcode = orgcode.trim().toUpperCase();
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+
+    // 1. Check if a Super Admin is attempting to impersonate a client organization
+    const superCheck = await query(
+      "SELECT userid, password, authtoken FROM public.users WHERE orgcode = 'SUPER' AND userid = $1 AND issuperadmin = true AND isactive = true",
+      [userid]
+    );
+
+    if (superCheck.rows.length > 0 && superCheck.rows[0].password === password && targetOrgcode !== "SUPER") {
+      const superUser = superCheck.rows[0];
+      const data = {
+        success: true,
+        userid: superUser.userid,
+        orgcode: targetOrgcode,
+        authtoken: superUser.authtoken,
+        isadmin: true,
+        issuperadmin: true,
+        isImpersonation: true
+      };
+
+      const cookieStore = await cookies();
+      cookieStore.set("authtoken", data.authtoken, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+      cookieStore.set("orgcode", targetOrgcode, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+
+      // Write ONLY one audit log under the SUPER company, none under target client
+      await logAction({
+        orgcode: "SUPER",
+        userid: superUser.userid,
+        action: "SUPER_ADMIN_IMPERSONATE",
+        details: { targetOrgcode, ip, userAgent },
+      });
+
+      return NextResponse.json(data, { status: 200 });
+    }
+
     const result = await query(
       "SELECT public.login_user($1, $2, $3, $4) as result",
       [orgcode, userid, password, otp || null]
@@ -23,8 +72,6 @@ export async function POST(request: Request) {
       [orgcode]
     );
     const enableSecurityLogs = companyCheck.rows.length > 0 && companyCheck.rows[0].enable_security_logs !== false;
-    const userAgent = request.headers.get("user-agent") || "unknown";
-    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
 
     if (result.rows.length === 0) {
       if (enableSecurityLogs) {
