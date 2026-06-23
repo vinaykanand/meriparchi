@@ -368,6 +368,8 @@ export default function SuperAdminAuditPage() {
           return `New organization '${parsed.orgname}' registered (Code: ${parsed.orgcode})`;
         case "SUPER_ADMIN_UPDATE_COMPANY":
           return `Organization settings for '${parsed.orgcode}' updated (Plan: ${parsed.subscriptionType}, Status: ${parsed.isactive ? "Active" : "Inactive"})`;
+        case "SUPER_ADMIN_IMPERSONATE":
+          return `Impersonation started for organization: ${parsed.targetOrgcode || parsed.target || "N/A"}`;
         default:
           return JSON.stringify(parsed);
       }
