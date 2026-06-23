@@ -9,13 +9,19 @@ import { logAction } from "@/lib/audit";
 
 function getEnv(key: string): string | undefined {
   try {
-    const envPath = path.join(process.cwd(), ".env");
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf-8");
-      const match = new RegExp(`^${key}=(.*)$`, "m").exec(content);
-      if (match) {
-        return match[1].trim();
+    let dir = process.cwd();
+    for (let i = 0; i < 4; i++) {
+      const envPath = path.join(dir, ".env");
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, "utf-8");
+        const match = new RegExp(`^${key}=(.*)$`, "m").exec(content);
+        if (match) {
+          return match[1].trim();
+        }
       }
+      const parentDir = path.dirname(dir);
+      if (parentDir === dir) break;
+      dir = parentDir;
     }
   } catch (e) {
     console.error("Error reading fallback .env:", e);
