@@ -97,8 +97,6 @@ export async function POST(request: Request) {
         durationDays = 30;
       }
     }
-    const endTimestamp = new Date();
-    endTimestamp.setDate(endTimestamp.getDate() + durationDays);
 
     // Insert company
     await query(
@@ -107,11 +105,11 @@ export async function POST(request: Request) {
       [cleanOrgcode, orgname.trim(), email ? email.trim() : null, phone ? phone.trim() : null]
     );
 
-    // Insert company subscription record
+    // Insert company subscription record using database CURRENT_TIMESTAMP and interval addition
     await query(
       `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_start, subscription_end)
-       VALUES ($1, $2, CURRENT_TIMESTAMP, $3)`,
-      [cleanOrgcode, plan, endTimestamp]
+       VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($3 || ' days')::INTERVAL)`,
+      [cleanOrgcode, plan, durationDays]
     );
 
     // Check if user admin was auto-created by Supabase trigger, or if we need to insert it

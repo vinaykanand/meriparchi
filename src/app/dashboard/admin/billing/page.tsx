@@ -74,16 +74,11 @@ export default function AdminBillingPage() {
       const data = await res.json();
       if (res.ok && data.success && data.company?.subscription) {
         const sub = data.company.subscription;
-        let remaining = 0;
-        if (sub.end) {
-          const diff = new Date(sub.end).getTime() - new Date().getTime();
-          remaining = diff / (1000 * 60 * 60 * 24);
-        }
         setSubscription({
           type: sub.type,
           start: sub.start,
           end: sub.end,
-          remaining_days: remaining,
+          remaining_days: sub.remaining_days || 0,
         });
       } else {
         addToast("Failed to load subscription details", "error");

@@ -46,14 +46,9 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (res.ok && data.success && data.company?.subscription) {
         const sub = data.company.subscription;
-        let remaining_days = 0;
-        if (sub.end) {
-          const diffTime = new Date(sub.end).getTime() - new Date().getTime();
-          remaining_days = diffTime / (1000 * 60 * 60 * 24);
-        }
         setSubscription({
           type: sub.type,
-          remaining_days,
+          remaining_days: sub.remaining_days || 0,
           slips_count: sub.slips_count,
           payments_count: sub.payments_count,
         });

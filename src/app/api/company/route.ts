@@ -16,7 +16,11 @@ export async function GET(request: Request) {
       `SELECT c.orgcode, c.orgname, c.isactive, c.enableotp, c.otpresettime, c.opentime, c.closetime, c.audit_retention_days, 
               c.backup_schedule, c.last_backup_time, (c.gdrive_refresh_token IS NOT NULL) as gdrive_linked,
               c.enable_security_logs, c.enable_ai_assistant, c.backup_retention_count, c.backup_password, c.email,
-              s.subscription_type, s.subscription_start, s.subscription_end 
+              s.subscription_type, s.subscription_start, s.subscription_end,
+              CASE 
+                WHEN s.subscription_end IS NULL THEN 0
+                ELSE EXTRACT(EPOCH FROM (s.subscription_end - NOW())) / 86400.0
+              END as remaining_days
        FROM public.company c
        LEFT JOIN public.company_subscriptions s ON c.orgcode = s.orgcode
        WHERE c.orgcode = $1`,
@@ -37,6 +41,7 @@ export async function GET(request: Request) {
         type: result.rows[0].subscription_type || 'trial',
         start: result.rows[0].subscription_start,
         end: result.rows[0].subscription_end,
+        remaining_days: parseFloat(result.rows[0].remaining_days || "0"),
         slips_count: parseInt(slipsCountRes.rows[0]?.count || "0", 10),
         payments_count: parseInt(paymentsCountRes.rows[0]?.count || "0", 10),
       }

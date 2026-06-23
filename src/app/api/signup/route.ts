@@ -54,11 +54,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Company with this Organization Code already exists" }, { status: 400 });
     }
 
-    // Set up a 10-day trial plan
-    const trialDays = 10;
-    const endTimestamp = new Date();
-    endTimestamp.setDate(endTimestamp.getDate() + trialDays);
-
     // Insert company
     await query(
       `INSERT INTO public.company (orgcode, orgname, isactive, email, phone)
@@ -66,11 +61,11 @@ export async function POST(request: Request) {
       [cleanOrgcode, orgname.trim(), email ? email.trim() : null, phone ? phone.trim() : null]
     );
 
-    // Insert trial subscription
+    // Insert trial subscription (exactly 10 days)
     await query(
       `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_start, subscription_end)
-       VALUES ($1, 'trial', CURRENT_TIMESTAMP, $2)`,
-      [cleanOrgcode, endTimestamp]
+       VALUES ($1, 'trial', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '10 days')`,
+      [cleanOrgcode]
     );
 
     // Insert admin user
