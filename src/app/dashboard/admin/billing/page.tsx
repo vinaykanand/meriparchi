@@ -472,10 +472,17 @@ export default function AdminBillingPage() {
                     }`}
                   >
                     <div className="flex justify-between items-center w-full">
-                      <span className="font-bold text-slate-900 dark:text-slate-100">{p.plan_name}</span>
-                      {isActivePlan && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                          <CheckIcon className="w-3 h-3 stroke-[3]" /> Active Plan
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">{p.plan_name}</span>
+                        {isActivePlan && (
+                          <span className="inline-flex items-center text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white shadow-sm">
+                          <CheckIcon className="w-3.5 h-3.5 stroke-[3.5]" />
                         </span>
                       )}
                     </div>
