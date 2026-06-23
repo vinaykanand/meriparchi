@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   try {
     // Select companies, calculating remaining days
     const result = await query(
-      `SELECT c.orgcode, c.orgname, s.subscription_type, s.subscription_start, s.subscription_end, c.isactive, c.email,
+      `SELECT c.orgcode, c.orgname, s.subscription_type, s.subscription_start, s.subscription_end, c.isactive, c.email, c.phone,
               CASE 
                 WHEN s.subscription_end IS NULL THEN 0
                 ELSE EXTRACT(EPOCH FROM (s.subscription_end - NOW())) / 86400.0
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { orgcode, orgname, adminPassword, subscriptionType, email } = body;
+    const { orgcode, orgname, adminPassword, subscriptionType, email, phone } = body;
 
     if (!orgcode || !orgname) {
       return NextResponse.json({ success: false, message: "Organization Code and Name are required" }, { status: 400 });
@@ -102,9 +102,9 @@ export async function POST(request: Request) {
 
     // Insert company
     await query(
-      `INSERT INTO public.company (orgcode, orgname, isactive, email)
-       VALUES ($1, $2, true, $3)`,
-      [cleanOrgcode, orgname.trim(), email ? email.trim() : null]
+      `INSERT INTO public.company (orgcode, orgname, isactive, email, phone)
+       VALUES ($1, $2, true, $3, $4)`,
+      [cleanOrgcode, orgname.trim(), email ? email.trim() : null, phone ? phone.trim() : null]
     );
 
     // Insert company subscription record
@@ -169,7 +169,7 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json();
-    const { orgcode, orgname, subscriptionType, subscriptionEnd, isactive, email } = body;
+    const { orgcode, orgname, subscriptionType, subscriptionEnd, isactive, email, phone } = body;
 
     if (!orgcode) {
       return NextResponse.json({ success: false, message: "Organization Code is required" }, { status: 400 });
@@ -198,9 +198,9 @@ export async function PUT(request: Request) {
 
     await query(
       `UPDATE public.company
-       SET orgname = $2, isactive = $3, email = $4
+       SET orgname = $2, isactive = $3, email = $4, phone = $5
        WHERE orgcode = $1`,
-      [orgcode, orgname.trim(), isactive !== false, email ? email.trim() : null]
+      [orgcode, orgname.trim(), isactive !== false, email ? email.trim() : null, phone ? phone.trim() : null]
     );
 
     await query(
@@ -222,7 +222,8 @@ export async function PUT(request: Request) {
         subscriptionType,
         subscriptionEnd: endTimestamp,
         isactive: isactive !== false,
-        email: email ? email.trim() : null
+        email: email ? email.trim() : null,
+        phone: phone ? phone.trim() : null
       }
     });
 

@@ -22,6 +22,7 @@ interface Company {
   subscription_end: string;
   isactive: boolean;
   email: string | null;
+  phone: string | null;
   remaining_days: number;
 }
 
@@ -42,6 +43,7 @@ export default function SuperAdminPage() {
   const [newOrgcode, setNewOrgcode] = useState("");
   const [newOrgname, setNewOrgname] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newPhone, setNewPhone] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [newSubscriptionType, setNewSubscriptionType] = useState<string>("trial");
   const [creating, setCreating] = useState(false);
@@ -50,6 +52,7 @@ export default function SuperAdminPage() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [editOrgname, setEditOrgname] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [editSubscriptionType, setEditSubscriptionType] = useState<string>("trial");
   const [editSubscriptionEnd, setEditSubscriptionEnd] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
@@ -118,6 +121,7 @@ export default function SuperAdminPage() {
           orgcode: newOrgcode.trim().toUpperCase(),
           orgname: newOrgname.trim(),
           email: newEmail.trim() || undefined,
+          phone: newPhone.trim() || undefined,
           adminPassword: newAdminPassword.trim() || undefined,
           subscriptionType: newSubscriptionType,
         }),
@@ -129,6 +133,7 @@ export default function SuperAdminPage() {
         setNewOrgcode("");
         setNewOrgname("");
         setNewEmail("");
+        setNewPhone("");
         setNewAdminPassword("");
         setNewSubscriptionType("trial");
         fetchCompanies();
@@ -146,6 +151,7 @@ export default function SuperAdminPage() {
     setEditingCompany(company);
     setEditOrgname(company.orgname);
     setEditEmail(company.email || "");
+    setEditPhone(company.phone || "");
     setEditSubscriptionType(company.subscription_type);
     setEditIsActive(company.isactive);
     setForceResetDate(false);
@@ -170,6 +176,7 @@ export default function SuperAdminPage() {
           orgcode: editingCompany.orgcode,
           orgname: editOrgname.trim(),
           email: editEmail.trim() || undefined,
+          phone: editPhone.trim() || undefined,
           subscriptionType: editSubscriptionType,
           subscriptionEnd: editSubscriptionEnd,
           isactive: editIsActive,
@@ -303,6 +310,18 @@ export default function SuperAdminPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Phone Number</label>
+              <input
+                type="text"
+                placeholder="e.g. +91 9876543210"
+                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                disabled={creating}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Initial Admin Password</label>
               <input
                 type="password"
@@ -401,6 +420,7 @@ export default function SuperAdminPage() {
                               <span className="font-bold text-slate-900 dark:text-slate-100">{c.orgname}</span>
                               <span className="text-xs text-slate-500 dark:text-slate-400 font-mono uppercase">Code: {c.orgcode}</span>
                               {c.email && <span className="text-xs text-slate-500">{c.email}</span>}
+                              {c.phone && <span className="text-xs text-slate-500">{c.phone}</span>}
                               {c.subscription_start && (
                                 <span className="text-xs text-slate-550 dark:text-slate-500">
                                   Registered: {new Date(c.subscription_start).toLocaleDateString()}
@@ -501,6 +521,16 @@ export default function SuperAdminPage() {
                   className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Phone Number</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
                 />
               </div>
 
