@@ -8,22 +8,21 @@ async function verifySuperAdmin(): Promise<{ ok: boolean; status: number; messag
   try {
     const cookieStore = await cookies();
     const authtoken = cookieStore.get("authtoken")?.value;
-    const orgcode = cookieStore.get("orgcode")?.value;
 
-    if (!authtoken || !orgcode) {
-      return { ok: false, status: 401, message: "Unauthorized: Missing authtoken or orgcode" };
+    if (!authtoken) {
+      return { ok: false, status: 401, message: "Unauthorized: Missing authtoken" };
     }
 
     const result = await query(
-      "SELECT userid, issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
-      [authtoken, orgcode]
+      "SELECT userid, issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = 'SUPER' AND isactive = true",
+      [authtoken]
     );
 
     if (result.rows.length === 0 || !result.rows[0].issuperadmin) {
       return { ok: false, status: 403, message: "Forbidden: Super Admin access required" };
     }
 
-    return { ok: true, status: 200, message: "Authorized", adminOrgcode: orgcode, adminUserid: result.rows[0].userid };
+    return { ok: true, status: 200, message: "Authorized", adminOrgcode: "SUPER", adminUserid: result.rows[0].userid };
   } catch (error: any) {
     return { ok: false, status: 500, message: error.message || "Internal server error" };
   }

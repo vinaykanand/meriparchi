@@ -14,6 +14,8 @@ export async function GET() {
       );
     }
 
+    const cookieOrgcode = cookieStore.get("orgcode")?.value;
+
     const response = await fetch(`https://ekzrjsjulqkoqvqgtsgi.supabase.co/functions/v1/verify?authtoken=${authtoken}`, {
       method: "GET",
       headers: {
@@ -24,12 +26,20 @@ export async function GET() {
     const data = await response.json();
     
     if (response.ok && data.success) {
+      // Query check without enforcing orgcode = data.orgcode in case they are impersonating
       const superAdminCheck = await query(
-        "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2",
-        [authtoken, data.orgcode]
+        "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = 'SUPER'",
+        [authtoken]
       );
       if (superAdminCheck.rows.length > 0 && superAdminCheck.rows[0].issuperadmin) {
         data.issuperadmin = true;
+        
+        // If they are a superadmin, and cookieOrgcode is different from SUPER, they are impersonating
+        if (cookieOrgcode && cookieOrgcode.trim().toUpperCase() !== "SUPER") {
+          data.isImpersonation = true;
+          data.orgcode = cookieOrgcode.trim().toUpperCase();
+          data.isadmin = true;
+        }
       }
 
       // Block non-superadmin session verification under the SUPER orgcode

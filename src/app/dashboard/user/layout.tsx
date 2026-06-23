@@ -47,8 +47,27 @@ function UserDashboardContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 font-sans text-slate-900 dark:text-slate-100 overflow-hidden relative flex flex-col">
       {session?.isImpersonation && (
-        <div className="w-full bg-amber-500 text-slate-950 font-bold text-center py-2 text-xs uppercase tracking-wider flex items-center justify-center gap-2 relative z-30 shadow-[0_2px_8px_rgba(245,158,11,0.3)] animate-pulse">
+        <div className="w-full bg-amber-500 text-slate-950 font-bold text-center py-2 text-xs uppercase tracking-wider flex items-center justify-center gap-4 relative z-30 shadow-[0_2px_8px_rgba(245,158,11,0.3)]">
           <span>⚠️ Impersonation Mode: Logged in as Super Admin. You have read-only access to slips & payments.</span>
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/company/super-admin/impersonate", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ targetOrgcode: "SUPER" }),
+                });
+                if (res.ok) {
+                  window.location.href = "/dashboard/super-admin";
+                }
+              } catch (e) {
+                console.error("Failed to exit impersonation", e);
+              }
+            }}
+            className="px-3 py-1 bg-slate-950 hover:bg-slate-900 text-white rounded-lg transition-colors font-extrabold uppercase text-[10px] tracking-wider shadow"
+          >
+            Exit Impersonation
+          </button>
         </div>
       )}
       {/* Top Navbar */}

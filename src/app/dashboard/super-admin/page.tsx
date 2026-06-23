@@ -191,6 +191,25 @@ export default function SuperAdminPage() {
     }
   };
 
+  const handleImpersonate = async (targetOrgcode: string) => {
+    try {
+      const res = await fetch("/api/company/super-admin/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetOrgcode }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast(`Entering organization ${targetOrgcode}...`, "success");
+        window.location.href = "/dashboard/admin";
+      } else {
+        addToast(data.message || "Failed to enter organization", "error");
+      }
+    } catch (e: any) {
+      addToast(e.message || "Connection error", "error");
+    }
+  };
+
   const filteredCompanies = companies.filter(
     (c) =>
       c.orgcode.toLowerCase().includes(search.toLowerCase()) ||
@@ -428,15 +447,22 @@ export default function SuperAdminPage() {
                               )}
                             </span>
                           </td>
-                          <td className="py-4 px-6 text-right">
-                            <button
-                              onClick={() => handleStartEdit(c)}
-                              className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-all border border-slate-200 dark:border-slate-700 shadow-sm"
-                              title="Edit settings or update subscription plan"
-                            >
-                              <PencilSquareIcon className="w-4 h-4" />
-                            </button>
-                          </td>
+                           <td className="py-4 px-6 text-right flex justify-end gap-2">
+                             <button
+                               onClick={() => handleImpersonate(c.orgcode)}
+                               className="p-2 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg transition-all border border-slate-200 dark:border-slate-700 shadow-sm"
+                               title="Enter directly to Org Code as Admin"
+                             >
+                               <ArrowRightOnRectangleIcon className="w-4 h-4" />
+                             </button>
+                             <button
+                               onClick={() => handleStartEdit(c)}
+                               className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-all border border-slate-200 dark:border-slate-700 shadow-sm"
+                               title="Edit settings or update subscription plan"
+                             >
+                               <PencilSquareIcon className="w-4 h-4" />
+                             </button>
+                           </td>
                         </tr>
                       );
                     })
