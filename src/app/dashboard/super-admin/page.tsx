@@ -723,11 +723,14 @@ export default function SuperAdminPage() {
                 <input
                   type="checkbox"
                   id="editIsActive"
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/50"
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   checked={editIsActive}
                   onChange={(e) => setEditIsActive(e.target.checked)}
+                  disabled={editingCompany.orgcode === "SUPER"}
                 />
-                <label htmlFor="editIsActive" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Organization Account Active</label>
+                <label htmlFor="editIsActive" className={`text-sm font-semibold text-slate-700 dark:text-slate-300 ${editingCompany.orgcode === "SUPER" ? "opacity-50" : ""}`}>
+                  Organization Account Active {editingCompany.orgcode === "SUPER" && "(Required for System Operations)"}
+                </label>
               </div>
 
               {editingCompany.orgcode !== "SUPER" && (

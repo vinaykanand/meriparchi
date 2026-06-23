@@ -173,12 +173,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, message: "Organization Code is required" }, { status: 400 });
     }
 
+    const cleanOrgcode = orgcode.trim().toUpperCase();
+    if (cleanOrgcode === "SUPER" && isactive === false) {
+      return NextResponse.json({ success: false, message: "Unauthorized: Cannot deactivate SUPER organization." }, { status: 400 });
+    }
+
     const checkCompany = await query(
       `SELECT c.orgcode, s.subscription_start 
        FROM public.company c
        LEFT JOIN public.company_subscriptions s ON c.orgcode = s.orgcode
        WHERE c.orgcode = $1`, 
-      [orgcode]
+      [cleanOrgcode]
     );
     if (checkCompany.rows.length === 0) {
       return NextResponse.json({ success: false, message: "Company not found" }, { status: 404 });
