@@ -10,7 +10,6 @@ interface Toast {
 }
 
 interface UserData {
-  authtoken: string;
   orgcode: string;
   userid: string;
   isadmin: boolean;
@@ -44,7 +43,7 @@ export default function LoginPage() {
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        if (data.authtoken) {
+        if (data.orgcode) {
           if (data.issuperadmin) {
             router.push("/dashboard/super-admin");
           } else if (data.isadmin) {
@@ -129,7 +128,6 @@ export default function LoginPage() {
           setLoading(false);
         } else {
           const sessionObj = {
-            authtoken: data.authtoken,
             orgcode: data.orgcode,
             userid: data.userid,
             isadmin: data.isadmin,
