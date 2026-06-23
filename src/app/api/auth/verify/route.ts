@@ -31,6 +31,14 @@ export async function GET() {
       if (superAdminCheck.rows.length > 0 && superAdminCheck.rows[0].issuperadmin) {
         data.issuperadmin = true;
       }
+
+      // Block non-superadmin session verification under the SUPER orgcode
+      if (data.orgcode && data.orgcode.trim().toUpperCase() === "SUPER" && !data.issuperadmin) {
+        return NextResponse.json(
+          { success: false, message: "Unauthorized access: only superadmin can login under this organization code." },
+          { status: 403 }
+        );
+      }
     }
     
     return NextResponse.json(data, { status: response.status });

@@ -53,7 +53,15 @@ export async function generateBackupZip(orgcode: string, isSuperAdmin: boolean =
   // Create Zip file
   const zip = new AdmZip();
   zip.addFile("company.json", Buffer.from(JSON.stringify(company.rows, null, 2)));
-  zip.addFile("users.json", Buffer.from(JSON.stringify(users.rows, null, 2)));
+  
+  if (actualIsSuperAdmin) {
+    zip.addFile("users.json", Buffer.from(JSON.stringify(users.rows, null, 2)));
+  } else {
+    // Strip issuperadmin column from normal company backups
+    const strippedUsers = users.rows.map(({ issuperadmin, ...rest }: any) => rest);
+    zip.addFile("users.json", Buffer.from(JSON.stringify(strippedUsers, null, 2)));
+  }
+
   if (!actualIsSuperAdmin) {
     zip.addFile("payments.json", Buffer.from(JSON.stringify(payments.rows, null, 2)));
     zip.addFile("slips.json", Buffer.from(JSON.stringify(slips.rows, null, 2)));
