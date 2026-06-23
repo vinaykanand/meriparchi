@@ -5,8 +5,8 @@ const client = new Client({
 
 async function main() {
   await client.connect();
-  const res = await client.query("SELECT userid, orgcode, issuperadmin, isactive FROM public.users WHERE issuperadmin = true");
-  console.log("Super Admin Users:", res.rows);
+  const res = await client.query("SELECT * FROM public.company WHERE orgcode = 'SUPER'");
+  console.log("SUPER company row:", res.rows);
   await client.end();
 }
 main();

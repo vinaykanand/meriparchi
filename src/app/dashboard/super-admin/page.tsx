@@ -60,6 +60,8 @@ export default function SuperAdminPage() {
   const [updating, setUpdating] = useState(false);
   const [forceResetDate, setForceResetDate] = useState(false);
   const [pricingPlans, setPricingPlans] = useState<{ plan_key: string; plan_name: string; price: string; duration_months: number }[]>([]);
+  const [allowPublicSignup, setAllowPublicSignup] = useState(true);
+  const [savingSettings, setSavingSettings] = useState(false);
 
 
 
@@ -102,9 +104,46 @@ export default function SuperAdminPage() {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch("/api/company/super-admin/settings");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAllowPublicSignup(data.settings.allowPublicSignup);
+      }
+    } catch (e) {
+      console.error("Failed to load settings", e);
+    }
+  };
+
+  const handleToggleSignup = async (checked: boolean) => {
+    setAllowPublicSignup(checked);
+    setSavingSettings(true);
+    try {
+      const res = await fetch("/api/company/super-admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowPublicSignup: checked }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast(data.message || "Settings updated", "success");
+      } else {
+        addToast(data.message || "Failed to update settings", "error");
+        setAllowPublicSignup(!checked);
+      }
+    } catch (e: any) {
+      addToast(e.message || "Network error updating settings", "error");
+      setAllowPublicSignup(!checked);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   useEffect(() => {
     fetchCompanies();
     fetchPricingPlans();
+    fetchSettings();
   }, []);
 
   const handleCreateCompany = async (e: React.FormEvent) => {
@@ -269,107 +308,135 @@ export default function SuperAdminPage() {
       {/* Main Grid Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Left Column: Create Company Form */}
-        <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl h-fit">
-          <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-100">
-            <PlusIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            Register New Company
-          </h2>
-          <form onSubmit={handleCreateCompany} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Code</label>
-              <input
-                type="text"
-                placeholder="e.g. CLI101"
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold uppercase text-slate-900 dark:text-white"
-                value={newOrgcode}
-                onChange={(e) => setNewOrgcode(e.target.value.toUpperCase())}
-                disabled={creating}
-                required
-              />
-            </div>
+        {/* Left Column Container */}
+        <div className="flex flex-col gap-6 h-fit">
+          
+          {/* Left Column Card 1: Register Company Form */}
+          <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl">
+            <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-100">
+              <PlusIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Register New Company
+            </h2>
+            <form onSubmit={handleCreateCompany} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Code</label>
+                <input
+                  type="text"
+                  placeholder="e.g. CLI101"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold uppercase text-slate-900 dark:text-white"
+                  value={newOrgcode}
+                  onChange={(e) => setNewOrgcode(e.target.value.toUpperCase())}
+                  disabled={creating}
+                  required
+                />
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Acme Corp"
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                value={newOrgname}
-                onChange={(e) => setNewOrgname(e.target.value)}
-                disabled={creating}
-                required
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Acme Corp"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                  value={newOrgname}
+                  onChange={(e) => setNewOrgname(e.target.value)}
+                  disabled={creating}
+                  required
+                />
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Email Address</label>
-              <input
-                type="email"
-                placeholder="e.g. admin@acme.com"
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                disabled={creating}
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Email Address</label>
+                <input
+                  type="email"
+                  placeholder="e.g. admin@acme.com"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  disabled={creating}
+                />
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Phone Number</label>
-              <input
-                type="text"
-                placeholder="e.g. +91 9876543210"
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                value={newPhone}
-                onChange={(e) => setNewPhone(e.target.value)}
-                disabled={creating}
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Phone Number</label>
+                <input
+                  type="text"
+                  placeholder="e.g. +91 9876543210"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  disabled={creating}
+                />
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Initial Admin Password</label>
-              <input
-                type="password"
-                placeholder="Defaults to admin@123"
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono text-slate-900 dark:text-white"
-                value={newAdminPassword}
-                onChange={(e) => setNewAdminPassword(e.target.value)}
-                disabled={creating}
-              />
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Initial Admin Password</label>
+                <input
+                  type="password"
+                  placeholder="Defaults to admin@123"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono text-slate-900 dark:text-white"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  disabled={creating}
+                />
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Service Plan Model</label>
-              <select
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-700 dark:text-slate-200 mt-1"
-                value={newSubscriptionType}
-                onChange={(e) => setNewSubscriptionType(e.target.value)}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Service Plan Model</label>
+                <select
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-700 dark:text-slate-200 mt-1"
+                  value={newSubscriptionType}
+                  onChange={(e) => setNewSubscriptionType(e.target.value)}
+                  disabled={creating}
+                >
+                  <option value="trial" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Trial Plan (10 Days)</option>
+                  {pricingPlans.map((p) => (
+                    <option key={p.plan_key} value={p.plan_key} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                      {p.plan_name} (₹{p.price})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="submit"
                 disabled={creating}
+                className="w-full py-2.5 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <option value="trial" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Trial Plan (10 Days)</option>
-                {pricingPlans.map((p) => (
-                  <option key={p.plan_key} value={p.plan_key} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                    {p.plan_name} (₹{p.price})
-                  </option>
-                ))}
-              </select>
-            </div>
+                {creating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <span>Registering...</span>
+                  </>
+                ) : (
+                  <span>Register Company</span>
+                )}
+              </button>
+            </form>
+          </div>
 
-            <button
-              type="submit"
-              disabled={creating}
-              className="w-full py-2.5 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {creating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  <span>Registering...</span>
-                </>
-              ) : (
-                <span>Register Company</span>
-              )}
-            </button>
-          </form>
+          {/* Left Column Card 2: Global Settings */}
+          <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl">
+            <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-100">
+              <BuildingOfficeIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Global Config
+            </h2>
+            <div className="flex items-center justify-between py-2 border-t border-slate-200/50 dark:border-slate-700/50 pt-4">
+              <div className="flex flex-col gap-0.5 max-w-[80%]">
+                <span className="text-sm font-bold text-slate-850 dark:text-slate-100">Allow Public Signups</span>
+                <span className="text-[11px] text-slate-450 dark:text-slate-400 leading-normal">
+                  Enable or disable self-registration of new companies via the public signup portal.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-slate-350 dark:border-slate-700 cursor-pointer"
+                checked={allowPublicSignup}
+                onChange={(e) => handleToggleSignup(e.target.checked)}
+                disabled={savingSettings}
+              />
+            </div>
+          </div>
+
         </div>
 
         {/* Right Column: Listing Table */}

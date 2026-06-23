@@ -453,6 +453,12 @@ export default function LoginPage() {
                       )}
                     </button>
                   </form>
+                  <div className="mt-6 text-center text-xs text-slate-400 dark:text-slate-500">
+                    Need an account?{" "}
+                    <button onClick={() => router.push("/signup")} className="text-blue-500 hover:underline font-bold transition-colors focus:outline-none">
+                      Register Organization
+                    </button>
+                  </div>
                 </div>
               )}
             </>
