@@ -6,6 +6,9 @@ import fs from "fs";
 import path from "path";
 
 function getEnv(key: string): string | undefined {
+  const envVal = process.env[key];
+  if (envVal) return envVal.trim();
+
   try {
     let dir = process.cwd();
     for (let i = 0; i < 4; i++) {
@@ -24,7 +27,7 @@ function getEnv(key: string): string | undefined {
   } catch (e) {
     console.error("Error reading fallback .env:", e);
   }
-  return process.env[key]?.trim();
+  return undefined;
 }
 
 export async function POST(request: Request) {
