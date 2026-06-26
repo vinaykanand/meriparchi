@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { PlusIcon, PencilSquareIcon, MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, PencilSquareIcon, MagnifyingGlassIcon, XMarkIcon, TrashIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 
 interface Location {
   id: number;
@@ -24,6 +24,11 @@ export default function LocationsPage() {
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [editLocationName, setEditLocationName] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Delete states
+  const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteBlockedMsg, setDeleteBlockedMsg] = useState("");
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -106,6 +111,31 @@ export default function LocationsPage() {
       setErrorMsg("Error updating location");
     } finally {
       setEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteLocation = async () => {
+    if (!deleteTarget || !session?.orgcode) return;
+    setDeleteSubmitting(true);
+    try {
+      const res = await fetch(
+        `/api/inventory/locations?orgcode=${session.orgcode}&id=${deleteTarget.id}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(`Location "${deleteTarget.name}" deleted successfully.`);
+        setDeleteTarget(null);
+        fetchLocations();
+      } else {
+        setDeleteTarget(null);
+        setDeleteBlockedMsg(data.message || "Deletion failed.");
+      }
+    } catch (e) {
+      setDeleteTarget(null);
+      setDeleteBlockedMsg("An unexpected error occurred.");
+    } finally {
+      setDeleteSubmitting(false);
     }
   };
 
@@ -279,12 +309,20 @@ export default function LocationsPage() {
                       <td className="py-3.5 px-4 text-sm font-mono text-slate-450">#{loc.id}</td>
                       <td className="py-3.5 px-4 text-sm font-bold">{loc.name}</td>
                       <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => startEdit(loc)}
-                          className="p-1.5 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 dark:hover:text-amber-400 rounded-lg text-slate-400 transition-colors inline-flex items-center gap-1.5 text-xs font-bold"
-                        >
-                          <PencilSquareIcon className="w-4 h-4" /> Edit
-                        </button>
+                        <div className="inline-flex gap-2">
+                          <button
+                            onClick={() => startEdit(loc)}
+                            className="p-1.5 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 dark:hover:text-amber-400 rounded-lg text-slate-400 transition-colors inline-flex items-center gap-1.5 text-xs font-bold"
+                          >
+                            <PencilSquareIcon className="w-4 h-4" /> Edit
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(loc)}
+                            className="p-1.5 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 rounded-lg text-slate-400 transition-colors inline-flex items-center gap-1.5 text-xs font-bold"
+                          >
+                            <TrashIcon className="w-4 h-4" /> Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -301,6 +339,75 @@ export default function LocationsPage() {
           )}
         </div>
       </div>
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl max-w-md w-full p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center flex-shrink-0">
+                <TrashIcon className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Delete Location?</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 rounded-2xl p-4">
+              <p className="text-sm text-slate-700 dark:text-slate-300">
+                You are about to permanently delete location{" "}
+                <span className="font-black text-rose-700 dark:text-rose-400">&ldquo;{deleteTarget.name}&rdquo;</span>{" "}
+                (ID: #{deleteTarget.id}).
+              </p>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={handleDeleteLocation}
+                disabled={deleteSubmitting}
+                className="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors text-sm disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {deleteSubmitting ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Deleting...</>
+                ) : (
+                  <><TrashIcon className="w-4 h-4" />Yes, Delete</>  
+                )}
+              </button>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteSubmitting}
+                className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Transaction Block Modal */}
+      {deleteBlockedMsg && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-3xl shadow-2xl max-w-md w-full p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0">
+                <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Deletion Blocked</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Active transactions detected</p>
+              </div>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 rounded-2xl p-4">
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{deleteBlockedMsg}</p>
+            </div>
+            <button
+              onClick={() => setDeleteBlockedMsg("")}
+              className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors text-sm"
+            >
+              Understood
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

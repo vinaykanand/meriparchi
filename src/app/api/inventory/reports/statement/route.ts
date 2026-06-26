@@ -135,22 +135,22 @@ export async function GET(request: Request) {
     for (const txn of adjRes.rows) {
       if (locationId !== null) {
         // Inward to location
-        if (txn.to_location_id === locationId) {
+        if (txn.to_location_id && String(txn.to_location_id) === String(locationId)) {
           openingBalance += parseFloat(txn.qty);
         }
         // Outward from location
-        if (txn.from_location_id === locationId) {
+        if (txn.from_location_id && String(txn.from_location_id) === String(locationId)) {
           openingBalance -= parseFloat(txn.qty);
         }
       } else {
         // All locations total
-        const isToLocation = txn.to_type === "LOCATION";
-        const isFromLocation = txn.from_type === "LOCATION";
+        const isToLocation = txn.to_type?.toUpperCase() === "LOCATION";
+        const isFromLocation = txn.from_type?.toUpperCase() === "LOCATION";
         
-        if (isToLocation && (txn.from_type === "EXTERNAL" || !txn.from_location_id)) {
+        if (isToLocation && !isFromLocation) {
           openingBalance += parseFloat(txn.qty);
         }
-        if (isFromLocation && (txn.to_type === "EXTERNAL" || !txn.to_location_id)) {
+        if (isFromLocation && !isToLocation) {
           openingBalance -= parseFloat(txn.qty);
         }
       }
@@ -232,10 +232,10 @@ export async function GET(request: Request) {
       const qty = parseFloat(r.qty);
 
       if (locationId !== null) {
-        if (r.to_location_id === locationId) {
+        if (r.to_location_id && String(r.to_location_id) === String(locationId)) {
           inward = qty;
           runningBalance += qty;
-        } else if (r.from_location_id === locationId) {
+        } else if (r.from_location_id && String(r.from_location_id) === String(locationId)) {
           outward = qty;
           runningBalance -= qty;
         } else {
@@ -243,19 +243,19 @@ export async function GET(request: Request) {
         }
       } else {
         // All locations logic
-        const isToLocation = r.to_type === "LOCATION";
-        const isFromLocation = r.from_type === "LOCATION";
+        const isToLocation = r.to_type?.toUpperCase() === "LOCATION";
+        const isFromLocation = r.from_type?.toUpperCase() === "LOCATION";
         
-        if (isToLocation && (r.from_type === "EXTERNAL" || !r.from_location_id)) {
+        if (isToLocation && !isFromLocation) {
           inward = qty;
           runningBalance += qty;
-        } else if (isFromLocation && (r.to_type === "EXTERNAL" || !r.to_location_id)) {
+        } else if (isFromLocation && !isToLocation) {
           outward = qty;
           runningBalance -= qty;
         } else {
           // Inner transfer within org locations (does not change total balance)
-          inward = qty;
-          outward = qty;
+          inward = 0;
+          outward = 0;
         }
       }
 

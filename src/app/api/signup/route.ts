@@ -98,25 +98,7 @@ export async function POST(request: Request) {
       [cleanOrgcode, passwordToSet]
     );
 
-    // Seed default transaction types for the new company
-    const defaultTxnTypes = [
-      { code: 1, name: "Vendor Receipt", stock_effect: "INWARD", from_type: "vendor", to_type: "location" },
-      { code: 2, name: "Customer Issue", stock_effect: "OUTWARD", from_type: "location", to_type: "customer" },
-      { code: 3, name: "Warehouse Transfer", stock_effect: "TRANSFER", from_type: "location", to_type: "location" },
-      { code: 4, name: "Customer Return", stock_effect: "INWARD", from_type: "customer", to_type: "location" },
-      { code: 5, name: "Vendor Return", stock_effect: "OUTWARD", from_type: "location", to_type: "vendor" },
-      { code: 6, name: "Stock Adjustment (Shortage/Damage/Theft)", stock_effect: "OUTWARD", from_type: "location", to_type: "none" },
-      { code: 7, name: "Stock Adjustment (Surplus/Found)", stock_effect: "INWARD", from_type: "none", to_type: "location" }
-    ];
-
-    for (const d of defaultTxnTypes) {
-      await query(
-        `INSERT INTO public.inventory_transaction_types (orgcode, code, name, stock_effect, from_type, to_type)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (orgcode, code) DO NOTHING`,
-        [cleanOrgcode, d.code, d.name, d.stock_effect, d.from_type, d.to_type]
-      );
-    }
+    // Seeding transaction types is no longer required because they are handled globally under 'SUPER' orgcode.
 
     const userAgent = request.headers.get("user-agent") || "unknown";
     const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";

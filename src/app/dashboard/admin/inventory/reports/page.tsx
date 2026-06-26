@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { MagnifyingGlassIcon, CalendarIcon, MapPinIcon, PrinterIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline";
+import { useRouter } from "next/navigation";
+import { MagnifyingGlassIcon, CalendarIcon, MapPinIcon, PrinterIcon, ArrowDownTrayIcon, CubeIcon } from "@heroicons/react/24/outline";
+import { SkuInputWithPicker } from "@/components/inventory/SkuPicker";
 
 interface Location {
   id: number;
@@ -26,6 +28,7 @@ interface StatementLine {
 
 export default function ItemStatementReportPage() {
   const { session } = useAuth();
+  const router = useRouter();
 
   // Filter States
   const [locations, setLocations] = useState<Location[]>([]);
@@ -38,6 +41,7 @@ export default function ItemStatementReportPage() {
   const [itemsList, setItemsList] = useState<Item[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [stockBalances, setStockBalances] = useState<any[]>([]);
   
   // Report Result States
   const [loading, setLoading] = useState(false);
@@ -47,8 +51,6 @@ export default function ItemStatementReportPage() {
   const [statement, setStatement] = useState<StatementLine[]>([]);
   const [searched, setSearched] = useState(false);
 
-  const autocompleteRef = useRef<HTMLDivElement | null>(null);
-
   // Load Locations & Initial Items on Mount
   useEffect(() => {
     if (session?.orgcode) {
@@ -56,17 +58,6 @@ export default function ItemStatementReportPage() {
       fetchInitialItems();
     }
   }, [session]);
-
-  // Handle clicking outside autocomplete to close suggestions
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const fetchLocations = async () => {
     try {
@@ -86,6 +77,11 @@ export default function ItemStatementReportPage() {
       const data = await res.json();
       if (data.success) {
         setItemsList(data.items || []);
+      }
+      const invRes = await fetch(`/api/inventory?orgcode=${session?.orgcode}`);
+      const invData = await invRes.json();
+      if (invData.success) {
+        setStockBalances(invData.stock || []);
       }
     } catch (e) {
       console.error("Failed to load items", e);
@@ -244,39 +240,47 @@ export default function ItemStatementReportPage() {
         </div>
       </div>
 
+      {/* Related Reports Quick-link */}
+      <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 flex items-center justify-between gap-4 print:hidden">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center flex-shrink-0">
+            <CubeIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <div className="text-sm font-black text-slate-800 dark:text-slate-200">Stock in Hand Report</div>
+            <div className="text-xs text-slate-400 font-semibold">View current stock balance with reorder level — filter by location or item</div>
+          </div>
+        </div>
+        <button
+          onClick={() => router.push("/dashboard/admin/inventory/reports/stock-in-hand")}
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-colors flex-shrink-0"
+        >
+          Open Report →
+        </button>
+      </div>
+
       {/* Filter Options (Hidden on Print) */}
-      <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm print:hidden">
+      <div className="bg-white dark:bg-transparent border border-slate-200 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm print:hidden">
         <form onSubmit={generateReport} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           {/* Autocomplete Item Selector */}
-          <div className="relative" ref={autocompleteRef}>
+          <div className="relative">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
               Select Item / SKU
             </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search Item by SKU or Name..."
-                value={itemQuery}
-                onChange={(e) => handleSearchSuggestions(e.target.value)}
-                onFocus={() => setShowSuggestions(true)}
-                className="w-full pl-3 pr-8 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm"
-              />
-              <MagnifyingGlassIcon className="w-5 h-5 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-            </div>
-            {showSuggestions && filteredItems.length > 0 && (
-              <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-250 dark:border-slate-750 rounded-2xl shadow-xl max-h-60 overflow-y-auto z-40 divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredItems.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => selectItem(item)}
-                    className="p-3 hover:bg-slate-50 dark:hover:bg-slate-900/50 cursor-pointer text-sm transition-colors"
-                  >
-                    <div className="font-bold text-slate-800 dark:text-slate-200">{item.name}</div>
-                    <div className="text-xs text-slate-400 font-mono">SKU: {item.sku}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <SkuInputWithPicker
+              value={itemQuery}
+              onChange={(val) => {
+                setItemQuery(val);
+                if (!val.trim()) setSelectedItem(null);
+              }}
+              onPick={(item) => selectItem(item as any)}
+              items={itemsList as any}
+              stockBalances={stockBalances}
+              fromLocationId={selectedLocation !== "all" ? selectedLocation : null}
+              fromLocationName={locations.find(l => String(l.id) === selectedLocation)?.name}
+              placeholder="Search Item by SKU or Name..."
+              inputClassName="py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm"
+            />
           </div>
 
           {/* Location Selection */}
@@ -386,7 +390,7 @@ export default function ItemStatementReportPage() {
             <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800">
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Opening Balance</div>
               <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
-                {openingBalance.toLocaleString('en-IN')}
+                {Math.abs(openingBalance).toLocaleString('en-IN')}
               </div>
             </div>
             <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800">
@@ -404,7 +408,7 @@ export default function ItemStatementReportPage() {
             <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-150 dark:border-slate-800 bg-blue-50/20 dark:bg-blue-950/10">
               <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Closing Balance</div>
               <div className="text-xl font-black text-blue-650 dark:text-blue-400 mt-1">
-                {closingBalance.toLocaleString('en-IN')}
+                {Math.abs(closingBalance).toLocaleString('en-IN')}
               </div>
             </div>
           </div>
@@ -434,7 +438,7 @@ export default function ItemStatementReportPage() {
                   <td className="py-3.5 px-4 text-center text-slate-400">-</td>
                   <td className="py-3.5 px-4 text-center text-slate-400">-</td>
                   <td className="py-3.5 px-4 text-right text-slate-900 dark:text-white">
-                    {openingBalance.toLocaleString('en-IN')}
+                    {Math.abs(openingBalance).toLocaleString('en-IN')}
                   </td>
                 </tr>
 
@@ -452,13 +456,13 @@ export default function ItemStatementReportPage() {
                       {line.narration}
                     </td>
                     <td className="py-3 px-4 text-center text-emerald-600 dark:text-emerald-400 font-bold">
-                      {line.inward > 0 ? `+${line.inward.toLocaleString('en-IN')}` : "-"}
+                      {line.inward > 0 ? line.inward.toLocaleString('en-IN') : "-"}
                     </td>
                     <td className="py-3 px-4 text-center text-rose-600 dark:text-rose-400 font-bold">
-                      {line.outward > 0 ? `-${line.outward.toLocaleString('en-IN')}` : "-"}
+                      {line.outward > 0 ? line.outward.toLocaleString('en-IN') : "-"}
                     </td>
                     <td className="py-3 px-4 text-right text-slate-900 dark:text-white">
-                      {line.balance.toLocaleString('en-IN')}
+                      {Math.abs(line.balance).toLocaleString('en-IN')}
                     </td>
                   </tr>
                 ))}
@@ -503,7 +507,7 @@ export default function ItemStatementReportPage() {
                   <td>Opening Balance</td>
                   <td style={{ textAlign: "center" }}>-</td>
                   <td style={{ textAlign: "center" }}>-</td>
-                  <td style={{ textAlign: "right" }}>{openingBalance.toLocaleString('en-IN')}</td>
+                  <td style={{ textAlign: "right" }}>{Math.abs(openingBalance).toLocaleString('en-IN')}</td>
                 </tr>
                 {/* Movement rows */}
                 {statement.map((line, lIdx) => (
@@ -517,12 +521,12 @@ export default function ItemStatementReportPage() {
                     </td>
                     <td>{line.narration}</td>
                     <td style={{ textAlign: "center", color: "#16a34a" }}>
-                      {line.inward > 0 ? `+${line.inward.toLocaleString('en-IN')}` : "-"}
+                      {line.inward > 0 ? line.inward.toLocaleString('en-IN') : "-"}
                     </td>
                     <td style={{ textAlign: "center", color: "#dc2626" }}>
-                      {line.outward > 0 ? `-${line.outward.toLocaleString('en-IN')}` : "-"}
+                      {line.outward > 0 ? line.outward.toLocaleString('en-IN') : "-"}
                     </td>
-                    <td style={{ textAlign: "right" }}>{line.balance.toLocaleString('en-IN')}</td>
+                    <td style={{ textAlign: "right" }}>{Math.abs(line.balance).toLocaleString('en-IN')}</td>
                   </tr>
                 ))}
               </tbody>

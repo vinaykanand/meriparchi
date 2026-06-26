@@ -39,19 +39,9 @@ export async function GET(request: Request) {
               COALESCE(
                 (SELECT SUM(opening_qty) FROM public.inventory_balances WHERE orgcode = $1 AND item_id = i.id),
                 0
-              ) +
+              ) as opening_balance,
               COALESCE(
-                (SELECT SUM(d.qty) 
-                 FROM public.inventory_transaction_details d 
-                 JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
-                 WHERE h.orgcode = $1 AND d.item_id = i.id AND h.to_location_id IS NOT NULL),
-                0
-              ) -
-              COALESCE(
-                (SELECT SUM(d.qty) 
-                 FROM public.inventory_transaction_details d 
-                 JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
-                 WHERE h.orgcode = $1 AND d.item_id = i.id AND h.from_location_id IS NOT NULL),
+                (SELECT SUM(closing_qty) FROM public.inventory_balances WHERE orgcode = $1 AND item_id = i.id),
                 0
               ) as current_balance
        FROM public.inventory_items i 
@@ -124,6 +114,110 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    return NextResponse.json(
+      { success: false, message: error.message || "Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const orgcode = searchParams.get("orgcode");
+    const sku = searchParams.get("sku");
+
+    if (!orgcode || sku === null) {
+      return NextResponse.json(
+        { success: false, message: "Missing required parameters (orgcode, sku)" },
+        { status: 400 }
+      );
+    }
+
+    const intSku = parseInt(sku, 10);
+    if (isNaN(intSku)) {
+      return NextResponse.json(
+        { success: false, message: "SKU must be an integer" },
+        { status: 400 }
+      );
+    }
+
+    const session = await getSession(orgcode);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized or invalid session" },
+        { status: 401 }
+      );
+    }
+
+    // Resolve item_id from sku
+    const itemRes = await query(
+      "SELECT id, name FROM public.inventory_items WHERE orgcode = $1 AND sku = $2",
+      [orgcode, intSku]
+    );
+    if (itemRes.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "SKU not found" },
+        { status: 404 }
+      );
+    }
+    const { id: itemId, name: itemName } = itemRes.rows[0];
+
+    // Check for any transaction details referencing this item
+    const txCheck = await query(
+      `SELECT COUNT(*) as count
+       FROM public.inventory_transaction_details d
+       JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id
+       WHERE h.orgcode = $1 AND d.item_id = $2`,
+      [orgcode, itemId]
+    );
+    const txCount = parseInt(txCheck.rows[0]?.count || "0", 10);
+
+    if (txCount > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Deletion not possible — SKU "${intSku}" has ${txCount} active transaction(s) in the voucher. Please remove those transactions first.`,
+          activeTransactions: txCount,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Also check opening balances
+    const balanceCheck = await query(
+      "SELECT COUNT(*) as count FROM public.inventory_balances WHERE orgcode = $1 AND item_id = $2",
+      [orgcode, itemId]
+    );
+    const balanceCount = parseInt(balanceCheck.rows[0]?.count || "0", 10);
+    if (balanceCount > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Deletion not possible — SKU "${intSku}" has opening balance entries (${balanceCount} record(s)). Clear the balances first.`,
+          activeTransactions: balanceCount,
+        },
+        { status: 409 }
+      );
+    }
+
+    await query(
+      "DELETE FROM public.inventory_items WHERE orgcode = $1 AND sku = $2",
+      [orgcode, intSku]
+    );
+
+    await logAction({
+      orgcode,
+      userid: session.userid,
+      action: "DELETE_INVENTORY_ITEM",
+      details: { sku: intSku, name: itemName },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `SKU "${intSku}" deleted successfully`,
+    });
+  } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message || "Server Error" },
       { status: 500 }

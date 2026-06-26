@@ -32,9 +32,12 @@ export async function GET(request: Request) {
     if (voucherId) {
       // Fetch single voucher header and details
       const headerRes = await query(
-        `SELECT h.*, t.name as type_name, t.code as type_code, t.stock_effect, t.from_type, t.to_type 
+        `SELECT h.*, t.name as type_name, t.code as type_code, t.stock_effect, t.from_type, t.to_type,
+                fl.name as from_location_name, tl.name as to_location_name
          FROM public.inventory_transaction_headers h
          JOIN public.inventory_transaction_types t ON h.transaction_type_id = t.id
+         LEFT JOIN public.inventory_locations fl ON h.from_location_id = fl.id
+         LEFT JOIN public.inventory_locations tl ON h.to_location_id = tl.id
          WHERE h.id = $1 AND h.orgcode = $2`,
         [parseInt(voucherId, 10), orgcode]
       );
@@ -110,28 +113,8 @@ export async function GET(request: Request) {
 
     const selectedFyId = fyId ? parseInt(fyId, 10) : financialYears[0].id;
 
-    // 2. Fetch stock overview
+    // 2. Fetch stock overview directly from inventory_balances table
     const stockQuery = `
-      WITH transactions_in AS (
-        SELECT 
-          h.to_location_id as location_id,
-          d.item_id,
-          SUM(d.qty) as total_in
-        FROM public.inventory_transaction_details d
-        JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id
-        WHERE h.orgcode = $1 AND h.financial_year_id = $2
-        GROUP BY h.to_location_id, d.item_id
-      ),
-      transactions_out AS (
-        SELECT 
-          h.from_location_id as location_id,
-          d.item_id,
-          SUM(d.qty) as total_out
-        FROM public.inventory_transaction_details d
-        JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id
-        WHERE h.orgcode = $1 AND h.financial_year_id = $2
-        GROUP BY h.from_location_id, d.item_id
-      )
       SELECT 
         items.id as item_id,
         items.sku,
@@ -139,14 +122,22 @@ export async function GET(request: Request) {
         loc.id as location_id,
         loc.name as location_name,
         COALESCE(bal.opening_qty, 0) as opening_qty,
-        COALESCE(tin.total_in, 0) as total_in,
-        COALESCE(tout.total_out, 0) as total_out,
-        (COALESCE(bal.opening_qty, 0) + COALESCE(tin.total_in, 0) - COALESCE(tout.total_out, 0)) as current_qty
+        COALESCE(bal.closing_qty, 0) as current_qty,
+        COALESCE((
+          SELECT SUM(d.qty)
+          FROM public.inventory_transaction_details d
+          JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id
+          WHERE h.orgcode = $1 AND h.financial_year_id = $2 AND h.to_location_id = loc.id AND d.item_id = items.id
+        ), 0) as total_in,
+        COALESCE((
+          SELECT SUM(d.qty)
+          FROM public.inventory_transaction_details d
+          JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id
+          WHERE h.orgcode = $1 AND h.financial_year_id = $2 AND h.from_location_id = loc.id AND d.item_id = items.id
+        ), 0) as total_out
       FROM public.inventory_items items
       CROSS JOIN public.inventory_locations loc
       LEFT JOIN public.inventory_balances bal ON bal.financial_year_id = $2 AND bal.location_id = loc.id AND bal.item_id = items.id
-      LEFT JOIN transactions_in tin ON tin.location_id = loc.id AND tin.item_id = items.id
-      LEFT JOIN transactions_out tout ON tout.location_id = loc.id AND tout.item_id = items.id
       WHERE items.orgcode = $1 AND loc.orgcode = $1
     `;
 
@@ -163,7 +154,7 @@ export async function GET(request: Request) {
 
     // 3. Fetch recent transactions
     const txnResult = await query(
-      `SELECT d.id, h.transaction_date, h.transaction_type_id, d.item_id, d.qty, h.party_name, h.reference_no, h.remarks,
+      `SELECT d.id, h.id as transaction_header_id, h.voucher_no, h.transaction_date, h.transaction_type_id, d.item_id, d.qty, h.party_name, h.reference_no, h.remarks,
               h.from_location_id, h.to_location_id,
               fl.name as from_location_name, tl.name as to_location_name,
               i.name as item_name, i.sku,
@@ -182,7 +173,7 @@ export async function GET(request: Request) {
 
     // 4. Fetch recent vouchers (headers)
     const vouchersRes = await query(
-      `SELECT h.id, h.transaction_date, h.party_name, h.reference_no, h.remarks,
+      `SELECT h.id, h.voucher_no, h.transaction_date, h.party_name, h.reference_no, h.remarks,
               h.from_location_id, h.to_location_id,
               fl.name as from_location_name, tl.name as to_location_name,
               t.name as type_name, t.code as type_code, t.stock_effect, t.from_type, t.to_type,
@@ -210,6 +201,71 @@ export async function GET(request: Request) {
       { success: false, message: error.message || "Server Error" },
       { status: 500 }
     );
+  }
+}
+
+async function updateInventoryBalance(
+  orgcode: string,
+  financialYearId: number,
+  locationId: number,
+  itemId: number
+) {
+  // 1. Calculate inward sum for this location/item
+  const inwardRes = await query(
+    `SELECT COALESCE(SUM(d.qty), 0) as total_in
+     FROM public.inventory_transaction_details d
+     JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id
+     WHERE h.orgcode = $1 AND h.financial_year_id = $2 AND h.to_location_id = $3 AND d.item_id = $4`,
+    [orgcode, financialYearId, locationId, itemId]
+  );
+  const totalIn = parseFloat(inwardRes.rows[0].total_in);
+
+  // 2. Calculate outward sum for this location/item
+  const outwardRes = await query(
+    `SELECT COALESCE(SUM(d.qty), 0) as total_out
+     FROM public.inventory_transaction_details d
+     JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id
+     WHERE h.orgcode = $1 AND h.financial_year_id = $2 AND h.from_location_id = $3 AND d.item_id = $4`,
+    [orgcode, financialYearId, locationId, itemId]
+  );
+  const totalOut = parseFloat(outwardRes.rows[0].total_out);
+
+  // 3. Get base opening balance
+  const balRes = await query(
+    `SELECT COALESCE(opening_qty, 0) as opening_qty 
+     FROM public.inventory_balances 
+     WHERE orgcode = $1 AND financial_year_id = $2 AND location_id = $3 AND item_id = $4`,
+    [orgcode, financialYearId, locationId, itemId]
+  );
+  const openingQty = balRes.rows.length > 0 ? parseFloat(balRes.rows[0].opening_qty) : 0;
+
+  const currentClosingQty = openingQty + totalIn - totalOut;
+
+  // 4. Update or insert the new closing quantity in the inventory_balances table
+  await query(
+    `INSERT INTO public.inventory_balances (orgcode, financial_year_id, location_id, item_id, opening_qty, closing_qty)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (financial_year_id, location_id, item_id)
+     DO UPDATE SET closing_qty = EXCLUDED.closing_qty`,
+    [orgcode, financialYearId, locationId, itemId, openingQty, currentClosingQty]
+  );
+}
+
+async function recalculateBalancesForVoucher(
+  orgcode: string,
+  financialYearId: number,
+  fromLocationId: number | null,
+  toLocationId: number | null,
+  itemIds: number[]
+) {
+  const uniqueItemIds = Array.from(new Set(itemIds));
+  for (const itemId of uniqueItemIds) {
+    if (fromLocationId) {
+      await updateInventoryBalance(orgcode, financialYearId, fromLocationId, itemId);
+    }
+    if (toLocationId) {
+      await updateInventoryBalance(orgcode, financialYearId, toLocationId, itemId);
+    }
   }
 }
 
@@ -288,7 +344,7 @@ export async function POST(request: Request) {
     // Ensure transaction type exists
     const intTxnType = parseInt(transaction_type, 10);
     const typeCheck = await query(
-      "SELECT id, name, stock_effect FROM public.inventory_transaction_types WHERE orgcode = $1 AND code = $2",
+      "SELECT id, name, stock_effect FROM public.inventory_transaction_types WHERE (orgcode = $1 OR orgcode = 'SUPER') AND code = $2",
       [orgcode, isNaN(intTxnType) ? -1 : intTxnType]
     );
     if (typeCheck.rows.length === 0) {
@@ -373,22 +429,11 @@ export async function POST(request: Request) {
           [headerId, item.id, item.qty]
         );
 
-        // Initialize balance records for from/to locations if they don't exist
         if (from_location_id) {
-          await query(
-            `INSERT INTO public.inventory_balances (orgcode, financial_year_id, location_id, item_id, opening_qty)
-             VALUES ($1, $2, $3, $4, 0)
-             ON CONFLICT (financial_year_id, location_id, item_id) DO NOTHING`,
-            [orgcode, financial_year_id, from_location_id, item.id]
-          );
+          await updateInventoryBalance(orgcode, financial_year_id, from_location_id, item.id);
         }
         if (to_location_id) {
-          await query(
-            `INSERT INTO public.inventory_balances (orgcode, financial_year_id, location_id, item_id, opening_qty)
-             VALUES ($1, $2, $3, $4, 0)
-             ON CONFLICT (financial_year_id, location_id, item_id) DO NOTHING`,
-            [orgcode, financial_year_id, to_location_id, item.id]
-          );
+          await updateInventoryBalance(orgcode, financial_year_id, to_location_id, item.id);
         }
       }
 
@@ -465,7 +510,7 @@ export async function PUT(request: Request) {
     // Resolve transaction type
     const intTxnType = parseInt(transaction_type, 10);
     const typeCheck = await query(
-      "SELECT id, name, stock_effect FROM public.inventory_transaction_types WHERE orgcode = $1 AND code = $2",
+      "SELECT id, name, stock_effect FROM public.inventory_transaction_types WHERE (orgcode = $1 OR orgcode = 'SUPER') AND code = $2",
       [orgcode, isNaN(intTxnType) ? -1 : intTxnType]
     );
     if (typeCheck.rows.length === 0) {
@@ -505,6 +550,16 @@ export async function PUT(request: Request) {
       resolvedItems.push({ id: itemId, sku: intSku, qty: parseFloat(item.qty) });
     }
 
+    // Fetch old header and details for balance rollback recalculation
+    const oldHeaderRes = await query(
+      "SELECT from_location_id, to_location_id, financial_year_id FROM public.inventory_transaction_headers WHERE id = $1 AND orgcode = $2",
+      [id, orgcode]
+    );
+    const oldDetailsRes = await query(
+      "SELECT item_id FROM public.inventory_transaction_details WHERE transaction_header_id = $1",
+      [id]
+    );
+
     await query("BEGIN");
     try {
       // 1. Update header
@@ -530,31 +585,37 @@ export async function PUT(request: Request) {
       // 2. Delete old details
       await query("DELETE FROM public.inventory_transaction_details WHERE transaction_header_id = $1", [id]);
 
-      // 3. Insert new details & balances
+      // 3. Insert new details
       for (const item of resolvedItems) {
         await query(
           `INSERT INTO public.inventory_transaction_details (transaction_header_id, item_id, qty)
            VALUES ($1, $2, $3)`,
           [id, item.id, item.qty]
         );
-
-        if (from_location_id) {
-          await query(
-            `INSERT INTO public.inventory_balances (orgcode, financial_year_id, location_id, item_id, opening_qty)
-             VALUES ($1, $2, $3, $4, 0)
-             ON CONFLICT (financial_year_id, location_id, item_id) DO NOTHING`,
-            [orgcode, financial_year_id, from_location_id, item.id]
-          );
-        }
-        if (to_location_id) {
-          await query(
-            `INSERT INTO public.inventory_balances (orgcode, financial_year_id, location_id, item_id, opening_qty)
-             VALUES ($1, $2, $3, $4, 0)
-             ON CONFLICT (financial_year_id, location_id, item_id) DO NOTHING`,
-            [orgcode, financial_year_id, to_location_id, item.id]
-          );
-        }
       }
+
+      // 4. Recalculate balances for OLD locations/items
+      if (oldHeaderRes.rows.length > 0) {
+        const oldH = oldHeaderRes.rows[0];
+        const oldItemIds = oldDetailsRes.rows.map(d => d.item_id);
+        await recalculateBalancesForVoucher(
+          orgcode,
+          oldH.financial_year_id,
+          oldH.from_location_id,
+          oldH.to_location_id,
+          oldItemIds
+        );
+      }
+
+      // 5. Recalculate balances for NEW locations/items
+      const newItemIds = resolvedItems.map(item => item.id);
+      await recalculateBalancesForVoucher(
+        orgcode,
+        financial_year_id,
+        from_location_id || null,
+        to_location_id || null,
+        newItemIds
+      );
 
       await query("COMMIT");
 
@@ -590,9 +651,23 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const orgcode = searchParams.get("orgcode");
+    const password = searchParams.get("password");
 
     if (!id || !orgcode) {
       return NextResponse.json({ success: false, message: "Missing id or orgcode" }, { status: 400 });
+    }
+
+    // Verify admin password
+    if (!password) {
+      return NextResponse.json({ success: false, message: "Admin password is required to delete vouchers" }, { status: 400 });
+    }
+
+    const adminCheck = await query(
+      "SELECT password FROM public.users WHERE orgcode = $1 AND userid = 'admin' AND isadmin = true AND isactive = true",
+      [orgcode]
+    );
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].password !== password.trim()) {
+      return NextResponse.json({ success: false, message: "Invalid admin password confirmation" }, { status: 401 });
     }
 
     const session = await getSession(orgcode);
@@ -609,6 +684,16 @@ export async function DELETE(request: Request) {
       [parseInt(id, 10), orgcode]
     );
 
+    // Fetch old header and details for balance rollback recalculation
+    const oldHeaderRes = await query(
+      "SELECT from_location_id, to_location_id, financial_year_id FROM public.inventory_transaction_headers WHERE id = $1 AND orgcode = $2",
+      [parseInt(id, 10), orgcode]
+    );
+    const oldDetailsRes = await query(
+      "SELECT item_id FROM public.inventory_transaction_details WHERE transaction_header_id = $1",
+      [parseInt(id, 10)]
+    );
+
     if (voucherHeader.rows.length === 0) {
       return NextResponse.json({ success: false, message: "Voucher not found" }, { status: 404 });
     }
@@ -622,6 +707,20 @@ export async function DELETE(request: Request) {
       await query("DELETE FROM public.inventory_transaction_details WHERE transaction_header_id = $1", [parseInt(id, 10)]);
       // Delete header
       await query("DELETE FROM public.inventory_transaction_headers WHERE id = $1 AND orgcode = $2", [parseInt(id, 10), orgcode]);
+
+      // Recalculate balances for OLD locations/items
+      if (oldHeaderRes.rows.length > 0) {
+        const oldH = oldHeaderRes.rows[0];
+        const oldItemIds = oldDetailsRes.rows.map(d => d.item_id);
+        await recalculateBalancesForVoucher(
+          orgcode,
+          oldH.financial_year_id,
+          oldH.from_location_id,
+          oldH.to_location_id,
+          oldItemIds
+        );
+      }
+
       await query("COMMIT");
 
       // Log action

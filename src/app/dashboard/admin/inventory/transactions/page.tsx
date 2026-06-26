@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useSearchParams } from "next/navigation";
-import { PlusIcon, MagnifyingGlassIcon, UserIcon, MapPinIcon, TrashIcon, CheckIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, MagnifyingGlassIcon, UserIcon, MapPinIcon, TrashIcon, CheckIcon, AdjustmentsHorizontalIcon, XMarkIcon, PrinterIcon } from "@heroicons/react/24/outline";
+import { SkuInputWithPicker, type SkuItem } from "@/components/inventory/SkuPicker";
 
 interface FinancialYear {
   id: number;
@@ -17,6 +18,7 @@ interface Location {
 }
 
 interface InventoryItem {
+  id: number;
   sku: string;
   name: string;
   description?: string;
@@ -39,6 +41,8 @@ interface VoucherDetailInput {
 
 interface Transaction {
   id: string;
+  transaction_header_id?: number | string;
+  voucher_no?: string | number;
   transaction_date: string;
   transaction_type: string | number;
   sku: string | number;
@@ -69,6 +73,8 @@ function PostTransactionPageContent() {
   const [stockBalances, setStockBalances] = useState<any[]>([]);
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [editingVoucherId, setEditingVoucherId] = useState<number | null>(null);
+  const [printingVoucher, setPrintingVoucher] = useState<any>(null);
+  const [printingDetails, setPrintingDetails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [txnDeleting, setTxnDeleting] = useState(false);
 
@@ -85,21 +91,27 @@ function PostTransactionPageContent() {
   const [voucherDetails, setVoucherDetails] = useState<VoucherDetailInput[]>([
     { searchText: "", sku: "", name: "", qty: "" }
   ]);
-  const itemInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
-  const [showItemSuggestions, setShowItemSuggestions] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [txnSubmitting, setTxnSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  // Advanced search states
+  const [showAdvSearch, setShowAdvSearch] = useState(false);
+  const [advSkuItem, setAdvSkuItem] = useState("");
+  const [advDate, setAdvDate] = useState("");
+  const [advType, setAdvType] = useState("");
+  const [advLocation, setAdvLocation] = useState("");
+  const [advQty, setAdvQty] = useState("");
+  const [advPartyRef, setAdvPartyRef] = useState("");
+
   const selectedFy = financialYears.find(f => f.id.toString() === selectedFyId);
   const selectedType = transactionTypes.find(t => String(t.code) === String(txnTypeCode));
 
   const getItemStock = (sku: string | number) => {
-    if (!txnFromLoc) return 0;
+    if (!txnFromLoc) return null; // null = no location selected
+    if (!txnFromLoc) return null;
     const match = stockBalances.find(
       (s) => String(s.sku) === String(sku) && String(s.location_id) === String(txnFromLoc)
     );
@@ -204,6 +216,24 @@ function PostTransactionPageContent() {
     }
   };
 
+  const handlePrintVoucherById = async (voucherId: number) => {
+    if (!session?.orgcode) return;
+    try {
+      const res = await fetch(`/api/inventory?orgcode=${session.orgcode}&voucherId=${voucherId}`);
+      const data = await res.json();
+      if (data.success && data.voucher) {
+        setPrintingVoucher(data.voucher);
+        setPrintingDetails(data.details || []);
+        
+        setTimeout(() => {
+          window.print();
+        }, 300);
+      }
+    } catch (e) {
+      alert("Failed to load voucher for printing");
+    }
+  };
+
   const handleLoadVoucher = async (voucherId: number, typesList?: TransactionType[]) => {
     if (!session?.orgcode) return;
     setErrorMsg("");
@@ -246,12 +276,17 @@ function PostTransactionPageContent() {
 
   const handleDeleteVoucher = async (voucherId: number) => {
     if (!session?.orgcode) return;
-    if (!window.confirm("Are you sure you want to delete this voucher? This will reverse all stock effects!")) return;
+    const adminPassword = window.prompt("Enter Admin Password to authorize deletion of this voucher:");
+    if (adminPassword === null) return; // User cancelled
+    if (!adminPassword.trim()) {
+      alert("Admin password is required!");
+      return;
+    }
     try {
       setTxnDeleting(true);
       setErrorMsg("");
       setSuccessMsg("");
-      const res = await fetch(`/api/inventory?orgcode=${session.orgcode}&id=${voucherId}`, {
+      const res = await fetch(`/api/inventory?orgcode=${session.orgcode}&id=${voucherId}&password=${encodeURIComponent(adminPassword.trim())}`, {
         method: "DELETE"
       });
       const data = await res.json();
@@ -283,8 +318,6 @@ function PostTransactionPageContent() {
 
   const addDetailRow = () => {
     setVoucherDetails(prev => {
-      const newLength = prev.length;
-      setTimeout(() => itemInputRefs.current[newLength]?.focus(), 50);
       return [...prev, { searchText: "", sku: "", name: "", qty: "" }];
     });
   };
@@ -302,8 +335,6 @@ function PostTransactionPageContent() {
     if (field === "searchText") {
       updated[index].sku = "";
       updated[index].name = "";
-      setShowItemSuggestions(value.trim().length > 0);
-      setActiveRowIndex(index);
     }
 
     setVoucherDetails(updated);
@@ -316,7 +347,7 @@ function PostTransactionPageContent() {
         return;
       }
       const stock = getItemStock(item.sku);
-      if (stock <= 0) {
+      if (stock !== null && stock <= 0) {
         alert(`Cannot select "${item.name}" (SKU: ${item.sku}) because there is no stock available at the selected location.`);
         return;
       }
@@ -329,8 +360,6 @@ function PostTransactionPageContent() {
       qty: updated[index].qty
     };
     setVoucherDetails(updated);
-    setShowItemSuggestions(false);
-    setActiveRowIndex(null);
   };
 
   const getItemSuggestions = (search: string) => {
@@ -375,7 +404,7 @@ function PostTransactionPageContent() {
     if (selectedType.stock_effect === "OUTWARD") {
       for (const d of validDetails) {
         const stock = getItemStock(d.sku);
-        if (parseFloat(d.qty) > stock) {
+        if (stock !== null && parseFloat(d.qty) > stock) {
           setErrorMsg(`Requested quantity (${d.qty}) for item "${d.name || d.sku}" exceeds available stock (${stock}) at the selected location.`);
           return;
         }
@@ -425,14 +454,72 @@ function PostTransactionPageContent() {
     }
   };
 
-  const filteredTxns = recentTransactions.filter((t) =>
-    String(t.sku).toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (t.item_name && t.item_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (t.party_name && t.party_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    String(t.transaction_type).toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (t.transaction_type_name && t.transaction_type_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (t.reference_no && t.reference_no.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredTxns = recentTransactions.filter((t) => {
+    // 1. Simple search query
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.toLowerCase();
+      const formattedDate = t.transaction_date ? new Date(t.transaction_date).toLocaleDateString("en-IN") : "";
+      const matchesSimple =
+        String(t.sku).toLowerCase().includes(q) ||
+        (t.item_name && t.item_name.toLowerCase().includes(q)) ||
+        (t.party_name && t.party_name.toLowerCase().includes(q)) ||
+        String(t.transaction_type).toLowerCase().includes(q) ||
+        (t.transaction_type_name && t.transaction_type_name.toLowerCase().includes(q)) ||
+        (t.reference_no && t.reference_no.toLowerCase().includes(q)) ||
+        (t.remarks && t.remarks.toLowerCase().includes(q)) ||
+        (t.from_location_name && t.from_location_name.toLowerCase().includes(q)) ||
+        (t.to_location_name && t.to_location_name.toLowerCase().includes(q)) ||
+        (t.stock_effect && t.stock_effect.toLowerCase().includes(q)) ||
+        (t.transaction_date && t.transaction_date.toLowerCase().includes(q)) ||
+        formattedDate.toLowerCase().includes(q) ||
+        String(t.qty).toLowerCase().includes(q);
+      if (!matchesSimple) return false;
+    }
+
+    // 2. Advanced fields
+    if (advSkuItem.trim() !== "") {
+      const q = advSkuItem.toLowerCase();
+      const match = String(t.sku).toLowerCase().includes(q) || (t.item_name && t.item_name.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+    if (advDate.trim() !== "") {
+      const formattedDate = t.transaction_date ? new Date(t.transaction_date).toISOString().split("T")[0] : "";
+      if (formattedDate !== advDate) return false;
+    }
+    if (advType.trim() !== "") {
+      const q = advType.toLowerCase();
+      const match = (t.transaction_type_name && t.transaction_type_name.toLowerCase().includes(q)) || (t.stock_effect && t.stock_effect.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+    if (advLocation.trim() !== "") {
+      const q = advLocation.toLowerCase();
+      const match = (t.from_location_name && t.from_location_name.toLowerCase().includes(q)) || (t.to_location_name && t.to_location_name.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+    if (advQty.trim() !== "") {
+      const q = advQty.toLowerCase();
+      const match = String(t.qty).toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    if (advPartyRef.trim() !== "") {
+      const q = advPartyRef.toLowerCase();
+      const match = (t.party_name && t.party_name.toLowerCase().includes(q)) || (t.reference_no && t.reference_no.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+
+    return true;
+  });
+
+  const isSearchActive = 
+    searchQuery.trim() !== "" ||
+    advSkuItem.trim() !== "" ||
+    advDate.trim() !== "" ||
+    advType.trim() !== "" ||
+    advLocation.trim() !== "" ||
+    advQty.trim() !== "" ||
+    advPartyRef.trim() !== "";
+
+  const displayTxns = !isSearchActive ? filteredTxns.slice(0, 5) : filteredTxns;
 
   return (
     <div className="flex flex-col gap-5 pb-12 text-slate-800 dark:text-slate-100 max-w-7xl mx-auto">
@@ -629,10 +716,11 @@ function PostTransactionPageContent() {
                   )}
                 </div>
 
+                {/* ITEMIZED ROWS TABLE */}
                 <div className="overflow-visible border border-slate-100 dark:border-slate-800/80 rounded-xl">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-55/40 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-850 text-slate-400 text-[10px] font-bold G tracking-wider uppercase">
+                      <tr className="bg-slate-55/40 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-850 text-slate-400 text-[10px] font-bold tracking-wider uppercase">
                         <th className="py-2 px-3 w-[65%]">Search Item Name or SKU*</th>
                         <th className="py-2 px-3 w-[20%] text-center">Qty</th>
                         <th className="py-2 px-3 w-[15%] text-right"></th>
@@ -641,71 +729,28 @@ function PostTransactionPageContent() {
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40 text-xs">
                       {voucherDetails.map((line, idx) => {
                         const suggestions = getItemSuggestions(line.searchText);
+                        const stockAtLoc = line.sku ? getItemStock(line.sku) : null;
                         return (
-                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-900/5">
-                            {/* Autocomplete Input Column */}
-                            <td className="py-2 px-3 relative">
-                              <input
-                                type="text"
-                                ref={el => { itemInputRefs.current[idx] = el; }}
-                                placeholder="Type item name/SKU..."
-                                value={line.searchText}
-                                onChange={(e) => updateDetailRowField(idx, "searchText", e.target.value)}
-                                onFocus={() => {
-                                  setActiveRowIndex(idx);
-                                  setShowItemSuggestions(line.searchText.trim().length > 0);
-                                }}
-                                onBlur={() => {
-                                  setTimeout(() => {
-                                    if (activeRowIndex === idx) {
-                                      setShowItemSuggestions(false);
-                                    }
-                                  }, 200);
-                                }}
-                                disabled={selectedFy?.is_closed}
-                                className="w-full p-1.5 bg-slate-50/50 dark:bg-slate-900/30 border border-slate-205 dark:border-slate-700/80 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
-                              />
+                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-900/5 align-top">
 
-                              {/* Suggestion Dropdown */}
-                              {activeRowIndex === idx && showItemSuggestions && suggestions.length > 0 && (
-                                <ul className="absolute left-3 right-3 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
-                                  {suggestions.map((item) => {
-                                    const stockVal = getItemStock(item.sku);
-                                    const isOut = selectedType?.stock_effect === "OUTWARD" && stockVal <= 0;
-                                    return (
-                                      <li
-                                        key={item.sku}
-                                        onMouseDown={(e) => {
-                                          e.preventDefault();
-                                          if (isOut) {
-                                            alert(`Cannot select "${item.name}" because there is no stock available at the selected location.`);
-                                            return;
-                                          }
-                                          selectItemSuggestion(idx, item);
-                                        }}
-                                        className={`px-3 py-2 border-b border-slate-100 dark:border-slate-700/60 last:border-0 flex justify-between items-center text-xs ${
-                                          isOut 
-                                            ? "opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-900/40 text-slate-455" 
-                                            : "hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer text-slate-800 dark:text-slate-200"
-                                        }`}
-                                      >
-                                        <div className="flex flex-col text-left">
-                                          <span className="font-bold">{item.name}</span>
-                                          <span className="text-[10px] text-slate-400 font-mono">SKU: {item.sku}</span>
-                                        </div>
-                                        {selectedType?.stock_effect === "OUTWARD" && (
-                                          <span className={`text-[10px] font-extrabold ${stockVal > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500 dark:text-rose-450"}`}>
-                                            {stockVal > 0 ? `Stock: ${stockVal}` : "Out of stock"}
-                                          </span>
-                                        )}
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              )}
+                            {/* Item Input using global SkuInputWithPicker */}
+                            <td className="py-2 px-3">
+                              <SkuInputWithPicker
+                                value={line.searchText}
+                                onChange={(val) => updateDetailRowField(idx, "searchText", val)}
+                                onPick={(item) => selectItemSuggestion(idx, item as any)}
+                                items={items as any}
+                                stockBalances={stockBalances}
+                                fromLocationId={txnFromLoc || null}
+                                fromLocationName={locations.find(l => String(l.id) === txnFromLoc)?.name}
+                                isOutward={selectedType?.stock_effect === "OUTWARD"}
+                                placeholder="Type item name / SKU..."
+                                disabled={selectedFy?.is_closed}
+                                inputClassName="p-1.5 text-xs rounded-lg"
+                              />
                             </td>
 
-                            {/* Quantity column */}
+                            {/* Quantity column — top aligned */}
                             <td className="py-2 px-3 text-center">
                               <input
                                 type="number"
@@ -722,20 +767,20 @@ function PostTransactionPageContent() {
                                     }
                                   }
                                 }}
-                                className="w-20 p-1.5 bg-slate-50/50 dark:bg-slate-900/30 border border-slate-205 dark:border-slate-700/80 rounded-lg text-center font-mono font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                className="w-20 p-1.5 bg-slate-50/50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/80 rounded-lg text-center font-mono font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
                               />
-                              {selectedType?.stock_effect === "OUTWARD" && line.sku && (
+                              {selectedType?.stock_effect === "OUTWARD" && line.sku && stockAtLoc !== null && (
                                 <div className="text-[9px] mt-1 font-bold">
-                                  {parseFloat(line.qty) > getItemStock(line.sku) ? (
-                                    <span className="text-rose-500 dark:text-rose-400 block">⚠️ Exceeds stock ({getItemStock(line.sku)})</span>
+                                  {parseFloat(line.qty) > stockAtLoc ? (
+                                    <span className="text-rose-500 dark:text-rose-400 block">⚠️ Exceeds ({stockAtLoc})</span>
                                   ) : (
-                                    <span className="text-slate-400 dark:text-slate-500 block">Avail: {getItemStock(line.sku)}</span>
+                                    <span className="text-slate-400 dark:text-slate-500 block">Avail: {stockAtLoc}</span>
                                   )}
                                 </div>
                               )}
                             </td>
 
-                            {/* Remove row button */}
+                            {/* Remove row button — top aligned */}
                             <td className="py-2 px-3 text-right">
                               <button
                                 type="button"
@@ -808,35 +853,36 @@ function PostTransactionPageContent() {
               )}
             </form>
 
-            {/* Show 2 latest vouchers */}
+            {/* Show 5 latest vouchers */}
             <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-5 shadow-sm flex flex-col gap-3 mt-4">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">2 Latest Vouchers</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">5 Latest Vouchers</h3>
                 <p className="text-[10px] text-slate-400 font-semibold">Click a voucher to load it in edit mode</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {vouchers.slice(0, 2).map((v) => (
-                  <button
+                {vouchers.slice(0, 5).map((v) => (
+                  <div
                     key={v.id}
-                    type="button"
-                    onClick={() => handleLoadVoucher(v.id)}
-                    className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-150 dark:border-slate-800 text-left hover:border-blue-400 dark:hover:border-blue-500/50 transition-all flex flex-col gap-1.5 group cursor-pointer"
+                    className="p-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-150 dark:border-slate-800 text-left hover:border-blue-400 dark:hover:border-blue-500/50 transition-all flex flex-col gap-1.5 group relative"
                   >
-                    <div className="flex justify-between items-center w-full">
+                    <div className="flex justify-between items-center w-full pr-8">
                       <span className="font-extrabold text-[10px] text-slate-500 uppercase">
-                        {v.type_name}
+                        {v.type_name} {v.voucher_no ? `[#${v.voucher_no}]` : ""}
                       </span>
                       <span className="text-[9px] text-slate-450 font-mono">
                         {new Date(v.transaction_date).toLocaleDateString()}
                       </span>
                     </div>
 
-                    <div className="flex flex-col gap-0.5 text-xs">
-                      <span className="font-bold text-slate-750 dark:text-slate-250 truncate max-w-xs">
+                    <div 
+                      onClick={() => handleLoadVoucher(v.id)}
+                      className="flex flex-col gap-0.5 text-xs cursor-pointer"
+                    >
+                      <span className="font-bold text-slate-750 dark:text-slate-250 truncate max-w-[200px]">
                         Narration: {v.party_name || v.reference_no || v.remarks || "-"}
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-slate-400 font-medium">
                         Location: <span className="font-semibold text-slate-700 dark:text-slate-300">
                           {v.from_location_name && v.to_location_name ? (
                             `${v.from_location_name} ➔ ${v.to_location_name}`
@@ -853,7 +899,16 @@ function PostTransactionPageContent() {
                         {v.items_count} unique item(s) • Effect: <span className="font-extrabold">{v.stock_effect}</span>
                       </span>
                     </div>
-                  </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePrintVoucherById(v.id)}
+                      className="absolute right-2 top-2 p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      title="Print Voucher"
+                    >
+                      <PrinterIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 ))}
                 {vouchers.length === 0 && (
                   <p className="text-slate-400 text-[11px] py-4 md:col-span-2 text-center">No vouchers found in this financial year.</p>
@@ -864,79 +919,349 @@ function PostTransactionPageContent() {
 
           {/* Ledger log (Right column) */}
           <div className="lg:col-span-1 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-2 flex flex-col gap-2">
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-2 flex flex-col gap-2 relative">
               <h3 className="text-sm font-bold">Voucher Ledger Log</h3>
               
-              <div className="relative">
-                <MagnifyingGlassIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
-                <input
-                  type="text"
-                  placeholder="Search ledger entries..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-2.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs font-semibold"
-                />
+              <div className="flex gap-1.5 items-center">
+                <div className="relative flex-1">
+                  <MagnifyingGlassIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-3" />
+                  <input
+                    type="text"
+                    placeholder="Search ledger entries..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-2.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs font-semibold"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isSearchActive) {
+                      setSearchQuery("");
+                      setAdvSkuItem("");
+                      setAdvDate("");
+                      setAdvType("");
+                      setAdvLocation("");
+                      setAdvQty("");
+                      setAdvPartyRef("");
+                    } else {
+                      setShowAdvSearch(!showAdvSearch);
+                    }
+                  }}
+                  className={`p-2 border rounded-lg transition-colors flex items-center gap-1.5 font-bold text-xs ${
+                    isSearchActive
+                      ? "border-rose-300 bg-rose-50/50 text-rose-600 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-400"
+                      : showAdvSearch 
+                        ? "border-blue-500 bg-blue-50/20 text-blue-600 dark:bg-blue-950/30 dark:text-blue-450" 
+                        : "border-slate-200 dark:border-slate-800 text-slate-550 hover:bg-slate-50 dark:hover:bg-slate-900"
+                  }`}
+                  title={isSearchActive ? "Clear all active filters" : "Advanced Search Filters"}
+                >
+                  {isSearchActive ? (
+                    <>
+                      <XMarkIcon className="w-4 h-4" />
+                      <span>Clear</span>
+                    </>
+                  ) : (
+                    <>
+                      <AdjustmentsHorizontalIcon className="w-4 h-4" />
+                      <span>Filters</span>
+                    </>
+                  )}
+                </button>
               </div>
+
+              {/* Advanced Search Overlay Card */}
+              {showAdvSearch && (
+                <div className="absolute top-[80px] left-0 right-0 bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-2xl p-4 shadow-xl z-20 flex flex-col gap-3 animate-scale-up">
+                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-850 pb-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Advanced Search</span>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setAdvSkuItem("");
+                        setAdvDate("");
+                        setAdvType("");
+                        setAdvLocation("");
+                        setAdvQty("");
+                        setAdvPartyRef("");
+                      }}
+                      className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-400">SKU / Item</label>
+                      <input 
+                        type="text" 
+                        value={advSkuItem} 
+                        onChange={(e) => setAdvSkuItem(e.target.value)}
+                        placeholder="e.g. 101, Birla" 
+                        className="p-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-400">Date</label>
+                      <input 
+                        type="date" 
+                        value={advDate} 
+                        onChange={(e) => setAdvDate(e.target.value)}
+                        className="p-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs w-full focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-400">Type / Effect</label>
+                      <input 
+                        type="text" 
+                        value={advType} 
+                        onChange={(e) => setAdvType(e.target.value)}
+                        placeholder="e.g. Sale, INWARD" 
+                        className="p-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-400">Location</label>
+                      <input 
+                        type="text" 
+                        value={advLocation} 
+                        onChange={(e) => setAdvLocation(e.target.value)}
+                        placeholder="e.g. Godown" 
+                        className="p-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-400">Quantity</label>
+                      <input 
+                        type="text" 
+                        value={advQty} 
+                        onChange={(e) => setAdvQty(e.target.value)}
+                        placeholder="e.g. 10" 
+                        className="p-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-bold text-slate-400">Party / Ref</label>
+                      <input 
+                        type="text" 
+                        value={advPartyRef} 
+                        onChange={(e) => setAdvPartyRef(e.target.value)}
+                        placeholder="e.g. Birla, REF123" 
+                        className="p-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowAdvSearch(false)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2 max-h-[500px] overflow-y-auto pr-1">
-              {filteredTxns.map((t) => (
+              {displayTxns.map((t) => (
                 <div
                   key={t.id}
-                  className="p-2.5 bg-slate-50/40 dark:bg-slate-900/30 rounded-xl border border-slate-100/80 dark:border-slate-800 flex flex-col gap-1.5 text-xs hover:border-slate-200 dark:hover:border-slate-700 transition-colors"
+                  className="p-2.5 bg-slate-50/40 dark:bg-slate-900/30 rounded-xl border border-slate-100/80 dark:border-slate-800 flex flex-col gap-1.5 text-xs hover:border-blue-450 dark:hover:border-blue-500/50 hover:bg-slate-100/50 dark:hover:bg-slate-900/60 transition-all relative group"
                 >
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-700 dark:text-slate-300 truncate max-w-[130px]">
-                      {t.item_name || t.sku}
-                    </span>
-                    <span className="font-mono text-[10px] text-slate-400">
-                      {new Date(t.transaction_date).toLocaleDateString("en-IN")}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                      <span className="font-extrabold text-[9px] text-slate-500 uppercase">
-                        {t.transaction_type_name || t.transaction_type}
+                  <div
+                    onClick={() => t.transaction_header_id && handleLoadVoucher(Number(t.transaction_header_id))}
+                    className="cursor-pointer flex flex-col gap-1.5 pr-8"
+                    title="Click to edit this voucher"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-750 dark:text-slate-250 truncate max-w-[170px] group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                        {t.item_name || t.sku}
                       </span>
-                      {t.from_location_name || t.to_location_name ? (
-                        <span className="text-[9px] text-slate-400 font-mono">
-                          {t.from_location_name || "Outside"} ➔ {t.to_location_name || "Outside"}
+                      <span className="font-mono text-[10px] text-slate-400">
+                        {new Date(t.transaction_date).toLocaleDateString("en-IN")}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="font-extrabold text-[9px] text-slate-500 uppercase">
+                          Voucher No: #{t.voucher_no || t.transaction_header_id} ({t.transaction_type_name || t.transaction_type})
                         </span>
-                      ) : null}
+                        {t.from_location_name || t.to_location_name ? (
+                          <span className="text-[9px] text-slate-400 font-mono">
+                            {t.from_location_name || "Outside"} ➔ {t.to_location_name || "Outside"}
+                          </span>
+                        ) : null}
+                      </div>
+                      
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="font-mono font-black text-xs text-slate-800 dark:text-slate-100">
+                          Qty: {parseFloat(t.qty).toLocaleString('en-IN')}
+                        </span>
+                        <span className={`px-1 rounded text-[8px] font-extrabold ${
+                          t.stock_effect === "INWARD"
+                            ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20"
+                            : t.stock_effect === "OUTWARD"
+                              ? "bg-rose-50 text-rose-600 dark:bg-rose-950/20"
+                              : "bg-blue-50 text-blue-600 dark:bg-blue-950/20"
+                        }`}>
+                          {t.stock_effect || "INWARD"}
+                        </span>
+                      </div>
                     </div>
                     
-                    <div className="flex flex-col items-end gap-0.5">
-                      <span className="font-mono font-black text-xs text-slate-800 dark:text-slate-100">
-                        {parseFloat(t.qty).toLocaleString('en-IN')}
-                      </span>
-                      <span className={`px-1 rounded text-[8px] font-extrabold ${
-                        t.stock_effect === "INWARD"
-                          ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20"
-                          : t.stock_effect === "OUTWARD"
-                            ? "bg-rose-50 text-rose-600 dark:bg-rose-950/20"
-                            : "bg-blue-50 text-blue-600 dark:bg-blue-950/20"
-                      }`}>
-                        {t.stock_effect || "INWARD"}
-                      </span>
-                    </div>
+                    {(t.reference_no || t.party_name) && (
+                      <div className="text-[9px] text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-1.5 mt-0.5 flex flex-col gap-0.5">
+                        {t.reference_no && <div>Ref: <span className="font-bold">{t.reference_no}</span></div>}
+                        {t.party_name && <div>Party: <span className="font-bold">{t.party_name}</span></div>}
+                      </div>
+                    )}
                   </div>
-                  
-                  {(t.reference_no || t.party_name) && (
-                    <div className="text-[9px] text-slate-400 border-t border-slate-100 dark:border-slate-800/80 pt-1.5 mt-0.5 flex flex-col gap-0.5">
-                      {t.reference_no && <div>Ref: <span className="font-bold">{t.reference_no}</span></div>}
-                      {t.party_name && <div>Party: <span className="font-bold">{t.party_name}</span></div>}
-                    </div>
-                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => t.transaction_header_id && handlePrintVoucherById(Number(t.transaction_header_id))}
+                    className="absolute right-2 top-2 p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-450 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    title="Print Voucher"
+                  >
+                    <PrinterIcon className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
-              {filteredTxns.length === 0 && (
+              {displayTxns.length === 0 && (
                 <p className="text-slate-400 text-xs py-6 text-center">No ledger entries found.</p>
               )}
             </div>
           </div>
         </div>
       )}
+
+
+      {/* Hidden Print Voucher Layout */}
+      {printingVoucher !== null && (
+        <div className="hidden print:block print-area">
+          <div style={{ padding: "0px", fontFamily: "Courier, 'Courier New', monospace", color: "#000", maxWidth: "800px", margin: "0 auto" }}>
+            
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #000", paddingBottom: "8px", marginBottom: "12px" }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: "20px", fontWeight: "bold", letterSpacing: "1px" }}>INVENTORY VOUCHER</h1>
+                <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#666" }}>ORGANIZATION CODE: {session?.orgcode}</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <span style={{ fontSize: "11px", fontWeight: "bold", padding: "4px 8px", border: "1px solid #000", textTransform: "uppercase" }}>
+                  {printingVoucher.stock_effect || "TRANSACTION"}
+                </span>
+              </div>
+            </div>
+
+            {/* Meta Grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", fontSize: "11px", marginBottom: "16px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <div><strong>Voucher No:</strong> #{printingVoucher.voucher_no || printingVoucher.id}</div>
+                <div><strong>Voucher Date:</strong> {new Date(printingVoucher.transaction_date).toLocaleDateString("en-IN")}</div>
+                <div><strong>Transaction Type:</strong> {printingVoucher.type_name} ({printingVoucher.type_code})</div>
+                {printingVoucher.reference_no && <div><strong>Reference / Bill No:</strong> {printingVoucher.reference_no}</div>}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <div><strong>Source (From):</strong> {printingVoucher.from_location_name || (printingVoucher.stock_effect === "INWARD" ? printingVoucher.party_name : "Outside / Vendor") || "-"}</div>
+                <div><strong>Destination (To):</strong> {printingVoucher.to_location_name || (printingVoucher.stock_effect === "OUTWARD" ? printingVoucher.party_name : "Outside / Customer") || "-"}</div>
+                {printingVoucher.party_name && <div><strong>Party / Customer / Vendor:</strong> {printingVoucher.party_name}</div>}
+              </div>
+            </div>
+
+            {/* Remarks */}
+            {printingVoucher.remarks && (
+              <div style={{ fontSize: "11px", marginBottom: "16px", padding: "8px", border: "1px dashed #999", borderRadius: "4px" }}>
+                <strong>Remarks / Narration:</strong> {printingVoucher.remarks}
+              </div>
+            )}
+
+            {/* Items Table */}
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", marginBottom: "16px" }}>
+              <thead>
+                <tr style={{ borderTop: "2px solid #000", borderBottom: "2px solid #000", background: "#f8fafc" }}>
+                  <th style={{ textAlign: "left", padding: "6px", width: "8%", fontWeight: "bold" }}>S.No</th>
+                  <th style={{ textAlign: "left", padding: "6px", width: "20%", fontWeight: "bold" }}>SKU</th>
+                  <th style={{ textAlign: "left", padding: "6px", width: "52%", fontWeight: "bold" }}>Item Description</th>
+                  <th style={{ textAlign: "right", padding: "6px", width: "20%", fontWeight: "bold" }}>Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {printingDetails.map((line: any, idx: number) => (
+                  <tr key={idx} style={{ borderBottom: "1px solid #ddd" }}>
+                    <td style={{ padding: "6px" }}>{idx + 1}</td>
+                    <td style={{ padding: "6px" }}>{line.sku}</td>
+                    <td style={{ padding: "6px" }}>{line.item_name || `Item SKU: ${line.sku}`}</td>
+                    <td style={{ textAlign: "right", padding: "6px", fontWeight: "bold" }}>{parseFloat(line.qty || "0").toLocaleString('en-IN')}</td>
+                  </tr>
+                ))}
+                {/* Total Row */}
+                <tr style={{ borderTop: "2px solid #000", borderBottom: "2px solid #000", fontWeight: "bold" }}>
+                  <td colSpan={2} style={{ padding: "6px" }}>Total Unique Items: {printingDetails.length}</td>
+                  <td style={{ textAlign: "right", padding: "6px" }}>Total Qty:</td>
+                  <td style={{ textAlign: "right", padding: "6px" }}>
+                    {printingDetails.reduce((sum: number, line: any) => sum + parseFloat(line.qty || "0"), 0).toLocaleString('en-IN')}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Signatures */}
+            <div style={{ marginTop: "30px", display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ borderTop: "1px solid #000", width: "150px", paddingTop: "5px" }}>
+                  Prepared By
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ borderTop: "1px solid #000", width: "150px", paddingTop: "5px" }}>
+                  Verified / Checked By
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ borderTop: "1px solid #000", width: "150px", paddingTop: "5px" }}>
+                  Authorized Signatory
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Print styles */}
+      <style jsx global>{`
+        @page {
+          size: auto;
+          margin: 12mm 10mm 12mm 10mm;
+        }
+        @media print {
+          html, body {
+            height: auto !important;
+            overflow: initial !important;
+          }
+          body {
+            visibility: hidden !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-area, .print-area * {
+            visibility: visible !important;
+          }
+          .print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

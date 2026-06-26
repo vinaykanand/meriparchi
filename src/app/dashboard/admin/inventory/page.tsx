@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { SkuInputWithPicker } from "@/components/inventory/SkuPicker";
 
 interface FinancialYear {
   id: number;
@@ -17,6 +18,7 @@ interface Location {
 }
 
 interface InventoryItem {
+  id: number;
   sku: string;
   name: string;
 }
@@ -70,6 +72,8 @@ export default function InventoryOverviewPage() {
 
   // Report Filter State
   const [reportSku, setReportSku] = useState("");
+  const [reportQuery, setReportQuery] = useState("");
+  const [stockBalances, setStockBalances] = useState<any[]>([]);
   const [reportLoc, setReportLoc] = useState("");
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
@@ -84,6 +88,7 @@ export default function InventoryOverviewPage() {
       fetchLocations();
       fetchItems();
       fetchInventoryData();
+      fetchStockBalances();
     }
   }, [session, selectedFyId]);
 
@@ -104,6 +109,19 @@ export default function InventoryOverviewPage() {
       const res = await fetch(`/api/inventory/items?orgcode=${session.orgcode}`);
       const data = await res.json();
       if (data.success) setItems(data.items);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchStockBalances = async () => {
+    if (!session?.orgcode) return;
+    try {
+      const res = await fetch(`/api/inventory?orgcode=${session.orgcode}`);
+      const data = await res.json();
+      if (data.success) {
+        setStockBalances(data.stock || []);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -272,50 +290,22 @@ export default function InventoryOverviewPage() {
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <span>📊</span> Stock Levels Matrix
               </h3>
-              <div className="relative w-full sm:w-80">
-                <input
-                  type="text"
-                  placeholder="Search item name or SKU..."
+              <div className="w-full sm:w-80">
+                <SkuInputWithPicker
                   value={matrixSearch}
-                  onChange={(e) => {
-                    setMatrixSearch(e.target.value);
-                    setSelectedMatrixItem(null);
-                    setMatrixStockData([]);
-                    setShowMatrixSuggestions(e.target.value.trim().length > 0);
+                  onChange={(val) => {
+                    setMatrixSearch(val);
+                    if (!val.trim()) {
+                      setSelectedMatrixItem(null);
+                      setMatrixStockData([]);
+                    }
                   }}
-                  onFocus={() => {
-                    setShowMatrixSuggestions(matrixSearch.trim().length > 0);
-                  }}
-                  onBlur={() => {
-                    // Slight delay to allow clicks on suggestion list
-                    setTimeout(() => setShowMatrixSuggestions(false), 200);
-                  }}
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs font-semibold"
+                  onPick={(item) => handleSelectMatrixItem(item as any)}
+                  items={items as any}
+                  stockBalances={stockBalances}
+                  placeholder="Search item name or SKU..."
+                  inputClassName="py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold"
                 />
-                <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-
-                {/* Suggestions list */}
-                {showMatrixSuggestions && getMatrixSuggestions().length > 0 && (
-                  <ul className="absolute left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto text-xs">
-                    {getMatrixSuggestions().map((item) => (
-                      <li
-                        key={item.sku}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleSelectMatrixItem(item);
-                        }}
-                        className="px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer border-b border-slate-100 dark:border-slate-700/60 last:border-0 flex justify-between items-center text-slate-800 dark:text-slate-200"
-                      >
-                        <div className="flex flex-col text-left">
-                          <span className="font-bold">{item.name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">SKU: {item.sku}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             </div>
 
@@ -357,16 +347,16 @@ export default function InventoryOverviewPage() {
                           {item.location_name}
                         </td>
                         <td className="py-4 px-4 text-right font-mono">
-                          {parseFloat(item.opening_qty as string).toLocaleString()}
+                          {Math.abs(parseFloat(item.opening_qty as string)).toLocaleString()}
                         </td>
                         <td className="py-4 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400">
-                          +{parseFloat(item.total_in as string).toLocaleString()}
+                          {parseFloat(item.total_in as string).toLocaleString()}
                         </td>
                         <td className="py-4 px-4 text-right font-mono text-rose-600 dark:text-rose-400">
-                          -{parseFloat(item.total_out as string).toLocaleString()}
+                          {parseFloat(item.total_out as string).toLocaleString()}
                         </td>
                         <td className="py-4 px-4 text-right font-mono font-bold text-blue-600 dark:text-blue-400">
-                          {parseFloat(item.current_qty as string).toLocaleString()}
+                          {Math.abs(parseFloat(item.current_qty as string)).toLocaleString()}
                         </td>
                       </tr>
                     ))}
@@ -385,16 +375,21 @@ export default function InventoryOverviewPage() {
             <form onSubmit={generateLedgerReport} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end mb-6">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold uppercase text-slate-400">Select Item</label>
-                <select
-                  value={reportSku}
-                  onChange={(e) => setReportSku(e.target.value)}
-                  className="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select SKU...</option>
-                  {items.map(i => (
-                    <option key={i.sku} value={i.sku}>{i.name} ({i.sku})</option>
-                  ))}
-                </select>
+                <SkuInputWithPicker
+                  value={reportQuery}
+                  onChange={(val) => {
+                    setReportQuery(val);
+                    if (!val.trim()) setReportSku("");
+                  }}
+                  onPick={(item) => {
+                    setReportSku(item.sku.toString());
+                    setReportQuery(`${item.name} (${item.sku})`);
+                  }}
+                  items={items as any}
+                  stockBalances={stockBalances}
+                  placeholder="Search item SKU or Name..."
+                  inputClassName="py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold"
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -453,10 +448,10 @@ export default function InventoryOverviewPage() {
                 {ledgerResults.length === 0 ? (
                   <p className="text-slate-400 text-sm text-center py-8">No matching transaction logs inside the selected scope.</p>
                 ) : (
-                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/20">
+                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-700/50 rounded-2xl">
                     <table className="w-full text-left border-collapse text-sm">
                       <thead>
-                        <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <tr className="bg-slate-50 dark:bg-transparent border-b border-slate-200 dark:border-slate-700/60 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           <th className="py-3 px-4">Date</th>
                           <th className="py-3 px-4">Transaction Type</th>
                           <th className="py-3 px-4">Stock Effect</th>
@@ -482,22 +477,22 @@ export default function InventoryOverviewPage() {
                               <td className="py-3.5 px-4">
                                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
                                   isInc 
-                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-450 border border-emerald-100/50" 
+                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border border-emerald-100/50" 
                                     : isDec 
-                                      ? "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-455 border border-rose-100/50" 
-                                      : "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-450 border border-blue-100/50"
+                                      ? "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border border-rose-100/50" 
+                                      : "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100/50"
                                 }`}>
                                   {t.stock_effect || "INWARD"}
                                 </span>
                               </td>
-                              <td className={`py-3.5 px-4 text-right font-mono font-bold text-xs ${
+                              <td className={`py-3.5 px-4 text-right font-mono font-bold text-sm ${
                                 isInc 
                                   ? "text-emerald-600 dark:text-emerald-400" 
                                   : isDec 
                                     ? "text-rose-600 dark:text-rose-400" 
-                                    : "text-slate-600 dark:text-slate-350"
+                                    : "text-slate-600 dark:text-slate-300"
                               }`}>
-                                {isInc ? "+" : isDec ? "-" : ""}{parseFloat(t.qty).toLocaleString()}
+                                {isInc ? "+" : isDec ? "−" : ""}{parseFloat(t.qty).toLocaleString("en-IN")}
                               </td>
                               <td className="py-3.5 px-4 text-xs text-slate-600 dark:text-slate-400 font-medium">{t.from_location_name || "-"}</td>
                               <td className="py-3.5 px-4 text-xs text-slate-600 dark:text-slate-400 font-medium">{t.to_location_name || "-"}</td>

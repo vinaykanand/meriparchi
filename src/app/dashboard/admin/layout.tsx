@@ -22,7 +22,8 @@ import {
   CubeIcon,
   ChevronRightIcon,
   MapPinIcon,
-  TagIcon
+  TagIcon,
+  ClipboardDocumentListIcon
 } from "@heroicons/react/24/outline";
 
 interface ChatMessage {
@@ -479,6 +480,16 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                           <span>Statement Report</span>
                         </Link>
                         <Link
+                          href="/dashboard/admin/inventory/reports/stock-in-hand"
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                            ${pathname === "/dashboard/admin/inventory/reports/stock-in-hand"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                        >
+                          <ClipboardDocumentListIcon className="w-4 h-4" />
+                          <span>Stock in Hand</span>
+                        </Link>
+                        <Link
                           href="/dashboard/admin/inventory/transactions"
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                             ${pathname === "/dashboard/admin/inventory/transactions"
@@ -486,7 +497,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
                         >
                           <PaperAirplaneIcon className="w-4 h-4" />
-                          <span>Post Movement</span>
+                          <span>Transaction</span>
                         </Link>
                         <Link
                           href="/dashboard/admin/inventory/locations"

@@ -12,7 +12,8 @@ import {
   SunIcon,
   MoonIcon,
   CloudArrowUpIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ListBulletIcon
 } from "@heroicons/react/24/outline";
 
 function SuperAdminDashboardContent({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,7 @@ function SuperAdminDashboardContent({ children }: { children: React.ReactNode })
     { name: "Global Audit Logs", href: "/dashboard/super-admin/audit-logs", icon: <ClipboardDocumentListIcon className="w-5 h-5" /> },
     { name: "Integrations", href: "/dashboard/super-admin/integrations", icon: <CpuChipIcon className="w-5 h-5" /> },
     { name: "Backup & Restore", href: "/dashboard/super-admin/backup", icon: <CloudArrowUpIcon className="w-5 h-5" /> },
+    { name: "Transaction Types", href: "/dashboard/super-admin/transaction-types", icon: <ListBulletIcon className="w-5 h-5" /> },
   ];
 
   return (

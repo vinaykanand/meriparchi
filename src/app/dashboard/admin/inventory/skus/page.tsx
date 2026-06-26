@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { PlusIcon, PencilSquareIcon, MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, PencilSquareIcon, MagnifyingGlassIcon, XMarkIcon, TrashIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 
 interface InventoryItem {
   sku: string | number;
@@ -40,6 +40,11 @@ export default function SkusPage() {
   const [selectedStockItem, setSelectedStockItem] = useState<InventoryItem | null>(null);
   const [locationStocks, setLocationStocks] = useState<any[]>([]);
   const [loadingStocks, setLoadingStocks] = useState(false);
+
+  // Delete states
+  const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteBlockedMsg, setDeleteBlockedMsg] = useState("");
 
   const viewLocationStock = async (item: InventoryItem) => {
     setSelectedStockItem(item);
@@ -169,6 +174,31 @@ export default function SkusPage() {
     setEditItemName("");
     setEditItemDesc("");
     setEditReorderLevel("0");
+  };
+
+  const handleDeleteItem = async () => {
+    if (!deleteTarget || !session?.orgcode) return;
+    setDeleteSubmitting(true);
+    try {
+      const res = await fetch(
+        `/api/inventory/items?orgcode=${session.orgcode}&sku=${deleteTarget.sku}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg(`SKU "${deleteTarget.sku}" deleted successfully.`);
+        setDeleteTarget(null);
+        fetchItems();
+      } else {
+        setDeleteTarget(null);
+        setDeleteBlockedMsg(data.message || "Deletion failed.");
+      }
+    } catch (e) {
+      setDeleteTarget(null);
+      setDeleteBlockedMsg("An unexpected error occurred.");
+    } finally {
+      setDeleteSubmitting(false);
+    }
   };
 
   const filteredItems = items.filter((item) =>
@@ -376,11 +406,12 @@ export default function SkusPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800/60 text-slate-400 text-xs font-bold uppercase tracking-wider">
-                    <th className="py-3 px-4">SKU</th>
-                    <th className="py-3 px-4">Name / Description</th>
-                    <th className="py-3 px-4 text-center">Reorder Level</th>
-                    <th className="py-3 px-4 text-center">Current Balance</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3 px-4 w-[12%]">SKU</th>
+                    <th className="py-3 px-4 w-[48%]">Name / Description</th>
+                    <th className="py-3 px-4 text-center w-[12%]">Reorder Level</th>
+                    <th className="py-3 px-4 text-center w-[12%]">Opening Balance</th>
+                    <th className="py-3 px-4 text-center w-[12%]">Current Balance</th>
+                    <th className="py-3 px-4 text-right w-[4%]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
@@ -389,13 +420,16 @@ export default function SkusPage() {
                     return (
                       <tr
                         key={item.sku}
-                        className="hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition-colors"
+                        className="hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition-colors group"
                       >
                         <td 
                           onClick={() => viewLocationStock(item)}
                           className="py-3.5 px-4 text-sm font-mono font-bold text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
                         >
-                          {item.sku}
+                          <span className="inline-flex items-center gap-1.5">
+                            {item.sku}
+                            <MagnifyingGlassIcon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 opacity-60 group-hover:opacity-100 group-hover:text-blue-650 transition-all" />
+                          </span>
                         </td>
                         <td 
                           onClick={() => viewLocationStock(item)}
@@ -413,6 +447,12 @@ export default function SkusPage() {
                         </td>
                         <td 
                           onClick={() => viewLocationStock(item)}
+                          className="py-3.5 px-4 text-sm text-center font-semibold text-slate-600 dark:text-slate-400 cursor-pointer"
+                        >
+                          {Math.abs(parseFloat(item.opening_balance as string || "0")).toLocaleString('en-IN')}
+                        </td>
+                        <td 
+                          onClick={() => viewLocationStock(item)}
                           className="py-3.5 px-4 text-sm text-center font-bold cursor-pointer"
                         >
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${
@@ -420,22 +460,24 @@ export default function SkusPage() {
                               ? "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50" 
                               : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50"
                           }`}>
-                            {parseFloat(item.current_balance as string).toLocaleString('en-IN')}
+                            {Math.abs(parseFloat(item.current_balance as string)).toLocaleString('en-IN')}
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <div className="inline-flex gap-2">
-                            <button
-                              onClick={() => viewLocationStock(item)}
-                              className="p-1.5 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/30 dark:hover:text-blue-400 rounded-lg text-slate-400 transition-colors inline-flex items-center gap-1 text-xs font-bold"
-                            >
-                              <MagnifyingGlassIcon className="w-3.5 h-3.5" /> Stock
-                            </button>
+                          <div className="inline-flex gap-1.5 justify-end">
                             <button
                               onClick={() => startEdit(item)}
-                              className="p-1.5 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 dark:hover:text-amber-400 rounded-lg text-slate-400 transition-colors inline-flex items-center gap-1.5 text-xs font-bold"
+                              className="p-1.5 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 dark:hover:text-amber-400 rounded-lg text-slate-400 transition-colors"
+                              title="Edit SKU"
                             >
-                              <PencilSquareIcon className="w-4 h-4" /> Edit
+                              <PencilSquareIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(item)}
+                              className="p-1.5 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 rounded-lg text-slate-400 transition-colors"
+                              title="Delete SKU"
+                            >
+                              <TrashIcon className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -499,8 +541,8 @@ export default function SkusPage() {
                     <tr className="bg-slate-100/80 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                       <th className="py-2.5 px-4">Location</th>
                       <th className="py-2.5 px-4 text-center">Opening</th>
-                      <th className="py-2.5 px-4 text-center">Inward</th>
-                      <th className="py-2.5 px-4 text-center">Outward</th>
+                      <th className="py-2.5 px-4 text-center">Inward (+)</th>
+                      <th className="py-2.5 px-4 text-center">Outward (-)</th>
                       <th className="py-2.5 px-4 text-right">Available Qty</th>
                     </tr>
                   </thead>
@@ -515,16 +557,16 @@ export default function SkusPage() {
                             {stock.location_name}
                           </td>
                           <td className="py-3 px-4 text-center text-slate-500">
-                            {parseFloat(stock.opening_qty || "0").toLocaleString('en-IN')}
+                            {Math.abs(parseFloat(stock.opening_qty || "0")).toLocaleString('en-IN')}
                           </td>
                           <td className="py-3 px-4 text-center text-emerald-600 dark:text-emerald-400">
-                            +{parseFloat(stock.total_in || "0").toLocaleString('en-IN')}
+                            {Math.abs(parseFloat(stock.total_in || "0")).toLocaleString('en-IN')}
                           </td>
                           <td className="py-3 px-4 text-center text-rose-600 dark:text-rose-400">
-                            -{parseFloat(stock.total_out || "0").toLocaleString('en-IN')}
+                            {Math.abs(parseFloat(stock.total_out || "0")).toLocaleString('en-IN')}
                           </td>
                           <td className={`py-3 px-4 text-right font-black ${isLow ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                            {currentVal.toLocaleString('en-IN')}
+                            {Math.abs(currentVal).toLocaleString('en-IN')}
                           </td>
                         </tr>
                       );
@@ -549,6 +591,75 @@ export default function SkusPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl max-w-md w-full p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center flex-shrink-0">
+                <TrashIcon className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Delete SKU?</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/40 rounded-2xl p-4">
+              <p className="text-sm text-slate-700 dark:text-slate-300">
+                You are about to permanently delete SKU{" "}
+                <span className="font-black font-mono text-rose-700 dark:text-rose-400">{deleteTarget.sku}</span>{" "}
+                &mdash; <span className="font-semibold">{deleteTarget.name}</span>.
+              </p>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={handleDeleteItem}
+                disabled={deleteSubmitting}
+                className="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-colors text-sm disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {deleteSubmitting ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Deleting...</>
+                ) : (
+                  <><TrashIcon className="w-4 h-4" />Yes, Delete</>
+                )}
+              </button>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteSubmitting}
+                className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Transaction Block Modal */}
+      {deleteBlockedMsg && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-3xl shadow-2xl max-w-md w-full p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0">
+                <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Deletion Blocked</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Active transactions detected</p>
+              </div>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 rounded-2xl p-4">
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{deleteBlockedMsg}</p>
+            </div>
+            <button
+              onClick={() => setDeleteBlockedMsg("")}
+              className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors text-sm"
+            >
+              Understood
+            </button>
           </div>
         </div>
       )}
