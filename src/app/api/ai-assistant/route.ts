@@ -16,6 +16,14 @@ export async function POST(request: Request) {
     let reply = "";
     let suggestions: string[] = [];
 
+    // Verify inventory permission
+    const subCheck = await query(
+      "SELECT subscription_type FROM public.company_subscriptions WHERE orgcode = $1",
+      [orgcode]
+    );
+    const subscriptionType = subCheck.rows[0]?.subscription_type || "trial";
+    const hasInventory = subscriptionType === "trial" || subscriptionType.endsWith("_inventory");
+
     // --- INTENT 1: SLIP DETAILS SEARCH (e.g. "details for slip #8", "what is in slip 12") ---
     const slipNumberMatch = message.match(/(?:slip\s*(?:no|#)?\s*)(\d+)\b/i);
     if (slipNumberMatch) {
@@ -714,6 +722,322 @@ export async function POST(request: Request) {
 *Or type a customer query like: "Outstanding for [Name/Phone]" or "Payments for [Name/Phone]"*`;
         suggestions = ["Total Outstanding", "Show Top Debtors", "risky accounts", "Show Aging Report", "Today's Stats"];
       }
+    }
+
+    // --- INTENT 14: INVENTORY LOW STOCK ---
+    if (
+      cleanedMsg.includes("low stock") || 
+      cleanedMsg.includes("stock alert") || 
+      cleanedMsg.includes("reorder level") ||
+      cleanedMsg.includes("reorder item") ||
+      cleanedMsg.includes("list reorder item")
+    ) {
+      if (!hasInventory) {
+        reply = "📦 **Inventory Module**\nThis feature is only available on Parchi with Inventory plans. Upgrade your subscription to enable.";
+      } else {
+        const lowStockResult = await query(
+          `WITH item_balances AS (
+            SELECT i.id, i.sku, i.name, i.reorder_level,
+                   COALESCE(
+                     (SELECT SUM(opening_qty) FROM public.inventory_balances WHERE orgcode = $1 AND item_id = i.id),
+                     0
+                   ) +
+                   COALESCE(
+                     (SELECT SUM(d.qty) 
+                      FROM public.inventory_transaction_details d 
+                      JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
+                      WHERE h.orgcode = $1 AND d.item_id = i.id AND h.to_location_id IS NOT NULL),
+                      0
+                   ) -
+                   COALESCE(
+                     (SELECT SUM(d.qty) 
+                      FROM public.inventory_transaction_details d 
+                      JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
+                      WHERE h.orgcode = $1 AND d.item_id = i.id AND h.from_location_id IS NOT NULL),
+                     0
+                   ) as current_balance
+            FROM public.inventory_items i 
+            WHERE i.orgcode = $1
+          )
+          SELECT sku, name, reorder_level, current_balance
+          FROM item_balances
+          WHERE current_balance <= reorder_level
+          ORDER BY name ASC`,
+          [orgcode]
+        );
+
+        if (lowStockResult.rows.length === 0) {
+          reply = "✅ **All items are healthy!**\nThere are no inventory items at or below their reorder levels.";
+        } else {
+          reply = "⚠️ **Low Stock Alert Items**\nThe following products have fallen below or reached their configured reorder thresholds:\n\n";
+          lowStockResult.rows.forEach((row: any) => {
+            reply += `- **${row.name}** (SKU: ${row.sku}): **${parseFloat(row.current_balance).toLocaleString()} units** left (Reorder level: ${parseFloat(row.reorder_level).toLocaleString()})\n`;
+          });
+        }
+      }
+      suggestions = hasInventory ? ["stock status", "recent vouchers", "Total Outstanding"] : ["Total Outstanding"];
+    }
+
+    // --- INTENT 15: INVENTORY RECENT VOUCHERS ---
+    else if (
+      cleanedMsg.includes("recent voucher") || 
+      cleanedMsg.includes("inventory voucher") || 
+      cleanedMsg.includes("inward/outward log") || 
+      cleanedMsg.includes("inventory log")
+    ) {
+      if (!hasInventory) {
+        reply = "📦 **Inventory Module**\nThis feature is only available on Parchi with Inventory plans. Upgrade your subscription to enable.";
+      } else {
+        const recentVouchers = await query(
+          `SELECT h.id, h.transaction_date, h.party_name, h.reference_no,
+                  t.name as type_name, t.stock_effect,
+                  fl.name as from_location_name, tl.name as to_location_name,
+                  (SELECT COUNT(*) FROM public.inventory_transaction_details d WHERE d.transaction_header_id = h.id) as items_count
+           FROM public.inventory_transaction_headers h
+           JOIN public.inventory_transaction_types t ON h.transaction_type_id = t.id
+           LEFT JOIN public.inventory_locations fl ON h.from_location_id = fl.id
+           LEFT JOIN public.inventory_locations tl ON h.to_location_id = tl.id
+           WHERE h.orgcode = $1
+           ORDER BY h.transaction_date DESC, h.id DESC
+           LIMIT 5`,
+          [orgcode]
+        );
+
+        if (recentVouchers.rows.length === 0) {
+          reply = "No inventory transactions have been posted yet.";
+        } else {
+          reply = "📋 **Recent Inventory Transaction Vouchers**\nHere is a list of the latest 5 inventory records:\n\n";
+          recentVouchers.rows.forEach((row: any) => {
+            const locText = row.from_location_name && row.to_location_name 
+              ? `${row.from_location_name} ➔ ${row.to_location_name}`
+              : row.from_location_name || row.to_location_name || "-";
+            reply += `- **#${row.id} (${row.type_name})** on ${new Date(row.transaction_date).toLocaleDateString()}\n`;
+            reply += `  - *Location/Source:* ${locText}\n`;
+            reply += `  - *Effect:* ${row.stock_effect.toLowerCase()} (${row.items_count} unique item(s))\n`;
+            if (row.party_name || row.reference_no) {
+              reply += `  - *Narration:* ${row.party_name || row.reference_no}\n`;
+            }
+            reply += `\n`;
+          });
+        }
+      }
+      suggestions = hasInventory ? ["low stock", "stock status", "Total Outstanding"] : ["Total Outstanding"];
+    }
+
+    // --- INTENT 16: STOCK OVERVIEW STATUS ---
+    else if (
+      cleanedMsg.includes("stock status") || 
+      cleanedMsg.includes("stock overview") || 
+      cleanedMsg.includes("inventory level")
+    ) {
+      if (!hasInventory) {
+        reply = "📦 **Inventory Module**\nThis feature is only available on Parchi with Inventory plans. Upgrade your subscription to enable.";
+      } else {
+        const stockStatusRes = await query(
+          `WITH item_balances AS (
+            SELECT i.id, i.sku, i.name,
+                   COALESCE(
+                     (SELECT SUM(opening_qty) FROM public.inventory_balances WHERE orgcode = $1 AND item_id = i.id),
+                     0
+                   ) +
+                   COALESCE(
+                     (SELECT SUM(d.qty) 
+                      FROM public.inventory_transaction_details d 
+                      JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
+                      WHERE h.orgcode = $1 AND d.item_id = i.id AND h.to_location_id IS NOT NULL),
+                      0
+                   ) -
+                   COALESCE(
+                     (SELECT SUM(d.qty) 
+                      FROM public.inventory_transaction_details d 
+                      JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
+                      WHERE h.orgcode = $1 AND d.item_id = i.id AND h.from_location_id IS NOT NULL),
+                     0
+                   ) as current_balance
+            FROM public.inventory_items i 
+            WHERE i.orgcode = $1
+          )
+          SELECT sku, name, current_balance
+          FROM item_balances
+          ORDER BY current_balance DESC
+          LIMIT 10`,
+          [orgcode]
+        );
+
+        if (stockStatusRes.rows.length === 0) {
+          reply = "No items registered in inventory yet.";
+        } else {
+          reply = "📦 **Current Inventory Stock Status** (Top 10 items by balance):\n\n";
+          stockStatusRes.rows.forEach((row: any) => {
+            reply += `- **${row.name}** (SKU: ${row.sku}): **${parseFloat(row.current_balance).toLocaleString()} units**\n`;
+          });
+        }
+      }
+      suggestions = hasInventory ? ["low stock", "recent vouchers", "Total Outstanding"] : ["Total Outstanding"];
+    }
+
+    // --- INTENT 17: STOCK FOR ITEM AT LOCATION ---
+    else if (
+      hasInventory &&
+      message.match(/stock\s+(?:for|of|in|at)?\s*(.+?)\s+(?:in|at|location)\s+(.+)/i)
+    ) {
+      const match = message.match(/stock\s+(?:for|of|in|at)?\s*(.+?)\s+(?:in|at|location)\s+(.+)/i);
+      const itemName = match ? match[1].replace(/['"“”‘’]/g, "").trim() : "";
+      const locName = match ? match[2].replace(/['"“”‘’]/g, "").trim() : "";
+
+      const result = await query(
+        `WITH item_balances AS (
+          SELECT i.id as item_id, i.sku, i.name as item_name, i.reorder_level,
+                 l.id as location_id, l.name as location_name,
+                 COALESCE(
+                   (SELECT opening_qty FROM public.inventory_balances WHERE orgcode = $1 AND item_id = i.id AND location_id = l.id),
+                   0
+                 ) +
+                 COALESCE(
+                   (SELECT SUM(d.qty) 
+                    FROM public.inventory_transaction_details d 
+                    JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
+                    WHERE h.orgcode = $1 AND d.item_id = i.id AND h.to_location_id = l.id),
+                    0
+                 ) -
+                 COALESCE(
+                   (SELECT SUM(d.qty) 
+                    FROM public.inventory_transaction_details d 
+                    JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
+                    WHERE h.orgcode = $1 AND d.item_id = i.id AND h.from_location_id = l.id),
+                   0
+                 ) as current_balance
+          FROM public.inventory_items i 
+          CROSS JOIN public.inventory_locations l
+          WHERE i.orgcode = $1 AND l.orgcode = $1
+        )
+        SELECT sku, item_name, location_name, reorder_level, current_balance
+        FROM item_balances
+        WHERE item_name ILIKE $2 AND location_name ILIKE $3
+        ORDER BY item_name, location_name`,
+        [orgcode, `%${itemName}%`, `%${locName}%`]
+      );
+
+      if (result.rows.length === 0) {
+        reply = `No matching stock found for item **"${itemName}"** at location **"${locName}"**.`;
+      } else {
+        reply = `📦 **Stock details for "${itemName}" at Location "${locName}"**:\n\n`;
+        result.rows.forEach((row: any) => {
+          reply += `- **${row.item_name}** (SKU: ${row.sku}) at **${row.location_name}**:\n`;
+          reply += `  - Closing Stock: **${parseFloat(row.current_balance).toLocaleString()} units**\n`;
+          reply += `  - Reorder Level: ${parseFloat(row.reorder_level).toLocaleString()} units\n\n`;
+        });
+      }
+      suggestions = ["low stock", "recent vouchers", "Total Outstanding"];
+    }
+
+    // --- INTENT 18: STOCK FOR ITEM (ALL LOCATIONS SUMMED) ---
+    else if (
+      hasInventory &&
+      message.match(/stock\s+(?:for|of|in|at)?\s*(.+)/i)
+    ) {
+      const match = message.match(/stock\s+(?:for|of|in|at)?\s*(.+)/i);
+      const itemName = match ? match[1].replace(/['"“”‘’]/g, "").trim() : "";
+
+      const result = await query(
+        `WITH item_balances AS (
+          SELECT i.id, i.sku, i.name as item_name, i.reorder_level,
+                 COALESCE(
+                   (SELECT SUM(opening_qty) FROM public.inventory_balances WHERE orgcode = $1 AND item_id = i.id),
+                   0
+                 ) +
+                 COALESCE(
+                   (SELECT SUM(d.qty) 
+                    FROM public.inventory_transaction_details d 
+                    JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
+                    WHERE h.orgcode = $1 AND d.item_id = i.id AND h.to_location_id IS NOT NULL),
+                    0
+                 ) -
+                 COALESCE(
+                   (SELECT SUM(d.qty) 
+                    FROM public.inventory_transaction_details d 
+                    JOIN public.inventory_transaction_headers h ON d.transaction_header_id = h.id 
+                    WHERE h.orgcode = $1 AND d.item_id = i.id AND h.from_location_id IS NOT NULL),
+                   0
+                 ) as current_balance
+          FROM public.inventory_items i 
+          WHERE i.orgcode = $1
+        )
+        SELECT sku, item_name, reorder_level, current_balance
+        FROM item_balances
+        WHERE item_name ILIKE $2
+        ORDER BY item_name`,
+        [orgcode, `%${itemName}%`]
+      );
+
+      if (result.rows.length === 0) {
+        reply = `No matching stock found for item **"${itemName}"**.`;
+      } else {
+        reply = `📦 **Stock details for "${itemName}"**:\n\n`;
+        result.rows.forEach((row: any) => {
+          reply += `- **${row.item_name}** (SKU: ${row.sku}):\n`;
+          reply += `  - Closing Stock: **${parseFloat(row.current_balance).toLocaleString()} units** (Reorder level: ${parseFloat(row.reorder_level).toLocaleString()})\n\n`;
+        });
+      }
+      suggestions = ["low stock", "recent vouchers", "Total Outstanding"];
+    }
+
+    // --- INTENT 19: DETAILED VOUCHERS LIST ---
+    else if (
+      hasInventory &&
+      (message.match(/show\s+last\s+(\d+)\s+voucher/i) || cleanedMsg.includes("last voucher") || cleanedMsg.includes("recent voucher details"))
+    ) {
+      const match = message.match(/show\s+last\s+(\d+)\s+voucher/i);
+      const limit = match ? parseInt(match[1], 10) : 5;
+
+      const recentVouchers = await query(
+        `SELECT h.id, h.transaction_date, h.party_name, h.reference_no, h.remarks,
+                t.name as type_name, t.stock_effect,
+                fl.name as from_location_name, tl.name as to_location_name
+         FROM public.inventory_transaction_headers h
+         JOIN public.inventory_transaction_types t ON h.transaction_type_id = t.id
+         LEFT JOIN public.inventory_locations fl ON h.from_location_id = fl.id
+         LEFT JOIN public.inventory_locations tl ON h.to_location_id = tl.id
+         WHERE h.orgcode = $1
+         ORDER BY h.transaction_date DESC, h.id DESC
+         LIMIT $2`,
+        [orgcode, limit]
+      );
+
+      if (recentVouchers.rows.length === 0) {
+        reply = "No inventory transaction vouchers found.";
+      } else {
+        reply = `📋 **Last ${recentVouchers.rows.length} Inventory Vouchers and Details**:\n\n`;
+        for (const row of recentVouchers.rows) {
+          const locText = row.from_location_name && row.to_location_name 
+            ? `${row.from_location_name} ➔ ${row.to_location_name}`
+            : row.from_location_name || row.to_location_name || "-";
+          
+          reply += `### **Voucher #${row.id} (${row.type_name})**\n`;
+          reply += `- **Date:** ${new Date(row.transaction_date).toLocaleDateString()}\n`;
+          reply += `- **Location:** ${locText}\n`;
+          reply += `- **Effect:** ${row.stock_effect}\n`;
+          if (row.party_name || row.reference_no || row.remarks) {
+            reply += `- **Narration:** ${row.party_name || row.reference_no || row.remarks}\n`;
+          }
+
+          // Fetch items for this voucher
+          const details = await query(
+            `SELECT d.qty, i.name as item_name, i.sku
+             FROM public.inventory_transaction_details d
+             JOIN public.inventory_items i ON d.item_id = i.id
+             WHERE d.transaction_header_id = $1`,
+            [row.id]
+          );
+
+          reply += `- **Items:**\n`;
+          details.rows.forEach((d: any) => {
+            reply += `  - **${d.item_name}** (SKU: ${d.sku}): ${parseFloat(d.qty).toLocaleString()} units\n`;
+          });
+          reply += `\n---\n\n`;
+        }
+      }
+      suggestions = ["low stock", "stock status", "Total Outstanding"];
     }
 
     return NextResponse.json({

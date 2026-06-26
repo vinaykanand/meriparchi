@@ -1,4 +1,5 @@
 import pool, { query } from "@/lib/db";
+import { cookies } from "next/headers";
 
 interface AuditLogParams {
   client?: any; // pg client for transactions
@@ -18,6 +19,25 @@ export async function logAction({
   const executor = client || { query: query };
   
   try {
+    // If we are logged in as superadmin impersonating a client, bypass audit logging in the client company
+    if (orgcode !== "SUPER") {
+      try {
+        const cookieStore = await cookies();
+        const authtoken = cookieStore.get("authtoken")?.value;
+        if (authtoken) {
+          const superCheck = await executor.query(
+            "SELECT userid FROM public.users WHERE authtoken = $1 AND orgcode = 'SUPER' AND issuperadmin = true AND isactive = true LIMIT 1",
+            [authtoken]
+          );
+          if (superCheck.rows.length > 0) {
+            console.log(`[Audit] Impersonation bypass: Skipping client audit log for action "${action}" on company "${orgcode}"`);
+            return;
+          }
+        }
+      } catch (cookieErr) {
+        // Not in request/cookie context, ignore
+      }
+    }
     // Prevent duplicate logs for backup and restore actions within 2 minutes (120 seconds)
     // Using both interval check and timezone-safe epoch differences
     if (action.includes("BACKUP") || action.includes("RESTORE")) {

@@ -16,6 +16,7 @@ export default function SignupPage() {
   const [phone, setPhone] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -96,6 +97,7 @@ export default function SignupPage() {
           email: email.trim() || undefined,
           phone: phone.trim() || undefined,
           adminPassword: adminPassword.trim(),
+          referralCode: referralCode.trim() || undefined,
         }),
       });
 
@@ -248,6 +250,19 @@ export default function SignupPage() {
                     className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+
+                {/* Referral Code */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Referral Code (optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. REF-XXXXXX"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold uppercase text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                     disabled={loading}
                   />
                 </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { query } from "@/lib/db";
+import pool from "@/lib/db";
 import { logAction } from "@/lib/audit";
 
 // Helper to verify that the request is made by a super admin
@@ -36,15 +37,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Select companies, calculating remaining days
     const result = await query(
       `SELECT c.orgcode, c.orgname, s.subscription_type, s.subscription_start, s.subscription_end, c.isactive, c.email, c.phone,
+              c.referral_code, c.referred_by,
+              (SELECT COALESCE(SUM(points_earned), 0) FROM public.payment_history WHERE referred_by = c.orgcode) AS referral_points,
+              ref.orgname AS referrer_name,
               CASE 
                 WHEN s.subscription_end IS NULL THEN 0
                 ELSE EXTRACT(EPOCH FROM (s.subscription_end - NOW())) / 86400.0
               END as remaining_days
        FROM public.company c
        LEFT JOIN public.company_subscriptions s ON c.orgcode = s.orgcode
+       LEFT JOIN public.company ref ON ref.orgcode = c.referred_by
        ORDER BY c.orgcode ASC`
     );
 
@@ -98,18 +102,29 @@ export async function POST(request: Request) {
       }
     }
 
+    // Generate a unique referral code for the new company
+    let newRefCode = "";
+    for (let attempts = 0; attempts < 10; attempts++) {
+      const candidate = "REF-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+      const uniqueCheck = await query("SELECT orgcode FROM public.company WHERE referral_code = $1", [candidate]);
+      if (uniqueCheck.rows.length === 0) {
+        newRefCode = candidate;
+        break;
+      }
+    }
+
     // Insert company
     await query(
-      `INSERT INTO public.company (orgcode, orgname, isactive, email, phone)
-       VALUES ($1, $2, true, $3, $4)`,
-      [cleanOrgcode, orgname.trim(), email ? email.trim() : null, phone ? phone.trim() : null]
+      `INSERT INTO public.company (orgcode, orgname, isactive, email, phone, referral_code)
+       VALUES ($1, $2, true, $3, $4, $5)`,
+      [cleanOrgcode, orgname.trim(), email ? email.trim() : null, phone ? phone.trim() : null, newRefCode || null]
     );
 
     // Insert company subscription record using database CURRENT_TIMESTAMP and interval addition
     await query(
-      `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_start, subscription_end)
-       VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($3 || ' days')::INTERVAL)`,
-      [cleanOrgcode, plan, durationDays]
+      `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_start, subscription_end, has_inventory)
+       VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($3 || ' days')::INTERVAL, $4)`,
+      [cleanOrgcode, plan, durationDays, plan === "trial" || plan.endsWith("_inventory")]
     );
 
     // Check if user admin was auto-created by Supabase trigger, or if we need to insert it
@@ -214,11 +229,11 @@ export async function PUT(request: Request) {
     }
 
     await query(
-      `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_end)
-       VALUES ($1, $2, $3)
+      `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_end, has_inventory)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (orgcode) DO UPDATE 
-       SET subscription_type = EXCLUDED.subscription_type, subscription_end = EXCLUDED.subscription_end`,
-      [orgcode, subscriptionType, endTimestamp]
+       SET subscription_type = EXCLUDED.subscription_type, subscription_end = EXCLUDED.subscription_end, has_inventory = EXCLUDED.has_inventory`,
+      [orgcode, subscriptionType, endTimestamp, subscriptionType === "trial" || subscriptionType.endsWith("_inventory")]
     );
 
     // Audit Log for Company Update (log in target company's logs)
@@ -292,24 +307,27 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, message: "Invalid Super Admin password confirmation." }, { status: 401 });
     }
 
-    // Perform transaction deletion
-    await query("BEGIN");
-
+    // Use a dedicated client so BEGIN/COMMIT/ROLLBACK are on the same connection
+    const client = await pool.connect();
     try {
-      await query("DELETE FROM public.slipitems WHERE id IN (SELECT id FROM public.slips WHERE orgcode = $1)", [cleanOrgcode]);
-      await query("DELETE FROM public.slips WHERE orgcode = $1", [cleanOrgcode]);
-      await query("DELETE FROM public.payments WHERE orgcode = $1", [cleanOrgcode]);
-      await query("DELETE FROM public.users WHERE orgcode = $1", [cleanOrgcode]);
-      await query("DELETE FROM public.company_subscriptions WHERE orgcode = $1", [cleanOrgcode]);
-      await query("DELETE FROM public.coupon_uses WHERE orgcode = $1", [cleanOrgcode]);
-      await query("DELETE FROM public.payment_history WHERE orgcode = $1", [cleanOrgcode]);
-      await query("DELETE FROM public.audit_logs WHERE orgcode = $1", [cleanOrgcode]);
-      await query("DELETE FROM public.company WHERE orgcode = $1", [cleanOrgcode]);
+      await client.query("BEGIN");
 
-      await query("COMMIT");
+      await client.query("DELETE FROM public.slipitems WHERE id IN (SELECT id FROM public.slips WHERE orgcode = $1)", [cleanOrgcode]);
+      await client.query("DELETE FROM public.slips WHERE orgcode = $1", [cleanOrgcode]);
+      await client.query("DELETE FROM public.payments WHERE orgcode = $1", [cleanOrgcode]);
+      await client.query("DELETE FROM public.users WHERE orgcode = $1", [cleanOrgcode]);
+      await client.query("DELETE FROM public.company_subscriptions WHERE orgcode = $1", [cleanOrgcode]);
+      await client.query("DELETE FROM public.coupon_uses WHERE orgcode = $1", [cleanOrgcode]);
+      await client.query("DELETE FROM public.payment_history WHERE orgcode = $1", [cleanOrgcode]);
+      await client.query("DELETE FROM public.audit_logs WHERE orgcode = $1", [cleanOrgcode]);
+      await client.query("DELETE FROM public.company WHERE orgcode = $1", [cleanOrgcode]);
+
+      await client.query("COMMIT");
     } catch (txErr) {
-      await query("ROLLBACK");
+      await client.query("ROLLBACK");
       throw txErr;
+    } finally {
+      client.release();
     }
 
     // Log audit log under SUPER organization

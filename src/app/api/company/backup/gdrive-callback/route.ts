@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { query } from "@/lib/db";
 
 export async function GET(request: Request) {
@@ -15,6 +16,33 @@ export async function GET(request: Request) {
 
     if (!code || !orgcode) {
       return NextResponse.json({ success: false, message: "Invalid callback request" }, { status: 400 });
+    }
+
+    const cookieStore = await cookies();
+    const authtoken = cookieStore.get("authtoken")?.value;
+    const sessionOrgcode = cookieStore.get("orgcode")?.value;
+
+    if (!authtoken || !sessionOrgcode) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Verify user authorization: must be admin or a super admin
+    const userCheck = await query(
+      "SELECT isadmin, issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
+      [authtoken, sessionOrgcode]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    const { isadmin, issuperadmin } = userCheck.rows[0];
+
+    // Block non-admins unless they are super admins
+    if (!issuperadmin) {
+      if (!isadmin || sessionOrgcode !== orgcode) {
+        return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      }
     }
 
     // Retrieve client credentials from environment variables

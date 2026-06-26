@@ -2,15 +2,18 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useRouter } from "next/navigation";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 
 export default function AdminOverview() {
   const { session } = useAuth();
+  const router = useRouter();
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
   const [trendLoading, setTrendLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState<{
+    hasInventory: boolean;
     kpis: {
       totalOutstanding: number;
       revenueToday: number;
@@ -21,7 +24,17 @@ export default function AdminOverview() {
     trend: any[];
     topDebtors: any[];
     topItems: any[];
+    vouchers: any[];
+    lowStockItems: any[];
+    debtAgingSummary?: {
+      aging_0_30: number;
+      aging_31_60: number;
+      aging_61_90: number;
+      aging_90_plus: number;
+      total: number;
+    };
   }>({
+    hasInventory: false,
     kpis: {
       totalOutstanding: 0,
       revenueToday: 0,
@@ -31,8 +44,17 @@ export default function AdminOverview() {
     },
     trend: [],
     topDebtors: [],
-    topItems: []
+    topItems: [],
+    vouchers: [],
+    lowStockItems: []
   });
+
+  const [selectedVoucherDetails, setSelectedVoucherDetails] = useState<any | null>(null);
+  const [loadingVoucherDetails, setLoadingVoucherDetails] = useState(false);
+
+  const handleVoucherClick = (voucherId: number) => {
+    router.push(`/dashboard/admin/inventory/transactions?editVoucherId=${voucherId}`);
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -43,10 +65,14 @@ export default function AdminOverview() {
         const data = await res.json();
         if (res.ok && data.success) {
           setDashboardData({
+            hasInventory: data.hasInventory,
             kpis: data.kpis,
             trend: data.trend,
             topDebtors: data.topDebtors,
-            topItems: data.topItems
+            topItems: data.topItems,
+            vouchers: data.vouchers || [],
+            lowStockItems: data.lowStockItems || [],
+            debtAgingSummary: data.debtAgingSummary
           });
         }
       } catch (err) {
@@ -247,45 +273,243 @@ export default function AdminOverview() {
           </div>
         </div>
 
-        {/* Top Selling Items */}
-        <div className="bg-white/80 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        {/* Debt Aging Analysis */}
+        <div 
+          onClick={() => router.push("/dashboard/admin/reports?filter=debt_aging")}
+          className="bg-white/80 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 cursor-pointer hover:border-blue-500/50 transition-all group"
+        >
           <div className="mb-4 flex justify-between items-center">
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Top Moving Items</h3>
-              <p className="text-xs text-slate-500">Most popular products by volume sold</p>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-650 dark:group-hover:text-blue-400 transition-colors">Debt Aging Summary</h3>
+              <p className="text-xs text-slate-500">Unpaid balances categorized by date range. Click to view detailed report.</p>
             </div>
-            <span className="text-2xl">📦</span>
+            <span className="text-2xl">⏳</span>
           </div>
 
-          <div className="h-[250px] w-full mt-4">
-            {dashboardData.topItems.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dashboardData.topItems} layout="vertical" margin={{ top: 0, right: 30, left: 30, bottom: 0 }}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="item" width={80} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <RechartsTooltip
-                    cursor={{ fill: 'transparent' }}
-                    content={({ active, payload }: any) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-lg text-sm">
-                            <span className="font-bold text-slate-700 dark:text-slate-200">{payload[0].payload.item}</span>: {payload[0].value} units
-                          </div>
-                        )
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar dataKey="total_qty" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={24} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-slate-500">No item data available.</div>
-            )}
+          <div className="flex flex-col gap-3.5 mt-6">
+            <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-100 dark:border-slate-800 font-bold uppercase tracking-wider text-slate-400">
+              <span>Aging Period</span>
+              <span className="text-right">Outstanding Amount</span>
+            </div>
+
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-semibold text-slate-600 dark:text-slate-400">0 - 30 Days</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100">₹{(dashboardData.debtAgingSummary?.aging_0_30 || 0).toLocaleString()}</span>
+            </div>
+
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-semibold text-slate-600 dark:text-slate-400">31 - 60 Days</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100">₹{(dashboardData.debtAgingSummary?.aging_31_60 || 0).toLocaleString()}</span>
+            </div>
+
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-semibold text-slate-600 dark:text-slate-400">61 - 90 Days</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100">₹{(dashboardData.debtAgingSummary?.aging_61_90 || 0).toLocaleString()}</span>
+            </div>
+
+            <div className="flex justify-between items-center text-xs pb-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="font-semibold text-slate-600 dark:text-slate-400">Over 90 Days</span>
+              <span className="font-bold text-red-600 dark:text-red-400">₹{(dashboardData.debtAgingSummary?.aging_90_plus || 0).toLocaleString()}</span>
+            </div>
+
+            <div className="flex justify-between items-center text-xs pt-1.5 font-extrabold">
+              <span className="text-slate-800 dark:text-slate-200">Total Outstanding</span>
+              <span className="text-blue-650 dark:text-blue-400 text-sm">₹{(dashboardData.debtAgingSummary?.total || 0).toLocaleString()}</span>
+            </div>
           </div>
         </div>
-
       </div>
+      {dashboardData.hasInventory && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Last 20 Vouchers (2 cols width) */}
+          <div className="lg:col-span-2 bg-white/80 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Last 20 Voucher Summary</h3>
+                <p className="text-xs text-slate-500">Quick review of recent inventory transactions. Click a row to view details.</p>
+              </div>
+              {loadingVoucherDetails && (
+                <div className="w-5 h-5 border-2 border-slate-200 dark:border-slate-700 border-t-blue-600 rounded-full animate-spin"></div>
+              )}
+            </div>
+            
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                    <th className="py-2.5 px-2">Date</th>
+                    <th className="py-2.5 px-2">Transaction Type</th>
+                    <th className="py-2.5 px-2">Inward / Outward</th>
+                    <th className="py-2.5 px-2">Location / Source</th>
+                    <th className="py-2.5 px-2 text-center">Unique Items</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {dashboardData.vouchers.map((v) => (
+                    <tr 
+                      key={v.id} 
+                      onClick={() => handleVoucherClick(v.id)}
+                      className="hover:bg-slate-50/50 dark:hover:bg-slate-700/20 transition-colors cursor-pointer"
+                    >
+                      <td className="py-2.5 px-2 text-slate-500 whitespace-nowrap">
+                        {new Date(v.date).toLocaleDateString()}
+                      </td>
+                      <td className="py-2.5 px-2 font-bold text-slate-850 dark:text-slate-200">
+                        {v.typeName}
+                      </td>
+                      <td className="py-2.5 px-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                          v.stockEffect === "INWARD"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : v.stockEffect === "OUTWARD"
+                              ? "bg-rose-500/10 text-rose-600 dark:text-rose-455"
+                              : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                        }`}>
+                          {v.stockEffect.toLowerCase()}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-2 text-slate-600 dark:text-slate-400 truncate max-w-[150px]">
+                        {v.fromLocationName && v.toLocationName ? (
+                          <span>{v.fromLocationName} ➔ {v.toLocationName}</span>
+                        ) : v.fromLocationName ? (
+                          <span>{v.fromLocationName}</span>
+                        ) : v.toLocationName ? (
+                          <span>{v.toLocationName}</span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="py-2.5 px-2 text-center text-slate-700 dark:text-slate-350 font-bold">{v.itemsCount}</td>
+                    </tr>
+                  ))}
+                  {dashboardData.vouchers.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-400">No recent vouchers.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Items at Reorder Level (1 col width) */}
+          <div className="bg-white/80 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Low Stock Alerts</h3>
+                <p className="text-xs text-slate-500">Items at or below reorder level</p>
+              </div>
+              <span className="text-xl">⚠️</span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 max-h-[300px]">
+              <div className="flex flex-col gap-3">
+                {dashboardData.lowStockItems.map((item) => (
+                  <div key={item.sku} className="p-3 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center justify-between text-xs">
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="font-bold text-slate-800 dark:text-slate-250 truncate">{item.name}</span>
+                      <span className="text-slate-400 font-mono">SKU: {item.sku}</span>
+                    </div>
+                    <div className="text-right flex flex-col gap-0.5">
+                      <span className="font-extrabold text-rose-600 dark:text-rose-450">{item.currentBalance.toLocaleString()} left</span>
+                      <span className="text-[10px] text-slate-500">Reorder: {item.reorderLevel.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+                {dashboardData.lowStockItems.length === 0 && (
+                  <div className="text-center py-8 text-slate-400 text-xs">All inventory stocks are healthy.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Voucher Detail Modal Overlay */}
+      {selectedVoucherDetails && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl flex flex-col gap-4 text-slate-950 dark:text-slate-100">
+            <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h4 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  Voucher Detail: {selectedVoucherDetails.voucher.type_name}
+                </h4>
+                <p className="text-xs text-slate-500 font-semibold font-mono mt-0.5">
+                  Voucher ID: #{selectedVoucherDetails.voucher.id} • Date: {new Date(selectedVoucherDetails.voucher.transaction_date).toLocaleDateString()}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedVoucherDetails(null)}
+                className="text-slate-400 hover:text-slate-655 dark:hover:text-slate-200 text-sm font-bold p-1 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2.5 text-xs text-slate-700 dark:text-slate-300">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="font-bold text-slate-400 block text-[9px] uppercase">Stock Effect</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold mt-0.5 ${
+                    selectedVoucherDetails.voucher.stock_effect === "INWARD"
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-450"
+                      : "bg-rose-500/10 text-rose-600 dark:text-rose-455"
+                  }`}>
+                    {selectedVoucherDetails.voucher.stock_effect.toLowerCase()}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-bold text-slate-400 block text-[9px] uppercase">Ref No</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{selectedVoucherDetails.voucher.reference_no || "-"}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="font-bold text-slate-400 block text-[9px] uppercase">Party Name</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{selectedVoucherDetails.voucher.party_name || "-"}</span>
+                </div>
+                <div>
+                  <span className="font-bold text-slate-400 block text-[9px] uppercase">Remarks</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{selectedVoucherDetails.voucher.remarks || "-"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden mt-2">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                    <th className="py-2 px-3">Item Name (SKU)</th>
+                    <th className="py-2 px-3 text-right">Quantity</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {selectedVoucherDetails.details.map((d: any) => (
+                    <tr key={d.id} className="hover:bg-slate-50/20 dark:hover:bg-slate-900/5">
+                      <td className="py-2 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                        {d.item_name} <span className="text-[10px] text-slate-400 font-mono">({d.sku})</span>
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">
+                        {parseFloat(d.qty).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={() => setSelectedVoucherDetails(null)}
+                className="px-4 py-2 bg-blue-650 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors text-xs"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

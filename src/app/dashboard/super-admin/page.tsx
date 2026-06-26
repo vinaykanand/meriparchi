@@ -11,7 +11,8 @@ import {
   PencilSquareIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  UserCircleIcon
 } from "@heroicons/react/24/outline";
 
 interface Company {
@@ -24,6 +25,10 @@ interface Company {
   email: string | null;
   phone: string | null;
   remaining_days: number;
+  referral_code: string | null;
+  referred_by: string | null;
+  referral_points: string | number;
+  referrer_name: string | null;
 }
 
 interface Toast {
@@ -46,6 +51,7 @@ export default function SuperAdminPage() {
   const [newPhone, setNewPhone] = useState("");
   const [newAdminPassword, setNewAdminPassword] = useState("");
   const [newSubscriptionType, setNewSubscriptionType] = useState<string>("trial");
+  const [newPlanCategory, setNewPlanCategory] = useState<"simple" | "inventory">("simple");
   const [creating, setCreating] = useState(false);
 
   // Edit Company states
@@ -55,6 +61,7 @@ export default function SuperAdminPage() {
   const [editPhone, setEditPhone] = useState("");
   const [editAdminPassword, setEditAdminPassword] = useState("");
   const [editSubscriptionType, setEditSubscriptionType] = useState<string>("trial");
+  const [editPlanCategory, setEditPlanCategory] = useState<"simple" | "inventory">("simple");
   const [editSubscriptionEnd, setEditSubscriptionEnd] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -67,6 +74,14 @@ export default function SuperAdminPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  // Impersonation user selection modal
+  interface OrgUser { userid: string; isadmin: boolean; isactive: boolean; }
+  const [impersonateTarget, setImpersonateTarget] = useState<{ orgcode: string; orgname: string } | null>(null);
+  const [orgUsers, setOrgUsers] = useState<OrgUser[]>([]);
+  const [loadingOrgUsers, setLoadingOrgUsers] = useState(false);
+  const [selectedImpersonateUser, setSelectedImpersonateUser] = useState<string>("");
+  const [impersonating, setImpersonating] = useState(false);
 
 
 
@@ -181,6 +196,7 @@ export default function SuperAdminPage() {
         setNewPhone("");
         setNewAdminPassword("");
         setNewSubscriptionType("trial");
+        setNewPlanCategory("simple");
         fetchCompanies();
       } else {
         addToast(data.message || "Registration failed", "error");
@@ -202,6 +218,10 @@ export default function SuperAdminPage() {
     setEditIsActive(company.isactive);
     setForceResetDate(false);
     
+    // Set editPlanCategory based on current subscription type
+    const isInv = company.subscription_type.endsWith("_inventory");
+    setEditPlanCategory(isInv ? "inventory" : "simple");
+
     // Format subscription_end to YYYY-MM-DD for date input
     const end = new Date(company.subscription_end);
     const yyyy = end.getFullYear();
@@ -273,22 +293,50 @@ export default function SuperAdminPage() {
     }
   };
 
-  const handleImpersonate = async (targetOrgcode: string) => {
+  const openImpersonateModal = async (company: Company) => {
+    setImpersonateTarget({ orgcode: company.orgcode, orgname: company.orgname });
+    setSelectedImpersonateUser("");
+    setOrgUsers([]);
+    setLoadingOrgUsers(true);
+    try {
+      const res = await fetch(`/api/company/super-admin/users?orgcode=${company.orgcode}`);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setOrgUsers(data.users || []);
+        // Pre-select the admin user if available
+        const adminUser = (data.users || []).find((u: { userid: string; isadmin: boolean; isactive: boolean }) => u.isadmin && u.isactive);
+        if (adminUser) setSelectedImpersonateUser(adminUser.userid);
+      } else {
+        addToast(data.message || "Failed to load users", "error");
+      }
+    } catch (e: any) {
+      addToast(e.message || "Connection error fetching users", "error");
+    } finally {
+      setLoadingOrgUsers(false);
+    }
+  };
+
+  const handleImpersonate = async () => {
+    if (!impersonateTarget || !selectedImpersonateUser) return;
+    setImpersonating(true);
     try {
       const res = await fetch("/api/company/super-admin/impersonate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetOrgcode }),
+        body: JSON.stringify({ targetOrgcode: impersonateTarget.orgcode, targetUserId: selectedImpersonateUser }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        addToast(`Entering organization ${targetOrgcode}...`, "success");
+        addToast(`Entering ${impersonateTarget.orgcode} as ${selectedImpersonateUser}...`, "success");
+        setImpersonateTarget(null);
         window.location.href = "/dashboard/admin";
       } else {
         addToast(data.message || "Failed to enter organization", "error");
       }
     } catch (e: any) {
       addToast(e.message || "Connection error", "error");
+    } finally {
+      setImpersonating(false);
     }
   };
 
@@ -344,107 +392,393 @@ export default function SuperAdminPage() {
         <div className="flex flex-col gap-6 h-fit">
           
           {/* Left Column Card 1: Register Company Form */}
-          <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl">
-            <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-100">
-              <PlusIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              Register New Company
-            </h2>
-            <form onSubmit={handleCreateCompany} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Code</label>
-                <input
-                  type="text"
-                  placeholder="e.g. CLI101"
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold uppercase text-slate-900 dark:text-white"
-                  value={newOrgcode}
-                  onChange={(e) => setNewOrgcode(e.target.value.toUpperCase())}
-                  disabled={creating}
-                  required
-                />
+          {editingCompany ? (
+            /* Edit Company Settings Card */
+            <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl animate-fade-in">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Edit {editingCompany.orgname}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Modify client details, suspend the account, or extend subscription duration.</p>
+
+              {/* Referral Info Card */}
+              <div className="mb-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 p-3 flex gap-4">
+                <div className="flex-1 flex flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Referral Code</span>
+                  <span className="text-xs font-mono font-bold text-slate-850 dark:text-slate-100">
+                    {editingCompany.referral_code || <span className="text-slate-400 italic">None</span>}
+                  </span>
+                </div>
+                <div className="flex-1 flex flex-col gap-1 border-l border-slate-200 dark:border-slate-700 pl-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Referred By</span>
+                  {editingCompany.referred_by ? (
+                    <span className="text-xs font-semibold text-violet-700 dark:text-violet-450 block truncate">
+                      {editingCompany.referrer_name || editingCompany.referred_by}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-405 italic">Direct</span>
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col gap-1 border-l border-slate-200 dark:border-slate-700 pl-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Points</span>
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-450">
+                    ⭐{parseFloat(String(editingCompany.referral_points || 0)).toFixed(1)}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Acme Corp"
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                  value={newOrgname}
-                  onChange={(e) => setNewOrgname(e.target.value)}
-                  disabled={creating}
-                  required
-                />
-              </div>
+              <form onSubmit={handleUpdateCompany} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Company Name</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                    value={editOrgname}
+                    onChange={(e) => setEditOrgname(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Email Address</label>
-                <input
-                  type="email"
-                  placeholder="e.g. admin@acme.com"
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  disabled={creating}
-                />
-              </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Email Address</label>
+                  <input
+                    type="email"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                  />
+                </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Phone Number</label>
-                <input
-                  type="text"
-                  placeholder="e.g. +91 9876543210"
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                  disabled={creating}
-                />
-              </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Phone Number</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                  />
+                </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Initial Admin Password</label>
-                <input
-                  type="password"
-                  placeholder="Defaults to admin@123"
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono text-slate-900 dark:text-white"
-                  value={newAdminPassword}
-                  onChange={(e) => setNewAdminPassword(e.target.value)}
-                  disabled={creating}
-                />
-              </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Reset Admin Password (optional)</label>
+                  <input
+                    type="password"
+                    placeholder="New password to reset"
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white font-mono"
+                    value={editAdminPassword}
+                    onChange={(e) => setEditAdminPassword(e.target.value)}
+                  />
+                </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Service Plan Model</label>
-                <select
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-700 dark:text-slate-200 mt-1"
-                  value={newSubscriptionType}
-                  onChange={(e) => setNewSubscriptionType(e.target.value)}
-                  disabled={creating}
-                >
-                  <option value="trial" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Trial Plan (10 Days)</option>
-                  {pricingPlans.map((p) => (
-                    <option key={p.plan_key} value={p.plan_key} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                      {p.plan_name} (₹{p.price})
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Plan Category</label>
+                  <div className="flex border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden mb-2 p-0.5 bg-slate-150/40 dark:bg-slate-900/60">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPlanCategory("simple");
+                        setEditSubscriptionType("trial");
+                      }}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        editPlanCategory === "simple"
+                          ? "bg-white dark:bg-slate-850 text-blue-600 dark:text-blue-400 shadow-sm"
+                          : "text-slate-500 hover:text-slate-750 dark:hover:text-slate-350"
+                      }`}
+                    >
+                      Simple Parchi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPlanCategory("inventory");
+                        const match = pricingPlans.find(p => p.plan_key.endsWith("_inventory"));
+                        if (match) {
+                          setEditSubscriptionType(match.plan_key);
+                          const durationMonths = match.duration_months;
+                          const currentEnd = new Date(editingCompany.subscription_end);
+                          const baseDate = (!forceResetDate && currentEnd > new Date()) ? currentEnd : new Date();
+                          const end = new Date(baseDate);
+                          end.setMonth(end.getMonth() + durationMonths);
+                          const yyyy = end.getFullYear();
+                          const mm = String(end.getMonth() + 1).padStart(2, '0');
+                          const dd = String(end.getDate()).padStart(2, '0');
+                          setEditSubscriptionEnd(`${yyyy}-${mm}-${dd}`);
+                        }
+                      }}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        editPlanCategory === "inventory"
+                          ? "bg-white dark:bg-slate-850 text-blue-600 dark:text-blue-400 shadow-sm"
+                          : "text-slate-500 hover:text-slate-755 dark:hover:text-slate-355"
+                      }`}
+                    >
+                      Parchi + Inventory
+                    </button>
+                  </div>
 
-              <button
-                type="submit"
-                disabled={creating}
-                className="w-full py-2.5 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {creating ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    <span>Registering...</span>
-                  </>
-                ) : (
-                  <span>Register Company</span>
+                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Subscription Plan Type</label>
+                  <select
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-650 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-750 dark:text-slate-200 mt-1"
+                    value={editSubscriptionType}
+                    onChange={(e) => {
+                      const nextVal = e.target.value;
+                      setEditSubscriptionType(nextVal);
+                      if (nextVal !== "trial") {
+                        const durationMonths = pricingPlans.find(p => p.plan_key === nextVal)?.duration_months || 1;
+                        const currentEnd = new Date(editingCompany.subscription_end);
+                        const baseDate = (!forceResetDate && currentEnd > new Date()) ? currentEnd : new Date();
+                        const end = new Date(baseDate);
+                        end.setMonth(end.getMonth() + durationMonths);
+                        const yyyy = end.getFullYear();
+                        const mm = String(end.getMonth() + 1).padStart(2, '0');
+                        const dd = String(end.getDate()).padStart(2, '0');
+                        setEditSubscriptionEnd(`${yyyy}-${mm}-${dd}`);
+                      }
+                    }}
+                  >
+                    <option value="trial" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Trial Plan (10 Days)</option>
+                    {pricingPlans
+                      .filter((p) => {
+                        const isInv = p.plan_key.endsWith("_inventory");
+                        return editPlanCategory === "inventory" ? isInv : !isInv;
+                      })
+                      .map((p) => (
+                        <option key={p.plan_key} value={p.plan_key} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                          {p.plan_name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                {editSubscriptionType !== "trial" && (
+                  <div className="flex items-center gap-3 py-1 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <input
+                      type="checkbox"
+                      id="forceResetDate"
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/50 cursor-pointer"
+                      checked={forceResetDate}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setForceResetDate(checked);
+                        
+                        const durationMonths = pricingPlans.find(p => p.plan_key === editSubscriptionType)?.duration_months || 1;
+                        const currentEnd = new Date(editingCompany.subscription_end);
+                        const baseDate = (!checked && currentEnd > new Date()) ? currentEnd : new Date();
+                        
+                        const end = new Date(baseDate);
+                        end.setMonth(end.getMonth() + durationMonths);
+                        const yyyy = end.getFullYear();
+                        const mm = String(end.getMonth() + 1).padStart(2, '0');
+                        const dd = String(end.getDate()).padStart(2, '0');
+                        setEditSubscriptionEnd(`${yyyy}-${mm}-${dd}`);
+                      }}
+                    />
+                    <label htmlFor="forceResetDate" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none leading-normal">
+                      Reset end date starting from today
+                    </label>
+                  </div>
                 )}
-              </button>
-            </form>
-          </div>
+                {editSubscriptionType !== "trial" && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-550 dark:text-slate-400 font-sans">Subscription End Date</label>
+                    <input
+                      type="date"
+                      className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                      value={editSubscriptionEnd}
+                      onChange={(e) => setEditSubscriptionEnd(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 py-2">
+                  <input
+                    type="checkbox"
+                    id="editIsActive"
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    checked={editIsActive}
+                    onChange={(e) => setEditIsActive(e.target.checked)}
+                    disabled={editingCompany.orgcode === "SUPER"}
+                  />
+                  <label htmlFor="editIsActive" className={`text-sm font-semibold text-slate-700 dark:text-slate-300 ${editingCompany.orgcode === "SUPER" ? "opacity-50" : ""}`}>
+                    Account Active {editingCompany.orgcode === "SUPER" && "(Required)"}
+                  </label>
+                </div>
+
+                {editingCompany.orgcode !== "SUPER" && (
+                  <div className="mt-4 pt-4 border-t border-rose-200 dark:border-rose-900/50">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-450 mb-2">Danger Zone</h4>
+                    <div className="p-3 bg-rose-50 dark:bg-rose-955/20 border border-rose-200 dark:border-rose-900/40 rounded-xl flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-0.5 max-w-[70%] text-left">
+                        <span className="text-xs font-bold text-rose-800 dark:text-rose-200">Delete Organization</span>
+                        <span className="text-[10px] text-rose-600/80 leading-normal">This cannot be undone.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-all"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 justify-end mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCompany(null)}
+                    className="px-4 py-2 rounded-xl text-slate-650 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold text-sm transition-all border border-slate-200 dark:border-slate-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updating}
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all shadow-md shadow-blue-500/20"
+                  >
+                    {updating ? "Saving..." : "Save Settings"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            /* Register New Company Form */
+            <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl">
+              <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-slate-900 dark:text-slate-100">
+                <PlusIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Register New Company
+              </h2>
+              <form onSubmit={handleCreateCompany} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. CLI101"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold uppercase text-slate-900 dark:text-white"
+                    value={newOrgcode}
+                    onChange={(e) => setNewOrgcode(e.target.value.toUpperCase())}
+                    disabled={creating}
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organization Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Acme Corp"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                    value={newOrgname}
+                    onChange={(e) => setNewOrgname(e.target.value)}
+                    disabled={creating}
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Email Address</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. admin@acme.com"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    disabled={creating}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Phone Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. +91 9876543210"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
+                    disabled={creating}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Initial Admin Password</label>
+                  <input
+                    type="password"
+                    placeholder="Defaults to admin@123"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold font-mono text-slate-900 dark:text-white"
+                    value={newAdminPassword}
+                    onChange={(e) => setNewAdminPassword(e.target.value)}
+                    disabled={creating}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Plan Category</label>
+                  <div className="flex border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden mb-2 p-0.5 bg-slate-150/40 dark:bg-slate-900/60">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewPlanCategory("simple");
+                        setNewSubscriptionType("trial");
+                      }}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        newPlanCategory === "simple"
+                          ? "bg-white dark:bg-slate-850 text-blue-600 dark:text-blue-400 shadow-sm"
+                          : "text-slate-500 hover:text-slate-750 dark:hover:text-slate-350"
+                      }`}
+                    >
+                      Simple Parchi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewPlanCategory("inventory");
+                        const match = pricingPlans.find(p => p.plan_key.endsWith("_inventory"));
+                        if (match) setNewSubscriptionType(match.plan_key);
+                      }}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                        newPlanCategory === "inventory"
+                          ? "bg-white dark:bg-slate-850 text-blue-600 dark:text-blue-400 shadow-sm"
+                          : "text-slate-500 hover:text-slate-755 dark:hover:text-slate-355"
+                      }`}
+                    >
+                      Parchi + Inventory
+                    </button>
+                  </div>
+
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Service Plan Model</label>
+                  <select
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-700 dark:text-slate-200 mt-1"
+                    value={newSubscriptionType}
+                    onChange={(e) => setNewSubscriptionType(e.target.value)}
+                    disabled={creating}
+                  >
+                    <option value="trial" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Trial Plan (10 Days)</option>
+                    {pricingPlans
+                      .filter((p) => {
+                        const isInv = p.plan_key.endsWith("_inventory");
+                        return newPlanCategory === "inventory" ? isInv : !isInv;
+                      })
+                      .map((p) => (
+                        <option key={p.plan_key} value={p.plan_key} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                          {p.plan_name} (₹{p.price})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="w-full py-2.5 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {creating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span>Registering...</span>
+                    </>
+                  ) : (
+                    <span>Register Company</span>
+                  )}
+                </button>
+              </form>
+            </div>
+          )}
 
           {/* Left Column Card 2: Global Settings */}
           <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl">
@@ -520,7 +854,7 @@ export default function SuperAdminPage() {
                       return (
                         <tr key={c.orgcode} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/10 transition-colors">
                           <td className="py-4 px-6">
-                            <div className="flex flex-col">
+                            <div className="flex flex-col gap-0.5">
                               <span className="font-bold text-slate-900 dark:text-slate-100">{c.orgname}</span>
                               <span className="text-xs text-slate-500 dark:text-slate-400 font-mono uppercase">Code: {c.orgcode}</span>
                               {c.email && <span className="text-xs text-slate-500">{c.email}</span>}
@@ -528,6 +862,19 @@ export default function SuperAdminPage() {
                               {c.subscription_start && (
                                 <span className="text-xs text-slate-550 dark:text-slate-500">
                                   Registered: {new Date(c.subscription_start).toLocaleDateString()}
+                                </span>
+                              )}
+                              {/* Referral Info */}
+                              {c.referred_by ? (
+                                <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 px-2 py-0.5 rounded-full w-fit">
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                  Referred by: {c.referrer_name || c.referred_by}
+                                </span>
+                              ) : null}
+                              {parseFloat(String(c.referral_points || 0)) > 0 && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full w-fit">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                  {parseFloat(String(c.referral_points)).toFixed(2)} pts earned
                                 </span>
                               )}
                             </div>
@@ -573,9 +920,9 @@ export default function SuperAdminPage() {
                           </td>
                            <td className="py-4 px-6 text-right flex justify-end gap-2">
                              <button
-                               onClick={() => handleImpersonate(c.orgcode)}
+                               onClick={() => openImpersonateModal(c)}
                                className="p-2 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg transition-all border border-slate-200 dark:border-slate-700 shadow-sm"
-                               title="Enter directly to Org Code as Admin"
+                               title="Enter organization as a selected user"
                              >
                                <ArrowRightOnRectangleIcon className="w-4 h-4" />
                              </button>
@@ -599,178 +946,83 @@ export default function SuperAdminPage() {
 
       </div>
 
-      {/* Edit Subscription Modal */}
-      {editingCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-up">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Edit {editingCompany.orgname} Settings</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">Modify client details, suspend the account, or extend subscription duration.</p>
-            
-            <form onSubmit={handleUpdateCompany} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Company Name</label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                  value={editOrgname}
-                  onChange={(e) => setEditOrgname(e.target.value)}
-                  required
-                />
+      {/* Impersonation User Selection Modal */}
+      {impersonateTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-900 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-up">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center">
+                <UserCircleIcon className="w-5 h-5 text-white" />
               </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Email Address</label>
-                <input
-                  type="email"
-                  className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                />
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Select User to Impersonate</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Organization: <span className="font-mono font-bold text-blue-600 dark:text-blue-400">{impersonateTarget.orgcode}</span> — {impersonateTarget.orgname}</p>
               </div>
+            </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Phone Number</label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                />
+            {loadingOrgUsers ? (
+              <div className="space-y-2 my-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-10 bg-slate-100 dark:bg-slate-700 rounded-xl animate-pulse" />
+                ))}
               </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Reset Admin Password (optional)</label>
-                <input
-                  type="password"
-                  placeholder="Enter new password to reset"
-                  className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white font-mono"
-                  value={editAdminPassword}
-                  onChange={(e) => setEditAdminPassword(e.target.value)}
-                />
+            ) : orgUsers.length === 0 ? (
+              <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm">
+                No users found for this organization.
               </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Subscription Plan Type</label>
-                <select
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-700 dark:text-slate-200 mt-1"
-                  value={editSubscriptionType}
-                  onChange={(e) => {
-                    const nextVal = e.target.value;
-                    setEditSubscriptionType(nextVal);
-                    if (nextVal !== "trial") {
-                      const durationMonths = pricingPlans.find(p => p.plan_key === nextVal)?.duration_months || 1;
-                      const currentEnd = new Date(editingCompany.subscription_end);
-                      const baseDate = (!forceResetDate && currentEnd > new Date()) ? currentEnd : new Date();
-                      const end = new Date(baseDate);
-                      end.setMonth(end.getMonth() + durationMonths);
-                      const yyyy = end.getFullYear();
-                      const mm = String(end.getMonth() + 1).padStart(2, '0');
-                      const dd = String(end.getDate()).padStart(2, '0');
-                      setEditSubscriptionEnd(`${yyyy}-${mm}-${dd}`);
-                    }
-                  }}
-                >
-                  <option value="trial" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Trial Plan (10 Days)</option>
-                  {pricingPlans.map((p) => (
-                    <option key={p.plan_key} value={p.plan_key} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                      {p.plan_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {editSubscriptionType !== "trial" && (
-                <div className="flex items-center gap-3 py-1 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                  <input
-                    type="checkbox"
-                    id="forceResetDate"
-                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/50 cursor-pointer"
-                    checked={forceResetDate}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setForceResetDate(checked);
-                      
-                      const durationMonths = pricingPlans.find(p => p.plan_key === editSubscriptionType)?.duration_months || 1;
-                      const currentEnd = new Date(editingCompany.subscription_end);
-                      const baseDate = (!checked && currentEnd > new Date()) ? currentEnd : new Date();
-                      
-                      const end = new Date(baseDate);
-                      end.setMonth(end.getMonth() + durationMonths);
-                      const yyyy = end.getFullYear();
-                      const mm = String(end.getMonth() + 1).padStart(2, '0');
-                      const dd = String(end.getDate()).padStart(2, '0');
-                      setEditSubscriptionEnd(`${yyyy}-${mm}-${dd}`);
-                    }}
-                  />
-                  <label htmlFor="forceResetDate" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none leading-normal">
-                    Reset/Override end date starting from today (ignore remaining days)
-                  </label>
-                </div>
-              )}
-              {editSubscriptionType !== "trial" && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-550 dark:text-slate-400 font-sans">Subscription End Date</label>
-                  <input
-                    type="date"
-                    className="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                    value={editSubscriptionEnd}
-                    onChange={(e) => setEditSubscriptionEnd(e.target.value)}
-                    required
-                  />
-                </div>
-              )}
-
-              <div className="flex items-center gap-3 py-2">
-                <input
-                  type="checkbox"
-                  id="editIsActive"
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  checked={editIsActive}
-                  onChange={(e) => setEditIsActive(e.target.checked)}
-                  disabled={editingCompany.orgcode === "SUPER"}
-                />
-                <label htmlFor="editIsActive" className={`text-sm font-semibold text-slate-700 dark:text-slate-300 ${editingCompany.orgcode === "SUPER" ? "opacity-50" : ""}`}>
-                  Organization Account Active {editingCompany.orgcode === "SUPER" && "(Required for System Operations)"}
-                </label>
-              </div>
-
-              {editingCompany.orgcode !== "SUPER" && (
-                <div className="mt-6 pt-4 border-t border-rose-200 dark:border-rose-900/50">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-2">Danger Zone</h4>
-                  <div className="p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 rounded-xl flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-0.5 max-w-[70%]">
-                      <span className="text-xs font-bold text-rose-800 dark:text-rose-200">Delete Organization</span>
-                      <span className="text-[10px] text-rose-600/80 dark:text-rose-450/80 leading-normal">
-                        Permanently delete this company and all its data. This cannot be undone.
-                      </span>
+            ) : (
+              <div className="space-y-2 my-4 max-h-64 overflow-y-auto">
+                {orgUsers.map((u) => (
+                  <button
+                    key={u.userid}
+                    type="button"
+                    onClick={() => setSelectedImpersonateUser(u.userid)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                      selectedImpersonateUser === u.userid
+                        ? "bg-blue-50 dark:bg-blue-900/30 border-blue-400 dark:border-blue-600"
+                        : "bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700"
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                      u.isadmin ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                    }`}>
+                      {u.userid.substring(0, 2).toUpperCase()}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm shadow-rose-500/10 whitespace-nowrap"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3 justify-end mt-4">
-                <button
-                  type="button"
-                  onClick={() => setEditingCompany(null)}
-                  className="px-4 py-2 rounded-xl text-slate-650 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold text-sm transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={updating}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all shadow-md shadow-blue-500/20"
-                >
-                  {updating ? "Saving..." : "Save Settings"}
-                </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 font-mono">{u.userid}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {u.isadmin ? "Admin" : "User"} · {u.isactive ? "Active" : "Inactive"}
+                      </p>
+                    </div>
+                    {selectedImpersonateUser === u.userid && (
+                      <CheckCircleIcon className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    )}
+                  </button>
+                ))}
               </div>
-            </form>
+            )}
+
+            <div className="flex gap-3 mt-4">
+              <button
+                type="button"
+                onClick={() => setImpersonateTarget(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleImpersonate}
+                disabled={!selectedImpersonateUser || impersonating || loadingOrgUsers}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow shadow-blue-500/20"
+              >
+                {impersonating ? (
+                  <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Entering...</>
+                ) : (
+                  <><ArrowRightOnRectangleIcon className="w-4 h-4" /> Enter as {selectedImpersonateUser || "..."}</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

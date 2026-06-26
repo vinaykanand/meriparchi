@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       const superUser = superCheck.rows[0];
       const data = {
         success: true,
-        userid: superUser.userid,
+        userid: "adminuser",
         orgcode: targetOrgcode,
         authtoken: superUser.authtoken,
         isadmin: true,

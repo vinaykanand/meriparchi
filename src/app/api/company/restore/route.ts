@@ -11,25 +11,35 @@ function sanitizeIdentifier(ident: string): string {
   return `"${ident}"`;
 }
 
+async function getTableColumns(client: any, tableName: string): Promise<{ existing: Set<string>, generated: Set<string> }> {
+  const res = await client.query(
+    `SELECT column_name, is_generated
+     FROM information_schema.columns 
+     WHERE table_schema = 'public' 
+       AND table_name = $1`,
+    [tableName]
+  );
+  const existing = new Set<string>();
+  const generated = new Set<string>();
+  for (const r of res.rows) {
+    existing.add(r.column_name);
+    if (r.is_generated === 'ALWAYS') {
+      generated.add(r.column_name);
+    }
+  }
+  return { existing, generated };
+}
+
 async function dynamicInsert(client: any, tableName: string, dataArray: any[]) {
   if (!dataArray || dataArray.length === 0) return;
 
   const cleanTableName = sanitizeIdentifier(tableName);
-
-  // Retrieve any GENERATED ALWAYS columns for this table from the db schema metadata
-  const genColsRes = await client.query(
-    `SELECT column_name 
-     FROM information_schema.columns 
-     WHERE table_schema = 'public' 
-       AND table_name = $1 
-       AND is_generated = 'ALWAYS'`,
-    [tableName]
-  );
-  const generatedColumns = new Set(genColsRes.rows.map((r: any) => r.column_name));
+  const { existing, generated } = await getTableColumns(client, tableName);
 
   for (const row of dataArray) {
-    // Exclude generated columns from insert statement keys
-    const columns = Object.keys(row).filter(col => !generatedColumns.has(col));
+    // Exclude generated columns and non-existent columns from insert keys
+    const columns = Object.keys(row).filter(col => existing.has(col) && !generated.has(col));
+    if (columns.length === 0) continue;
     const columnsStr = columns.map(c => sanitizeIdentifier(c)).join(", ");
     const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(", ");
     const values = columns.map(col => {
@@ -238,6 +248,16 @@ export async function POST(request: Request) {
     const slipsEntry = zip.getEntry("slips.json");
     const slipitemsEntry = zip.getEntry("slipitems.json");
 
+    // Inventory entries (optional for backward compatibility)
+    const invLocationsEntry = zip.getEntry("inventory_locations.json");
+    const invFinancialYearsEntry = zip.getEntry("inventory_financial_years.json");
+    const invItemsEntry = zip.getEntry("inventory_items.json");
+    const invTransactionsEntry = zip.getEntry("inventory_transactions.json");
+    const invTxnHeadersEntry = zip.getEntry("inventory_transaction_headers.json");
+    const invTxnDetailsEntry = zip.getEntry("inventory_transaction_details.json");
+    const invBalancesEntry = zip.getEntry("inventory_balances.json");
+    const invTransactionTypesEntry = zip.getEntry("inventory_transaction_types.json");
+
     // Standard client backup requires all 5 core files
     if (!isSuperAdmin && (!companyEntry || !usersEntry || !paymentsEntry || !slipsEntry || !slipitemsEntry)) {
       return NextResponse.json(
@@ -255,10 +275,55 @@ export async function POST(request: Request) {
     }
 
     const companyData = companyEntry ? JSON.parse(companyEntry.getData().toString("utf8")) : [];
+    // Remove referral_points to prevent errors as this column has been dropped from the company table
+    for (const row of companyData) {
+      delete row.referral_points;
+    }
     const usersData = usersEntry ? JSON.parse(usersEntry.getData().toString("utf8")) : [];
     const paymentsData = paymentsEntry ? JSON.parse(paymentsEntry.getData().toString("utf8")) : [];
     const slipsData = slipsEntry ? JSON.parse(slipsEntry.getData().toString("utf8")) : [];
     const slipitemsData = slipitemsEntry ? JSON.parse(slipitemsEntry.getData().toString("utf8")) : [];
+
+    const invLocationsData = invLocationsEntry ? JSON.parse(invLocationsEntry.getData().toString("utf8")) : [];
+    const invFinancialYearsData = invFinancialYearsEntry ? JSON.parse(invFinancialYearsEntry.getData().toString("utf8")) : [];
+    const invItemsData = invItemsEntry ? JSON.parse(invItemsEntry.getData().toString("utf8")) : [];
+    const invBalancesData = invBalancesEntry ? JSON.parse(invBalancesEntry.getData().toString("utf8")) : [];
+    const invTransactionTypesData = invTransactionTypesEntry ? JSON.parse(invTransactionTypesEntry.getData().toString("utf8")) : [];
+    const invTransactionsData = invTransactionsEntry ? JSON.parse(invTransactionsEntry.getData().toString("utf8")) : [];
+
+    let invTxnHeadersData = invTxnHeadersEntry ? JSON.parse(invTxnHeadersEntry.getData().toString("utf8")) : [];
+    let invTxnDetailsData = invTxnDetailsEntry ? JSON.parse(invTxnDetailsEntry.getData().toString("utf8")) : [];
+
+    // Backward compatibility mapping for old singular transaction file
+    if (invTransactionsEntry && invTxnHeadersData.length === 0) {
+      const oldTxns = JSON.parse(invTransactionsEntry.getData().toString("utf8"));
+      const groups: Record<string, any> = {};
+      let tempHeaderId = 1;
+      for (const t of oldTxns) {
+        const key = `${t.orgcode}|${t.financial_year_id}|${t.transaction_date}|${t.transaction_type_id || t.transaction_type}|${t.from_location_id}|${t.to_location_id}|${t.party_name}|${t.reference_no}|${t.remarks}`;
+        if (!groups[key]) {
+          groups[key] = {
+            id: tempHeaderId++,
+            orgcode: t.orgcode,
+            financial_year_id: t.financial_year_id,
+            transaction_date: t.transaction_date,
+            transaction_type_id: t.transaction_type_id,
+            from_location_id: t.from_location_id,
+            to_location_id: t.to_location_id,
+            party_name: t.party_name,
+            reference_no: t.reference_no,
+            remarks: t.remarks,
+            created_at: t.created_at || new Date().toISOString()
+          };
+        }
+        invTxnDetailsData.push({
+          transaction_header_id: groups[key].id,
+          item_id: t.item_id,
+          qty: t.qty
+        });
+      }
+      invTxnHeadersData = Object.values(groups);
+    }
 
     const auditLogsEntry = zip.getEntry("audit_logs.json");
     let auditLogsData = [];
@@ -269,6 +334,8 @@ export async function POST(request: Request) {
         console.error("Failed to parse audit_logs.json, skipping");
       }
     }
+
+
 
     // Validation: Ensure all records in backup belong to the logged-in admin's orgcode unless super admin
     if (!isSuperAdmin) {
@@ -296,6 +363,41 @@ export async function POST(request: Request) {
       for (const row of auditLogsData) {
         if (row.orgcode !== adminOrgcode) {
           return NextResponse.json({ success: false, message: "Tenant mismatch in audit logs data." }, { status: 403 });
+        }
+      }
+      for (const row of invLocationsData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in inventory locations data." }, { status: 403 });
+        }
+      }
+      for (const row of invFinancialYearsData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in inventory financial years data." }, { status: 403 });
+        }
+      }
+      for (const row of invItemsData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in inventory items data." }, { status: 403 });
+        }
+      }
+      for (const row of invTransactionsData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in inventory transactions data." }, { status: 403 });
+        }
+      }
+      for (const row of invBalancesData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in inventory balances data." }, { status: 403 });
+        }
+      }
+      for (const row of invTxnHeadersData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in inventory transaction headers data." }, { status: 403 });
+        }
+      }
+      for (const row of invTransactionTypesData) {
+        if (row.orgcode !== adminOrgcode) {
+          return NextResponse.json({ success: false, message: "Tenant mismatch in inventory transaction types data." }, { status: 403 });
         }
       }
     }
@@ -397,13 +499,21 @@ export async function POST(request: Request) {
       await client.query("TRUNCATE public.coupon_uses CASCADE");
       await client.query("TRUNCATE public.payment_history CASCADE");
       await client.query("TRUNCATE public.company_subscriptions CASCADE");
+      await client.query("TRUNCATE public.inventory_balances CASCADE");
+      await client.query("TRUNCATE public.inventory_transaction_types CASCADE");
+      await client.query("TRUNCATE public.inventory_transaction_headers CASCADE");
+      await client.query("TRUNCATE public.inventory_transaction_details CASCADE");
+      await client.query("TRUNCATE public.inventory_items CASCADE");
+      await client.query("TRUNCATE public.inventory_financial_years CASCADE");
+      await client.query("TRUNCATE public.inventory_locations CASCADE");
 
       // 2. Restore all data
       // UPSERT company rows to avoid violating referential integrity constraints
+      const { existing: companyCols } = await getTableColumns(client, "company");
       for (const row of companyData) {
         const check = await client.query("SELECT orgcode FROM public.company WHERE orgcode = $1", [row.orgcode]);
         if (check.rows.length > 0) {
-          const columns = Object.keys(row).filter(col => col !== "orgcode");
+          const columns = Object.keys(row).filter(col => col !== "orgcode" && companyCols.has(col));
           if (columns.length > 0) {
             const setClause = columns.map((col, idx) => `${sanitizeIdentifier(col)} = $${idx + 1}`).join(", ");
             const values = columns.map(col => {
@@ -432,6 +542,14 @@ export async function POST(request: Request) {
       await dynamicInsert(client, "payment_history", paymentHistoryData);
       await dynamicInsert(client, "company_subscriptions", companySubscriptionsData);
 
+      if (invLocationsData.length > 0) await dynamicInsert(client, "inventory_locations", invLocationsData);
+      if (invFinancialYearsData.length > 0) await dynamicInsert(client, "inventory_financial_years", invFinancialYearsData);
+      if (invItemsData.length > 0) await dynamicInsert(client, "inventory_items", invItemsData);
+      if (invTransactionTypesData.length > 0) await dynamicInsert(client, "inventory_transaction_types", invTransactionTypesData);
+      if (invTxnHeadersData.length > 0) await dynamicInsert(client, "inventory_transaction_headers", invTxnHeadersData);
+      if (invTxnDetailsData.length > 0) await dynamicInsert(client, "inventory_transaction_details", invTxnDetailsData);
+      if (invBalancesData.length > 0) await dynamicInsert(client, "inventory_balances", invBalancesData);
+
       // 3. Reset Sequences
       await client.query("SELECT setval(pg_get_serial_sequence('public.payments', 'id'), COALESCE(MAX(id), 1)) FROM public.payments");
       await client.query("SELECT setval(pg_get_serial_sequence('public.slips', 'id'), COALESCE(MAX(id), 1)) FROM public.slips");
@@ -439,6 +557,23 @@ export async function POST(request: Request) {
       await client.query("SELECT setval(pg_get_serial_sequence('public.audit_logs', 'id'), COALESCE(MAX(id), 1)) FROM public.audit_logs");
       await client.query("SELECT setval(pg_get_serial_sequence('public.coupon_uses', 'id'), COALESCE(MAX(id), 1)) FROM public.coupon_uses");
       await client.query("SELECT setval(pg_get_serial_sequence('public.payment_history', 'id'), COALESCE(MAX(id), 1)) FROM public.payment_history");
+
+      if (invLocationsData.length > 0) {
+        await client.query("SELECT setval(pg_get_serial_sequence('public.inventory_locations', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_locations");
+      }
+      if (invFinancialYearsData.length > 0) {
+        await client.query("SELECT setval(pg_get_serial_sequence('public.inventory_financial_years', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_financial_years");
+      }
+      if (invTxnHeadersData.length > 0) {
+        await client.query("SELECT setval(pg_get_serial_sequence('public.inventory_transaction_headers', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_transaction_headers");
+      }
+      if (invTxnDetailsData.length > 0) {
+        await client.query("SELECT setval(pg_get_serial_sequence('public.inventory_transaction_details', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_transaction_details");
+      }
+      if (invBalancesData.length > 0) {
+        await client.query("SELECT setval(pg_get_serial_sequence('public.inventory_balances', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_balances");
+      }
+
 
       await logAction({
         client,
@@ -457,6 +592,14 @@ export async function POST(request: Request) {
     await client.query("BEGIN");
 
     // 1. Clear existing company data
+    // Delete inventory transactions & balances first
+    await client.query("DELETE FROM public.inventory_transaction_headers WHERE orgcode = $1", [adminOrgcode]);
+    await client.query("DELETE FROM public.inventory_balances WHERE orgcode = $1", [adminOrgcode]);
+    await client.query("DELETE FROM public.inventory_transaction_types WHERE orgcode = $1", [adminOrgcode]);
+    await client.query("DELETE FROM public.inventory_items WHERE orgcode = $1", [adminOrgcode]);
+    await client.query("DELETE FROM public.inventory_financial_years WHERE orgcode = $1", [adminOrgcode]);
+    await client.query("DELETE FROM public.inventory_locations WHERE orgcode = $1", [adminOrgcode]);
+
     // Delete slipitems for company slips
     await client.query(
       "DELETE FROM public.slipitems WHERE id IN (SELECT id FROM public.slips WHERE orgcode = $1)",
@@ -474,10 +617,12 @@ export async function POST(request: Request) {
     // Delete audit logs
     await client.query("DELETE FROM public.audit_logs WHERE orgcode = $1", [adminOrgcode]);
 
+
     // 2. Restore Company settings
     if (companyData.length > 0) {
       const c = companyData[0];
-      const updateColumns = Object.keys(c).filter(k => k !== "orgcode");
+      const { existing: companyCols } = await getTableColumns(client, "company");
+      const updateColumns = Object.keys(c).filter(k => k !== "orgcode" && companyCols.has(k));
       const setClause = updateColumns.map((col, idx) => `${sanitizeIdentifier(col)} = $${idx + 1}`).join(", ");
       const values = updateColumns.map(col => {
         const val = c[col];
@@ -491,11 +636,12 @@ export async function POST(request: Request) {
     }
 
     // 3. Restore Users
+    const { existing: usersCols } = await getTableColumns(client, "users");
     const otherUsers = [];
     for (const u of usersData) {
       if (u.userid === adminUserid) {
         // Update current admin credentials/details dynamically
-        const updateColumns = Object.keys(u).filter(k => k !== "orgcode" && k !== "userid");
+        const updateColumns = Object.keys(u).filter(k => k !== "orgcode" && k !== "userid" && usersCols.has(k));
         const setClause = updateColumns.map((col, idx) => `${sanitizeIdentifier(col)} = $${idx + 1}`).join(", ");
         const values = updateColumns.map(col => {
           const val = u[col];
@@ -524,6 +670,15 @@ export async function POST(request: Request) {
     // 6.5. Restore Audit Logs
     await dynamicInsert(client, "audit_logs", auditLogsData);
 
+    // Restore Inventory Data
+    if (invLocationsData.length > 0) await dynamicInsert(client, "inventory_locations", invLocationsData);
+    if (invFinancialYearsData.length > 0) await dynamicInsert(client, "inventory_financial_years", invFinancialYearsData);
+    if (invItemsData.length > 0) await dynamicInsert(client, "inventory_items", invItemsData);
+    if (invTransactionTypesData.length > 0) await dynamicInsert(client, "inventory_transaction_types", invTransactionTypesData);
+    if (invTxnHeadersData.length > 0) await dynamicInsert(client, "inventory_transaction_headers", invTxnHeadersData);
+    if (invTxnDetailsData.length > 0) await dynamicInsert(client, "inventory_transaction_details", invTxnDetailsData);
+    if (invBalancesData.length > 0) await dynamicInsert(client, "inventory_balances", invBalancesData);
+
     // 7. Reset Serial Sequences so new inserts don't conflict with restored IDs
     if (paymentsData.length > 0) {
       await client.query(
@@ -545,6 +700,33 @@ export async function POST(request: Request) {
         `SELECT setval(pg_get_serial_sequence('public.audit_logs', 'id'), COALESCE(MAX(id), 1)) FROM public.audit_logs`
       );
     }
+    if (invLocationsData.length > 0) {
+      await client.query(
+        `SELECT setval(pg_get_serial_sequence('public.inventory_locations', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_locations`
+      );
+    }
+    if (invFinancialYearsData.length > 0) {
+      await client.query(
+        `SELECT setval(pg_get_serial_sequence('public.inventory_financial_years', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_financial_years`
+      );
+    }
+    if (invTxnHeadersData.length > 0) {
+      await client.query(
+        `SELECT setval(pg_get_serial_sequence('public.inventory_transaction_headers', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_transaction_headers`
+      );
+    }
+    if (invTxnDetailsData.length > 0) {
+      await client.query(
+        `SELECT setval(pg_get_serial_sequence('public.inventory_transaction_details', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_transaction_details`
+      );
+    }
+    if (invBalancesData.length > 0) {
+      await client.query(
+        `SELECT setval(pg_get_serial_sequence('public.inventory_balances', 'id'), COALESCE(MAX(id), 1)) FROM public.inventory_balances`
+      );
+    }
+
+
 
     // Log the restore operation inside the transaction using the active client
     await logAction({

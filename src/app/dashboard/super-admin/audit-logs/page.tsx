@@ -263,44 +263,44 @@ export default function SuperAdminAuditPage() {
       case "CREATE_SLIP":
       case "CREATE_USER":
       case "LOGIN_SUCCESS":
-        return "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
+        return "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400";
       case "MANUAL_BACKUP_LOCAL":
-        return "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800/30";
+        return "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400";
       case "MANUAL_BACKUP_GDRIVE":
-        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/30";
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400";
       case "AUTO_BACKUP_GDRIVE":
-        return "bg-teal-50 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400 border border-teal-200 dark:border-teal-800/30";
+        return "bg-teal-50 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400";
       case "RESTORE_BACKUP_LOCAL":
-        return "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/30";
+        return "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400";
       case "RESTORE_BACKUP_GDRIVE":
-        return "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400 border border-purple-200 dark:border-purple-800/30";
+        return "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400";
       case "RESTORE_PARTIAL_LOCAL":
-        return "bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400 border border-sky-200 dark:border-sky-800/30";
+        return "bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400";
       case "RESTORE_PARTIAL_GDRIVE":
-        return "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30";
+        return "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400";
       case "DELETE_SLIP":
       case "DELETE_USER":
       case "CLOSE_ACCOUNT":
       case "LOGIN_FAILED":
-        return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400 border border-rose-200 dark:border-rose-800/30";
+        return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400";
       case "UPDATE_COMPANY_SETTINGS":
       case "UPDATE_USER":
-        return "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800/30";
+        return "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400";
       case "LOG_PAYMENT":
-        return "bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800/30";
+        return "bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400";
       case "SUBSCRIPTION_PAYMENT":
-        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-450 border border-emerald-250 dark:border-emerald-800/30 font-bold";
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-450 font-bold";
       case "SUPER_ADMIN_CHANGE_PRICING":
       case "SUPER_ADMIN_CREATE_COUPON":
       case "SUPER_ADMIN_UPDATE_COUPON":
       case "SUPER_ADMIN_DELETE_COUPON":
       case "SUPER_ADMIN_CREATE_COMPANY":
       case "SUPER_ADMIN_UPDATE_COMPANY":
-        return "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-850/30 font-bold";
+        return "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 font-bold";
       case "LOGOUT":
-        return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
+        return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
       default:
-        return "bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
+        return "bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
     }
   };
 

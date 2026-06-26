@@ -6,7 +6,7 @@ async function run() {
   const client = new Client({ connectionString });
   await client.connect();
   try {
-    const companies = await client.query("SELECT orgcode, orgname, subscription_type, subscription_end FROM public.company LIMIT 10");
+    const companies = await client.query("SELECT orgcode, orgname, referral_code, referred_by, referral_points FROM public.company LIMIT 10");
     console.log("=== COMPANIES ===");
     console.table(companies.rows);
 

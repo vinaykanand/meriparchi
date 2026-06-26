@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { query } from "@/lib/db";
 
 export async function GET(request: Request) {
@@ -9,6 +10,29 @@ export async function GET(request: Request) {
     
     if (!orgcode) {
       return NextResponse.json({ success: false, message: "Missing orgcode" }, { status: 400 });
+    }
+
+    const cookieStore = await cookies();
+    const authtoken = cookieStore.get("authtoken")?.value;
+    const sessionOrgcode = cookieStore.get("orgcode")?.value;
+
+    if (!authtoken || !sessionOrgcode) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Verify user is active
+    const userCheck = await query(
+      "SELECT issuperadmin FROM public.users WHERE authtoken = $1 AND orgcode = $2 AND isactive = true",
+      [authtoken, sessionOrgcode]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    const { issuperadmin } = userCheck.rows[0];
+    if (!issuperadmin && sessionOrgcode !== orgcode) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }
 
     if (!filter) {

@@ -18,7 +18,11 @@ import {
   SparklesIcon,
   PaperAirplaneIcon,
   CloudArrowUpIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  CubeIcon,
+  ChevronRightIcon,
+  MapPinIcon,
+  TagIcon
 } from "@heroicons/react/24/outline";
 
 interface ChatMessage {
@@ -38,6 +42,8 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
     slips_count: number;
     payments_count: number;
   } | null>(null);
+  const [inventoryEnabled, setInventoryEnabled] = useState(false);
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
 
   const fetchSubscription = async () => {
     if (!session?.orgcode) return;
@@ -52,6 +58,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
           slips_count: sub.slips_count,
           payments_count: sub.payments_count,
         });
+        setInventoryEnabled(!!data.company.inventory_enabled);
       }
     } catch (err) {
       console.error("Failed to load subscription details:", err);
@@ -60,12 +67,22 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchSubscription();
-  }, [session, pathname]);
+    window.addEventListener("company-settings-updated", fetchSubscription);
+    return () => {
+      window.removeEventListener("company-settings-updated", fetchSubscription);
+    };
+  }, [session]);
+
+  useEffect(() => {
+    if (pathname.startsWith("/dashboard/admin/inventory") || pathname === "/dashboard/admin/reports") {
+      setIsInventoryOpen(true);
+    }
+  }, [pathname]);
 
   // AI Assistant Chat Widget State
   const [isAiEnabled, setIsAiEnabled] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"chat" | "help">("chat");
+  const [activeTab, setActiveTab] = useState<string>("chat");
 
   // Draggable position states
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -110,6 +127,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const [hasInventory, setHasInventory] = useState(false);
   const [todayOverview, setTodayOverview] = useState<{
     totalOutstanding: number;
     revenueToday: number;
@@ -119,27 +137,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
   } | null>(null);
   const [isLoadingOverview, setIsLoadingOverview] = useState(false);
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { 
-      sender: "ai", 
-      text: `Hello! I am your AI Assistant. I can help you search ledgers and analyze details in real time.
-
-**Here are examples of what you can ask me (click to ask):**
-- *"What is the total outstanding?"*
-- *"Who is the top debtor?"*
-- *"Show Aging Report"*
-- *"risky accounts"* (overdue > 60 days)
-- *"hasn't paid"* (no payment in 30+ days)
-- *"most sold"* (popular items)
-- *"returned items today"*
-- *"this week vs last week"* (WoW trend)
-- *"largest payment"* or *"largest slip"*
-- *"outstanding in [City]"*
-- *"Show details for slip #8"*
-
-*Or type a customer query like: "Outstanding for [Name/Phone]" or "Payments for [Name/Phone]"*`
-    }
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [chatSuggestions, setChatSuggestions] = useState<string[]>([
@@ -160,6 +158,52 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
       setTimeout(scrollToBottom, 100);
     }
   }, [chatMessages, isChatOpen]);
+
+  // Set suggestions and welcome greeting dynamically based on subscription features
+  useEffect(() => {
+    const greetingText = `Hello! I am your AI Assistant. I can help you search ledgers and analyze details in real time.
+
+**Here are examples of what you can ask me (click to ask):**
+- *"What is the total outstanding?"*
+- *"Who is the top debtor?"*
+- *"Show Aging Report"*
+- *"risky accounts"* (overdue > 60 days)
+- *"hasn't paid"* (no payment in 30+ days)
+- *"most sold"* (popular items)
+- *"returned items today"*
+- *"this week vs last week"* (WoW trend)
+- *"largest payment"* or *"largest slip"*
+- *"outstanding in [City]"*
+- *"Show details for slip #8"*${hasInventory ? `\n\n**📦 Inventory Commands:**\n- *"low stock"* (items at/below reorder level)\n- *"recent vouchers"* (recent inventory movements)\n- *"stock status"* (overall stock overview)` : ""}
+
+*Or type a customer query like: "Outstanding for [Name/Phone]" or "Payments for [Name/Phone]"*`;
+
+    setChatMessages([
+      {
+        sender: "ai",
+        text: greetingText
+      }
+    ]);
+
+    if (hasInventory) {
+      setChatSuggestions([
+        "Total Outstanding",
+        "Show Top Debtors",
+        "Show Aging Report",
+        "Today's Stats",
+        "low stock",
+        "recent vouchers",
+        "stock status"
+      ]);
+    } else {
+      setChatSuggestions([
+        "Total Outstanding",
+        "Show Top Debtors",
+        "Show Aging Report",
+        "Today's Stats"
+      ]);
+    }
+  }, [hasInventory]);
 
   // Fetch today's overview data whenever chat is opened or refreshed
   const fetchOverviewData = async () => {
@@ -204,6 +248,8 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
           if (data.company.enable_ai_assistant !== undefined) {
             setIsAiEnabled(data.company.enable_ai_assistant);
           }
+          const hasInv = data.company.subscription?.has_inventory || data.company.subscription?.type === 'trial' || data.company.inventory_enabled;
+          setHasInventory(!!hasInv);
         }
       } catch (e) {
         console.error("Failed to load company AI setting:", e);
@@ -305,6 +351,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
     { name: "Log Payment", href: "/dashboard/admin/payments", icon: <BanknotesIcon className="w-5 h-5" /> },
     { name: "Lookup Ledger", href: "/dashboard/admin/lookup", icon: <MagnifyingGlassIcon className="w-5 h-5" /> },
     { name: "Reports & Filters", href: "/dashboard/admin/reports", icon: <PresentationChartLineIcon className="w-5 h-5" /> },
+    ...(inventoryEnabled ? [{ name: "InventoryHeader" }] : []),
     { name: "Manage Users", href: "/dashboard/admin/users", icon: <UsersIcon className="w-5 h-5" /> },
     { name: "Organization Settings", href: "/dashboard/admin/settings", icon: <Cog6ToothIcon className="w-5 h-5" /> },
     { name: "Billing & Plans", href: "/dashboard/admin/billing", icon: <CreditCardIcon className="w-5 h-5" /> },
@@ -316,7 +363,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 font-sans text-slate-900 dark:text-slate-100 overflow-hidden relative flex flex-col">
       {session?.isImpersonation && (
         <div className="w-full bg-amber-500 text-slate-950 font-bold text-center py-2 text-xs uppercase tracking-wider flex items-center justify-center gap-4 relative z-30 shadow-[0_2px_8px_rgba(245,158,11,0.3)]">
-          <span>⚠️ Impersonation Mode: Logged in as Super Admin. You have read-only access to slips & payments.</span>
+          <span>⚠️ Impersonation Mode: Viewing as <span className="font-mono underline">{session.userid}</span> in <span className="font-mono underline">{session.orgcode}</span>. Read-only for transactions.</span>
           <button
             onClick={async () => {
               try {
@@ -356,10 +403,15 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                   ? "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400"
                   : "bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400"
             }`}>
-              <span className="font-bold uppercase tracking-wider text-xs">
-                {subscription.type === "trial" ? "Trial Mode" : "Subscription"}
+              <span className="font-bold uppercase tracking-wider text-xs flex flex-col items-start leading-tight">
+                <span className="text-[10px] opacity-80 font-black tracking-widest text-blue-650 dark:text-blue-300">
+                  {inventoryEnabled ? "Parchi + Inventory" : "Parchi"}
+                </span>
+                <span>
+                  {subscription.type === "trial" ? "Trial Mode" : "Subscription"}
+                </span>
               </span>
-              <span className="text-xs opacity-85">
+              <span className="text-xs opacity-85 self-end">
                 {subscription.remaining_days <= 0
                   ? "Expired"
                   : `(${Math.ceil(subscription.remaining_days)} days left)`}
@@ -390,6 +442,99 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
         <aside className="w-full md:w-64 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md flex-shrink-0">
           <nav className="flex md:flex-col gap-1 p-4 overflow-x-auto md:overflow-x-visible">
             {navLinks.map((link) => {
+              if (link.name === "InventoryHeader") {
+                return (
+                  <div key="inventory-group" className="flex flex-col gap-1 w-full">
+                    <button
+                      type="button"
+                      onClick={() => setIsInventoryOpen(!isInventoryOpen)}
+                      className="px-4 py-2.5 rounded-xl text-base font-semibold text-slate-650 dark:text-slate-405 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap flex items-center justify-between gap-3 w-full"
+                    >
+                      <div className="flex items-center gap-3">
+                        <CubeIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        <span>Inventory</span>
+                      </div>
+                      <ChevronRightIcon className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200 ${isInventoryOpen ? 'rotate-90' : ''}`} />
+                    </button>
+                    {isInventoryOpen && (
+                      <div className="flex flex-col gap-1 ml-4 border-l border-slate-200 dark:border-slate-800 pl-2 animate-fade-in">
+                        <Link
+                          href="/dashboard/admin/inventory"
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                            ${pathname === "/dashboard/admin/inventory"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                        >
+                          <CubeIcon className="w-4 h-4" />
+                          <span>Stock Overview</span>
+                        </Link>
+                        <Link
+                          href="/dashboard/admin/inventory/reports"
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                            ${pathname === "/dashboard/admin/inventory/reports"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                        >
+                          <PresentationChartLineIcon className="w-4 h-4" />
+                          <span>Statement Report</span>
+                        </Link>
+                        <Link
+                          href="/dashboard/admin/inventory/transactions"
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                            ${pathname === "/dashboard/admin/inventory/transactions"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                        >
+                          <PaperAirplaneIcon className="w-4 h-4" />
+                          <span>Post Movement</span>
+                        </Link>
+                        <Link
+                          href="/dashboard/admin/inventory/locations"
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                            ${pathname === "/dashboard/admin/inventory/locations"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                        >
+                          <MapPinIcon className="w-4 h-4" />
+                          <span>Locations</span>
+                        </Link>
+                        <Link
+                          href="/dashboard/admin/inventory/skus"
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                            ${pathname === "/dashboard/admin/inventory/skus"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                        >
+                          <TagIcon className="w-4 h-4" />
+                          <span>SKUs</span>
+                        </Link>
+                        <Link
+                          href="/dashboard/admin/inventory/transaction-types"
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                            ${pathname === "/dashboard/admin/inventory/transaction-types"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                        >
+                          <Cog6ToothIcon className="w-4 h-4" />
+                          <span>Transaction Types</span>
+                        </Link>
+                        <Link
+                          href="/dashboard/admin/inventory/close"
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                            ${pathname === "/dashboard/admin/inventory/close"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                        >
+                          <ShieldCheckIcon className="w-4 h-4" />
+                          <span>Year-End Close</span>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              if (!link.href) return null;
               const isActive = pathname === link.href;
               return (
                 <Link
@@ -575,15 +720,54 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
 
                       {/* Section 4 */}
                       <div className="p-2.5 rounded-2xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80">
-                        <p className="font-bold text-[11px] text-slate-700 dark:text-slate-300 mb-1">🔍 Specific Customer Searches</p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1.5">Type these queries in the chat bar at the bottom:</p>
-                        <ul className="list-disc pl-4 space-y-1 text-slate-550 dark:text-slate-400 text-[10px]">
-                          <li><span className="font-medium text-slate-700 dark:text-slate-300">Outstanding:</span> Outstanding for [Name or Phone]</li>
-                          <li><span className="font-medium text-slate-700 dark:text-slate-300">Recent Payments:</span> Show payments made by [Name]</li>
-                          <li><span className="font-medium text-slate-700 dark:text-slate-300">Returns:</span> Returns for [Customer Name]</li>
-                          <li><span className="font-medium text-slate-700 dark:text-slate-300">Slip lookup:</span> Show details for slip #[Number]</li>
-                        </ul>
+                        <p className="font-bold text-[11px] text-slate-700 dark:text-slate-300 mb-1">🔍 Customer & Slip Lookup</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2">Click to search a customer or slip detail:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: "Outstanding: Vinay", query: "Outstanding for Vinay" },
+                            { label: "Payments: Vinay", query: "Payments for Vinay" },
+                            { label: "Returns: Vinay", query: "Returns for Vinay" },
+                            { label: "Slip Details #1", query: "details for slip 1" },
+                          ].map((item) => (
+                            <button
+                              key={item.label}
+                              type="button"
+                              onClick={() => handleSendChat(item.query)}
+                              className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-205 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors text-[10px]"
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
+
+                      {/* Section 5: Inventory */}
+                      {hasInventory && (
+                        <div className="p-2.5 rounded-2xl bg-slate-100/50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/80">
+                          <p className="font-bold text-[11px] text-slate-700 dark:text-slate-300 mb-1">📦 Inventory & Stock Control</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2">Click to search inventory, locations, or vouchers:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { label: "Low Stock Alert", query: "low stock" },
+                              { label: "Reorder List", query: "list reorder item" },
+                              { label: "Voucher Summary", query: "recent vouchers" },
+                              { label: "Stock Overview", query: "stock status" },
+                              { label: "Stock: Putty", query: "stock for putty" },
+                              { label: "Stock: Putty in Mehli", query: "stock for putty in Mehli" },
+                              { label: "Recent 3 Vouchers", query: "show last 3 voucher" },
+                            ].map((item) => (
+                              <button
+                                key={item.label}
+                                type="button"
+                                onClick={() => handleSendChat(item.query)}
+                                className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-205 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors text-[10px]"
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -612,24 +796,23 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* Scrolling suggestions */}
-                  <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none">
-                    {chatSuggestions.map((sugg, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSendChat(sugg)}
-                        className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-full text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors shadow-sm shrink-0"
-                      >
-                        {sugg}
-                      </button>
-                    ))}
-                  </div>
-
                   {/* Input Form */}
                   <form 
                     onSubmit={(e) => { e.preventDefault(); handleSendChat(chatInput); }}
                     className="p-3 border-t border-slate-200 dark:border-slate-800 flex gap-2 items-center bg-white dark:bg-slate-950"
                   >
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab((prev) => (prev === "help" ? "chat" : "help"))}
+                      className={`p-2 rounded-xl border transition-colors flex items-center justify-center font-bold text-sm w-9 h-9 shrink-0 shadow-sm
+                        ${activeTab === "help"
+                          ? "bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400"
+                          : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
+                        }`}
+                      title="Show Help Guide & Commands"
+                    >
+                      ?
+                    </button>
                     <input
                       type="text"
                       placeholder="Ask assistant..."

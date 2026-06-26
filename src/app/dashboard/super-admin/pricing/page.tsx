@@ -42,6 +42,7 @@ export default function PricingAndCouponsPage() {
   const [plans, setPlans] = useState<PricingPlan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [savingPlans, setSavingPlans] = useState(false);
+  const [pricingTab, setPricingTab] = useState<"simple" | "inventory">("simple");
   
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loadingCoupons, setLoadingCoupons] = useState(true);
@@ -283,23 +284,56 @@ export default function PricingAndCouponsPage() {
             </div>
           ) : (
             <form onSubmit={handleSavePlans} className="flex flex-col gap-4">
-              {plans.map((p) => (
-                <div key={p.plan_key} className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{p.plan_name}</label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-slate-400 font-bold text-sm">₹</span>
-                    <input
-                      type="number"
-                      step="1"
-                      min="1"
-                      className="w-full pl-8 pr-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
-                      value={p.price}
-                      onChange={(e) => handlePriceChange(p.plan_key, e.target.value)}
-                      required
-                    />
+              {/* Tab Selector */}
+              <div className="flex border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden mb-2 p-0.5 bg-slate-150/40 dark:bg-slate-900/60">
+                <button
+                  type="button"
+                  onClick={() => setPricingTab("simple")}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    pricingTab === "simple"
+                      ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                      : "text-slate-500 hover:text-slate-750 dark:hover:text-slate-350"
+                  }`}
+                >
+                  Simple Parchi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPricingTab("inventory")}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    pricingTab === "inventory"
+                      ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                      : "text-slate-500 hover:text-slate-750 dark:hover:text-slate-350"
+                  }`}
+                >
+                  Parchi + Inventory
+                </button>
+              </div>
+
+              {plans
+                .filter((p) => {
+                  const isInv = p.plan_key.endsWith("_inventory");
+                  return pricingTab === "inventory" ? isInv : !isInv;
+                })
+                .map((p) => (
+                  <div key={p.plan_key} className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      {p.plan_name.replace(" with Inventory", "")}
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3.5 text-slate-400 font-bold text-sm">₹</span>
+                      <input
+                        type="number"
+                        step="1"
+                        min="1"
+                        className="w-full pl-8 pr-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold text-slate-900 dark:text-white"
+                        value={p.price}
+                        onChange={(e) => handlePriceChange(p.plan_key, e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
               <button
                 type="submit"
                 disabled={savingPlans}

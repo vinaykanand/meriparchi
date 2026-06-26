@@ -11,7 +11,8 @@ import {
   TagIcon,
   SunIcon,
   MoonIcon,
-  CloudArrowUpIcon
+  CloudArrowUpIcon,
+  ChartBarIcon
 } from "@heroicons/react/24/outline";
 
 function SuperAdminDashboardContent({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,7 @@ function SuperAdminDashboardContent({ children }: { children: React.ReactNode })
 
   const navLinks = [
     { name: "Clients", href: "/dashboard/super-admin", icon: <BuildingOfficeIcon className="w-5 h-5" /> },
+    { name: "Reports", href: "/dashboard/super-admin/reports", icon: <ChartBarIcon className="w-5 h-5" /> },
     { name: "Pricing & Coupons", href: "/dashboard/super-admin/pricing", icon: <TagIcon className="w-5 h-5" /> },
     { name: "Global Audit Logs", href: "/dashboard/super-admin/audit-logs", icon: <ClipboardDocumentListIcon className="w-5 h-5" /> },
     { name: "Integrations", href: "/dashboard/super-admin/integrations", icon: <CpuChipIcon className="w-5 h-5" /> },

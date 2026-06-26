@@ -15,8 +15,13 @@ export async function GET(request: Request) {
     const result = await query(
       `SELECT c.orgcode, c.orgname, c.isactive, c.enableotp, c.otpresettime, c.opentime, c.closetime, c.audit_retention_days, 
               c.backup_schedule, c.last_backup_time, (c.gdrive_refresh_token IS NOT NULL) as gdrive_linked,
-              c.enable_security_logs, c.enable_ai_assistant, c.backup_retention_count, c.backup_password, c.email,
-              s.subscription_type, s.subscription_start, s.subscription_end,
+              c.enable_security_logs, c.enable_ai_assistant, c.backup_retention_count, c.backup_password, c.email, c.phone,
+              c.referral_code, c.referred_by, c.inventory_enabled,
+              (SELECT GREATEST(0,
+                 (SELECT COALESCE(SUM(points_earned), 0) FROM public.payment_history WHERE referred_by = c.orgcode) - 
+                 (SELECT COALESCE(SUM(points_redeemed), 0) FROM public.payment_history WHERE orgcode = c.orgcode)
+               )) AS referral_points,
+              s.subscription_type, s.subscription_start, s.subscription_end, s.has_inventory,
               CASE 
                 WHEN s.subscription_end IS NULL THEN 0
                 ELSE EXTRACT(EPOCH FROM (s.subscription_end - NOW())) / 86400.0
@@ -44,6 +49,7 @@ export async function GET(request: Request) {
         remaining_days: parseFloat(result.rows[0].remaining_days || "0"),
         slips_count: parseInt(slipsCountRes.rows[0]?.count || "0", 10),
         payments_count: parseInt(paymentsCountRes.rows[0]?.count || "0", 10),
+        has_inventory: result.rows[0].subscription_type === 'trial' ? true : (result.rows[0].has_inventory || false),
       }
     };
 
@@ -77,7 +83,8 @@ export async function PUT(request: Request) {
     const { 
       orgcode, orgname, enableotp, isactive, otpresettime, opentime, closetime, 
       audit_retention_days, backup_schedule,
-      enable_security_logs, enable_ai_assistant, backup_retention_count, backup_password 
+      enable_security_logs, enable_ai_assistant, backup_retention_count, backup_password,
+      inventory_enabled
     } = body;
 
     // Optional: verify that the user's orgcode matches the request orgcode
@@ -85,18 +92,28 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }
 
+    // Verify if subscription has inventory enabled before allowing true
+    if (inventory_enabled === true) {
+      const subRes = await query("SELECT has_inventory FROM public.company_subscriptions WHERE orgcode = $1", [orgcode]);
+      if (subRes.rows.length === 0 || !subRes.rows[0].has_inventory) {
+        return NextResponse.json({ success: false, message: "Plan Upgrade Required: Your subscription plan does not include the Inventory module." }, { status: 400 });
+      }
+    }
+
     await query(
       `UPDATE public.company 
        SET orgname = $1, enableotp = $2, isactive = $3, otpresettime = $4, opentime = $5, closetime = $6, 
            audit_retention_days = $7, backup_schedule = $8,
            enable_security_logs = $9, enable_ai_assistant = $10,
-           backup_retention_count = $11, backup_password = $12
-       WHERE orgcode = $13`,
+           backup_retention_count = $11, backup_password = $12,
+           inventory_enabled = $13
+       WHERE orgcode = $14`,
       [
         orgname, enableotp, isactive, otpresettime, opentime, closetime, 
         audit_retention_days || 10, backup_schedule || 'none', 
         enable_security_logs !== false, enable_ai_assistant !== false, 
-        backup_retention_count || 5, backup_password || '', orgcode
+        backup_retention_count || 5, backup_password || '', 
+        inventory_enabled === true, orgcode
       ]
     );
 
@@ -107,7 +124,8 @@ export async function PUT(request: Request) {
       details: { 
         orgname, enableotp, isactive, otpresettime, opentime, closetime, 
         audit_retention_days, backup_schedule, enable_security_logs,
-        enable_ai_assistant, backup_retention_count, has_backup_password: !!backup_password
+        enable_ai_assistant, backup_retention_count, has_backup_password: !!backup_password,
+        inventory_enabled: inventory_enabled === true
       },
     });
 

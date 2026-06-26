@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface ReportCustomer {
   phone: string;
@@ -19,9 +19,11 @@ interface ReportCustomer {
   aging_90_plus?: number;
 }
 
-export default function AdminReportsPage() {
+function AdminReportsPageContent() {
   const { session } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const filterParam = searchParams?.get("filter");
 
   const [filterType, setFilterType] = useState<string>("zero_outstanding");
   const [days, setDays] = useState<number | "">(30);
@@ -31,6 +33,32 @@ export default function AdminReportsPage() {
   const [error, setError] = useState("");
   const [sortCol, setSortCol] = useState<string>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  useEffect(() => {
+    if (filterParam && session?.orgcode) {
+      setFilterType(filterParam);
+      const fetchDirectly = async () => {
+        setLoading(true);
+        setError("");
+        setHasSearched(false);
+        try {
+          const res = await fetch(`/api/reports?orgcode=${session.orgcode}&filter=${filterParam}`);
+          const data = await res.json();
+          if (res.ok && data.success) {
+            setResults(data.data || []);
+            setHasSearched(true);
+          } else {
+            setError(data.message || "Failed to fetch report data");
+          }
+        } catch (err: any) {
+          setError(err.message || "An error occurred");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchDirectly();
+    }
+  }, [filterParam, session]);
 
   // Selection & Close Account States
   const [selectedPhones, setSelectedPhones] = useState<string[]>([]);
@@ -635,5 +663,18 @@ export default function AdminReportsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminReportsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-700 border-t-blue-600 rounded-full animate-spin"></div>
+        <p className="text-slate-500 font-medium animate-pulse">Loading reports...</p>
+      </div>
+    }>
+      <AdminReportsPageContent />
+    </Suspense>
   );
 }

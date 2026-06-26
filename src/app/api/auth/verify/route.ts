@@ -39,6 +39,9 @@ export async function GET() {
           data.isImpersonation = true;
           data.orgcode = cookieOrgcode.trim().toUpperCase();
           data.isadmin = true;
+          // Use selected impersonation user from cookie, fallback to "admin"
+          const impersonateUseridCookie = cookieStore.get("impersonate_userid")?.value;
+          data.userid = impersonateUseridCookie?.trim() || "admin";
         }
       }
 

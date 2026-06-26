@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Set the cookie
+    // Set the orgcode cookie
     cookieStore.set("orgcode", cleanOrgcode, {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
@@ -52,12 +52,53 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
 
     if (cleanOrgcode !== "SUPER") {
+      // Handle targetUserId - validate and store in cookie
+      const { targetUserId } = body;
+      let impersonateUserId = "admin";
+
+      if (targetUserId) {
+        const userCheck = await query(
+          "SELECT userid FROM public.users WHERE orgcode = $1 AND userid = $2 AND isactive = true",
+          [cleanOrgcode, targetUserId.trim()]
+        );
+        if (userCheck.rows.length > 0) {
+          impersonateUserId = userCheck.rows[0].userid;
+        }
+      } else {
+        // Fallback: try to find an admin user
+        const adminCheck = await query(
+          "SELECT userid FROM public.users WHERE orgcode = $1 AND isadmin = true AND isactive = true ORDER BY userid ASC LIMIT 1",
+          [cleanOrgcode]
+        );
+        if (adminCheck.rows.length > 0) {
+          impersonateUserId = adminCheck.rows[0].userid;
+        }
+      }
+
+      // Store the impersonation user identity in a cookie
+      cookieStore.set("impersonate_userid", impersonateUserId, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+
       // Write ONLY one audit log under the SUPER company, none under target client
       await logAction({
         orgcode: "SUPER",
         userid: superUser.userid,
         action: "SUPER_ADMIN_IMPERSONATE",
-        details: { targetOrgcode: cleanOrgcode, ip, userAgent },
+        details: { targetOrgcode: cleanOrgcode, targetUserId: impersonateUserId, ip, userAgent },
+      });
+    } else {
+      // Returning to SUPER - clear the impersonation user cookie
+      cookieStore.set("impersonate_userid", "", {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: 0,
       });
     }
 

@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     }
 
     const result = await query(
-      `SELECT id, order_id, payment_id, plan_key, amount, coupon_code, timestamp, invoice_url 
+      `SELECT id, order_id, payment_id, plan_key, amount, coupon_code, timestamp, invoice_url, points_redeemed 
        FROM public.payment_history 
        WHERE orgcode = $1 
        ORDER BY timestamp DESC`,

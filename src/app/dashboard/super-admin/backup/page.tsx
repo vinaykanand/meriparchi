@@ -38,6 +38,39 @@ export default function SuperAdminBackupPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [showBackupPassword, setShowBackupPassword] = useState(false);
 
+  const [backupTimer, setBackupTimer] = useState<number>(0);
+  const [restoreTimer, setRestoreTimer] = useState<number>(0);
+  const [restoreTimeRemaining, setRestoreTimeRemaining] = useState<number | null>(null);
+  const [restoreSpeed, setRestoreSpeed] = useState<number | null>(null);
+
+  useEffect(() => {
+    let interval: any;
+    if (gdriveUploading) {
+      setBackupTimer(0);
+      interval = setInterval(() => {
+        setBackupTimer(t => t + 1);
+      }, 1000);
+    } else {
+      setBackupTimer(0);
+    }
+    return () => clearInterval(interval);
+  }, [gdriveUploading]);
+
+  useEffect(() => {
+    let interval: any;
+    if (restoring) {
+      setRestoreTimer(0);
+      interval = setInterval(() => {
+        setRestoreTimer(t => t + 1);
+      }, 1000);
+    } else {
+      setRestoreTimer(0);
+      setRestoreTimeRemaining(null);
+      setRestoreSpeed(null);
+    }
+    return () => clearInterval(interval);
+  }, [restoring]);
+
   const addToast = (message: string, type: "success" | "error" | "info") => {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
@@ -155,10 +188,20 @@ export default function SuperAdminBackupPage() {
 
     const xhr = new XMLHttpRequest();
 
+    const startTime = Date.now();
     xhr.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) {
         const percentComplete = Math.round((event.loaded / event.total) * 100);
         setRestoreProgress(Math.min(percentComplete, 99));
+
+        const elapsed = (Date.now() - startTime) / 1000;
+        if (elapsed > 0.5 && event.loaded > 0) {
+          const speed = event.loaded / elapsed; // bytes/sec
+          const remainingBytes = event.total - event.loaded;
+          const remainingSecs = Math.max(0, Math.round(remainingBytes / speed));
+          setRestoreTimeRemaining(remainingSecs);
+          setRestoreSpeed(Math.round(speed / 1024)); // KB/s
+        }
       }
     });
 
@@ -411,13 +454,22 @@ export default function SuperAdminBackupPage() {
               />
               
               {restoreProgress !== null && (
-                <div className="w-full bg-slate-100 dark:bg-slate-900 rounded-full h-4 relative overflow-hidden border border-slate-200 dark:border-slate-800">
-                  <div 
-                    className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out" 
-                    style={{ width: `${restoreProgress}%` }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-350">
-                    {restoreProgress === 99 ? "Performing truncation & system rebuild..." : `${restoreProgress}%`}
+                <div className="w-full flex flex-col gap-1.5 mt-2">
+                  <div className="w-full bg-slate-100 dark:bg-slate-900 rounded-full h-4 relative overflow-hidden border border-slate-200 dark:border-slate-800">
+                    <div 
+                      className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out" 
+                      style={{ width: `${restoreProgress}%` }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-350">
+                      {restoreProgress === 99 ? "Performing truncation & system rebuild..." : `${restoreProgress}%`}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] text-slate-500 font-semibold px-1 font-mono">
+                    <span>Elapsed: {restoreTimer}s</span>
+                    {restoreSpeed !== null && <span>Speed: {restoreSpeed} KB/s</span>}
+                    {restoreTimeRemaining !== null && (
+                      <span>Est. Remaining: {restoreTimeRemaining}s</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -477,7 +529,7 @@ export default function SuperAdminBackupPage() {
                     disabled={gdriveUploading}
                     className="py-2.5 px-4 rounded-xl text-white font-medium bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all text-sm shadow-md shadow-emerald-500/20"
                   >
-                    {gdriveUploading ? "Uploading Backup..." : "Upload System Backup to Drive"}
+                    {gdriveUploading ? `Uploading Backup... (${backupTimer}s elapsed)` : "Upload System Backup to Drive"}
                   </button>
                   <button
                     onClick={handleUnlinkGDrive}

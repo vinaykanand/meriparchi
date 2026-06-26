@@ -34,6 +34,8 @@ interface Toast {
 
 const ACTION_TYPES = [
   { value: "", label: "All Actions" },
+  { value: "INWARD", label: "Inward (Inventory)" },
+  { value: "OUTWARD", label: "Outward (Inventory)" },
   { value: "CREATE_SLIP", label: "Create Slip" },
   { value: "DELETE_SLIP", label: "Delete Slip" },
   { value: "LOG_PAYMENT", label: "Log Payment" },
@@ -60,6 +62,14 @@ const ACTION_TYPES = [
   { value: "SUPER_ADMIN_CREATE_COMPANY", label: "Register Company" },
   { value: "SUPER_ADMIN_UPDATE_COMPANY", label: "Update Company" },
   { value: "SUPER_ADMIN_IMPERSONATE", label: "Impersonate" },
+  { value: "CREATE_TRANSACTION_TYPE", label: "Create Transaction Type" },
+  { value: "UPDATE_TRANSACTION_TYPE", label: "Update Transaction Type" },
+  { value: "LOG_INVENTORY_TRANSACTION_HEADER", label: "Log Inventory Txn" },
+  { value: "CREATE_INVENTORY_LOCATION", label: "Create Location" },
+  { value: "UPDATE_INVENTORY_LOCATION", label: "Update Location" },
+  { value: "CREATE_INVENTORY_ITEM", label: "Create Inventory Item" },
+  { value: "UPDATE_INVENTORY_ITEM", label: "Update Inventory Item" },
+  { value: "CLOSE_INVENTORY_FINANCIAL_YEAR", label: "Close Inventory FY" },
 ];
 
 export default function AdminAuditPage() {
@@ -79,6 +89,7 @@ export default function AdminAuditPage() {
   const [loading, setLoading] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
+  const [actionSearchQuery, setActionSearchQuery] = useState("");
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   // Purging and Modal states
@@ -219,44 +230,56 @@ export default function AdminAuditPage() {
       case "CREATE_SLIP":
       case "CREATE_USER":
       case "LOGIN_SUCCESS":
-        return "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800/30";
+        return "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400";
+      case "INWARD":
+      case "CREATE_INVENTORY_LOCATION":
+      case "CREATE_INVENTORY_ITEM":
+      case "CREATE_TRANSACTION_TYPE":
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400";
+      case "OUTWARD":
+      case "CLOSE_INVENTORY_FINANCIAL_YEAR":
+        return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400";
       case "MANUAL_BACKUP_LOCAL":
-        return "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-800/30";
+        return "bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400";
       case "MANUAL_BACKUP_GDRIVE":
-        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/30";
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400";
       case "AUTO_BACKUP_GDRIVE":
-        return "bg-teal-50 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400 border border-teal-200 dark:border-teal-800/30";
+        return "bg-teal-50 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400";
       case "RESTORE_BACKUP_LOCAL":
-        return "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/30";
+        return "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400";
       case "RESTORE_BACKUP_GDRIVE":
-        return "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400 border border-purple-200 dark:border-purple-800/30";
+        return "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400";
       case "RESTORE_PARTIAL_LOCAL":
-        return "bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400 border border-sky-200 dark:border-sky-800/30";
+        return "bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400";
       case "RESTORE_PARTIAL_GDRIVE":
-        return "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800/30";
+        return "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400";
       case "DELETE_SLIP":
       case "DELETE_USER":
       case "CLOSE_ACCOUNT":
       case "LOGIN_FAILED":
-        return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400 border border-rose-200 dark:border-rose-800/30";
+        return "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400";
       case "UPDATE_COMPANY_SETTINGS":
       case "UPDATE_USER":
-        return "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800/30";
+      case "UPDATE_INVENTORY_LOCATION":
+      case "UPDATE_INVENTORY_ITEM":
+      case "UPDATE_TRANSACTION_TYPE":
+      case "LOG_INVENTORY_TRANSACTION_HEADER":
+        return "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400";
       case "LOG_PAYMENT":
-        return "bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800/30";
+        return "bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400";
       case "SUBSCRIPTION_PAYMENT":
-        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-450 border border-emerald-250 dark:border-emerald-800/30 font-bold";
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-450 font-bold";
       case "SUPER_ADMIN_CHANGE_PRICING":
       case "SUPER_ADMIN_CREATE_COUPON":
       case "SUPER_ADMIN_UPDATE_COUPON":
       case "SUPER_ADMIN_DELETE_COUPON":
       case "SUPER_ADMIN_CREATE_COMPANY":
       case "SUPER_ADMIN_UPDATE_COMPANY":
-        return "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200 dark:border-blue-850/30 font-bold";
+        return "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 font-bold";
       case "LOGOUT":
-        return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
+        return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
       default:
-        return "bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
+        return "bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
     }
   };
 
@@ -274,69 +297,82 @@ export default function AdminAuditPage() {
     try {
       const parsed = typeof log.details === "string" ? JSON.parse(log.details) : log.details;
       switch (log.action) {
-        case "CREATE_SLIP":
-          return `Created slip for ${parsed.name || parsed.phone} (₹${parsed.totalamount})`;
-        case "DELETE_SLIP":
-          return `Deleted slip #${parsed.slipno} for ${parsed.name || parsed.phone}`;
-        case "LOG_PAYMENT":
-          return `Recorded payment of ₹${parsed.amount} from ${parsed.phone}`;
-        case "SUBSCRIPTION_PAYMENT":
-          return `Subscription renewal: Verified payment of ₹${parsed.amount} for plan '${parsed.planKey}'${parsed.couponCode ? ` (applied coupon ${parsed.couponCode})` : ""}`;
-        case "CLOSE_ACCOUNT":
-          return `Closed/cleared account for ${parsed.phone}`;
-        case "UPDATE_COMPANY_SETTINGS":
-          return `Updated organization name/settings: ${parsed.orgname || ""}`;
-        case "CREATE_USER":
-          return `Created operator account: ${parsed.targetUserid}`;
-        case "UPDATE_USER":
-          return `Updated user credentials/status: ${parsed.targetUserid}`;
-        case "DELETE_USER":
-          return `Deleted operator account: ${parsed.targetUserid}`;
+        case "INWARD":
+        case "OUTWARD": {
+          const typeLabel = parsed.typeName || `Transaction #${parsed.type}`;
+          const itemsStr = `${parsed.itemsCount} item(s)`;
+          const partyStr = parsed.partyName ? ` with ${parsed.partyName}` : "";
+          const refStr = parsed.referenceNo ? ` (Ref: ${parsed.referenceNo})` : "";
+          return `${typeLabel}: Recorded ${log.action.toLowerCase()} transaction for ${itemsStr}${partyStr}${refStr}`;
+        }
+        case "CREATE_INVENTORY_LOCATION":
+          return `Created inventory location: ${parsed.name}`;
+        case "UPDATE_INVENTORY_LOCATION":
+          return `Updated inventory location: ${parsed.name} (ID: ${parsed.id})`;
+        case "CREATE_INVENTORY_ITEM":
+          return `Created inventory item SKU ${parsed.sku}: ${parsed.name}`;
+        case "UPDATE_INVENTORY_ITEM":
+          return `Updated inventory item SKU ${parsed.sku}: ${parsed.name}`;
+        case "CREATE_TRANSACTION_TYPE":
+          return `Created transaction type [${parsed.code}]: ${parsed.name}`;
+        case "UPDATE_TRANSACTION_TYPE":
+          return `Updated transaction type [${parsed.code}]: ${parsed.name}`;
+        case "CLOSE_INVENTORY_FINANCIAL_YEAR":
+          return `Closed inventory financial year: ${parsed.financial_year_id || parsed.id || ""}`;
+        case "LOG_INVENTORY_TRANSACTION_HEADER":
+          return `Recorded inventory transaction: ${parsed.typeName || `Type #${parsed.type}`} for ${parsed.itemsCount} item(s)`;
         case "LOGIN_SUCCESS":
-          return `Successful login for user: ${parsed.username || log.userid}${parsed.ip ? ` from IP ${parsed.ip}` : ""}`;
+          return `Login successful for user "${parsed.username || log.userid}" (IP: ${parsed.ip || "unknown"})`;
         case "LOGIN_FAILED":
-          return `Failed login attempt for user: ${parsed.username || log.userid || "Unknown"}${parsed.message || parsed.reason ? ` (${parsed.message || parsed.reason})` : ""}${parsed.ip ? ` from IP ${parsed.ip}` : ""}`;
+          return `Failed login attempt for username "${parsed.username || log.userid}" (IP: ${parsed.ip || "unknown"})`;
         case "LOGOUT":
-          return `User logged out: ${parsed.username || log.userid}`;
+          return `User logged out (IP: ${parsed.ip || "unknown"})`;
+        case "CREATE_SLIP":
+          return `Created slip #${parsed.slipno} for ${parsed.name} (Amount: ₹${parseFloat(parsed.netamount || "0").toLocaleString()})`;
+        case "DELETE_SLIP":
+          return `Deleted slip #${parsed.slipno} (Reversed ₹${parseFloat(parsed.netamount || "0").toLocaleString()})`;
+        case "LOG_PAYMENT":
+          return `Logged payment of ₹${parseFloat(parsed.amount || "0").toLocaleString()} for ${parsed.phone}`;
+        case "SUBSCRIPTION_PAYMENT":
+          return `Paid subscription invoice: ₹${parseFloat(parsed.amount || "0").toLocaleString()}`;
+        case "CREATE_USER":
+          return `Created operator account: ${parsed.userid} (${parsed.role})`;
+        case "UPDATE_USER":
+          return `Updated details for operator: ${parsed.userid}`;
+        case "DELETE_USER":
+          return `Deleted operator account: ${parsed.userid}`;
+        case "UPDATE_COMPANY_SETTINGS":
+          return `Updated company configuration parameters`;
         case "MANUAL_BACKUP_LOCAL":
-          return `Manual local backup exported: ${parsed.filename || ""}`;
+          return `Created database backup ZIP archive`;
         case "MANUAL_BACKUP_GDRIVE":
-          return parsed.success 
-            ? `Manual backup uploaded to Google Drive: ${parsed.filename || `File ID: ${parsed.fileId || "N/A"}`}` 
-            : `Manual backup to Google Drive failed: ${parsed.error || "Unknown error"}`;
+          return `Uploaded database backup to Google Drive`;
         case "AUTO_BACKUP_GDRIVE":
-          return parsed.success 
-            ? `Auto backup completed to Google Drive: ${parsed.filename || `File ID: ${parsed.fileId || "N/A"}`}` 
-            : `Auto backup to Google Drive failed: ${parsed.error || "Unknown error"}`;
+          return `Auto backup scheduled upload to Google Drive`;
         case "RESTORE_BACKUP_LOCAL":
-          return `Database successfully restored from local backup: ${parsed.filename || "local file"}`;
+          return `Restored system databases from local file`;
         case "RESTORE_BACKUP_GDRIVE":
-          return `Database successfully restored from Google Drive backup: ${parsed.filename || `File ID: ${parsed.fileId || "N/A"}`}`;
+          return `Restored system databases from Google Drive`;
         case "RESTORE_PARTIAL_LOCAL":
-          return `Database partially restored for phone number: ${parsed.phone || "N/A"} from local backup: ${parsed.filename || "local file"}`;
+          return `Partially restored selected tables from local ZIP`;
         case "RESTORE_PARTIAL_GDRIVE":
-          return `Database partially restored for phone number: ${parsed.phone || "N/A"} from Google Drive backup: ${parsed.filename || `File ID: ${parsed.fileId || "N/A"}`}`;
-        case "SUPER_ADMIN_CHANGE_PRICING":
-          return `Pricing settings model updated by super admin`;
-        case "SUPER_ADMIN_CREATE_COUPON":
-          return `Coupon code '${parsed.code}' created (Discount: ${parsed.discount})`;
-        case "SUPER_ADMIN_UPDATE_COUPON":
-          return `Coupon code '${parsed.code}' updated (Discount: ${parsed.discount}, Status: ${parsed.status})`;
-        case "SUPER_ADMIN_DELETE_COUPON":
-          return `Coupon code '${parsed.code}' deleted`;
-        case "SUPER_ADMIN_CREATE_COMPANY":
-          return `New organization '${parsed.orgname}' registered (Code: ${parsed.orgcode})`;
-        case "SUPER_ADMIN_UPDATE_COMPANY":
-          return `Organization settings for '${parsed.orgcode}' updated (Plan: ${parsed.subscriptionType}, Status: ${parsed.isactive ? "Active" : "Inactive"})`;
-        case "SUPER_ADMIN_IMPERSONATE":
-          return `Impersonation started for organization: ${parsed.targetOrgcode || parsed.target || "N/A"}`;
+          return `Partially restored selected tables from Google Drive`;
         default:
-          return JSON.stringify(parsed);
+          return typeof parsed === "object" ? JSON.stringify(parsed) : String(parsed);
       }
     } catch (e) {
       return typeof log.details === "string" ? log.details : JSON.stringify(log.details);
     }
   };
+
+  const filteredActionTypes = ACTION_TYPES.filter((type) => {
+    if (type.value === "") return true;
+    const query = actionSearchQuery.toLowerCase();
+    return (
+      type.label.toLowerCase().includes(query) ||
+      type.value.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in relative max-w-7xl mx-auto">
@@ -450,49 +486,61 @@ export default function AdminAuditPage() {
                 <FunnelIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
 
                 {isActionDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto z-50 py-1 divide-y divide-slate-100 dark:divide-slate-800">
-                    {ACTION_TYPES.map((type) => {
-                      const isChecked = type.value === "" 
-                        ? selectedActions.length === 0 
-                        : selectedActions.includes(type.value);
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 max-h-80 flex flex-col z-50 overflow-hidden">
+                    <div className="p-2 border-b border-slate-100 dark:border-slate-800">
+                      <input
+                        type="text"
+                        placeholder="Search action..."
+                        value={actionSearchQuery}
+                        onChange={(e) => setActionSearchQuery(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-slate-100"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="overflow-y-auto flex-1 py-1 divide-y divide-slate-100 dark:divide-slate-800">
+                      {filteredActionTypes.map((type) => {
+                        const isChecked = type.value === "" 
+                          ? selectedActions.length === 0 
+                          : selectedActions.includes(type.value);
 
-                      return (
-                        <button
-                          key={type.value}
-                          type="button"
-                          onClick={() => {
-                            if (type.value === "") {
-                              setSelectedActions([]);
-                            } else {
-                              setSelectedActions((prev) => {
-                                if (prev.includes(type.value)) {
-                                  return prev.filter((x) => x !== type.value);
-                                } else {
-                                  return [...prev, type.value];
-                                }
-                              });
-                            }
-                          }}
-                          className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-3 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}} // Click handled by button onClick
-                            className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 pointer-events-none"
-                          />
-                          {type.value ? (
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(type.value)}`}>
-                              {type.label}
-                            </span>
-                          ) : (
-                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                              All Actions
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => {
+                              if (type.value === "") {
+                                setSelectedActions([]);
+                              } else {
+                                setSelectedActions((prev) => {
+                                  if (prev.includes(type.value)) {
+                                    return prev.filter((x) => x !== type.value);
+                                  } else {
+                                    return [...prev, type.value];
+                                  }
+                                });
+                              }
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors flex items-center gap-3 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {}} // Click handled by button onClick
+                              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                            />
+                            {type.value ? (
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${getActionBadgeColor(type.value)}`}>
+                                {type.value === "INWARD" || type.value === "OUTWARD" ? type.value.toLowerCase() : type.label}
+                              </span>
+                            ) : (
+                              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                All Actions
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -507,11 +555,11 @@ export default function AdminAuditPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-                <th className="py-4 px-6 w-[20%] min-w-[150px]">Timestamp</th>
-                <th className="py-4 px-6 w-[12%] min-w-[90px]">Operator</th>
-                <th className="py-4 px-6 w-[18%] min-w-[140px]">Action Type</th>
-                <th className="py-4 px-6 w-[40%]">Activity Summary</th>
-                <th className="py-4 px-6 w-[10%] text-right min-w-[90px]">Details</th>
+                <th className="py-4 px-6 w-[20%] min-w-[140px]">Timestamp</th>
+                <th className="py-4 px-6 w-[12%] min-w-[80px]">Operator</th>
+                <th className="py-4 px-6 w-[18%] min-w-[110px]">Action Type</th>
+                <th className="py-4 px-6 w-[40%] max-w-[200px] md:max-w-xs lg:max-w-md xl:max-w-lg">Activity Summary</th>
+                <th className="py-4 px-6 w-[10%] text-right min-w-[80px]">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -544,10 +592,10 @@ export default function AdminAuditPage() {
                         </td>
                         <td className="py-4 px-6 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${getActionBadgeColor(log.action)}`}>
-                            {ACTION_TYPES.find(a => a.value === log.action)?.label || log.action.replace(/_/g, " ")}
+                            {log.action === "INWARD" || log.action === "OUTWARD" ? log.action.toLowerCase() : (ACTION_TYPES.find(a => a.value === log.action)?.label || log.action.replace(/_/g, " "))}
                           </span>
                         </td>
-                        <td className="py-4 px-6 whitespace-normal break-words">
+                        <td className="py-4 px-6 whitespace-normal break-words max-w-[200px] md:max-w-xs lg:max-w-md xl:max-w-lg">
                           {formatSummary(log)}
                         </td>
                         <td className="py-4 px-6 text-right whitespace-nowrap">

@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const { orgcode } = sessionCheck.rows[0];
 
     const body = await request.json();
-    const { planKey, couponCode, currency = "INR" } = body;
+    const { planKey, couponCode, redeemPoints, currency = "INR" } = body;
 
     if (!planKey) {
       return NextResponse.json({ success: false, message: "planKey parameter is required" }, { status: 400 });
@@ -104,6 +104,24 @@ export async function POST(request: Request) {
       finalPriceRs = priceRs - appliedDiscountRs;
     }
 
+    // Apply Referral Points if requested
+    let pointsDiscount = 0;
+    if (redeemPoints) {
+      const pointsQuery = await query(
+        `SELECT GREATEST(0,
+           (SELECT COALESCE(SUM(points_earned), 0) FROM public.payment_history WHERE referred_by = $1) - 
+           (SELECT COALESCE(SUM(points_redeemed), 0) FROM public.payment_history WHERE orgcode = $1)
+         ) AS available_points`,
+        [orgcode]
+      );
+      const availablePoints = parseFloat(pointsQuery.rows[0]?.available_points || "0");
+      if (availablePoints > 0) {
+        const maxRedeemable = Math.max(0, finalPriceRs - 1.00);
+        pointsDiscount = Math.min(availablePoints, maxRedeemable);
+        finalPriceRs = finalPriceRs - pointsDiscount;
+      }
+    }
+
     const amountPaise = Math.round(finalPriceRs * 100);
 
     if (amountPaise < 100) {
@@ -137,6 +155,7 @@ export async function POST(request: Request) {
       originalPrice: priceRs,
       finalPrice: finalPriceRs,
       appliedDiscount: appliedDiscountRs,
+      pointsDiscount: pointsDiscount,
       planName
     });
   } catch (error: any) {

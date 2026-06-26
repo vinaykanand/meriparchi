@@ -31,6 +31,8 @@ export default function AdminSettingsPage() {
   const [backupSchedule, setBackupSchedule] = useState("none");
   const [enableSecurityLogs, setEnableSecurityLogs] = useState(true);
   const [enableAiAssistant, setEnableAiAssistant] = useState(true);
+  const [inventoryEnabled, setInventoryEnabled] = useState(false);
+  const [hasInventory, setHasInventory] = useState(false);
 
   const [savingCompany, setSavingCompany] = useState(false);
 
@@ -68,6 +70,12 @@ export default function AdminSettingsPage() {
             if (data.company.enable_ai_assistant !== undefined) {
               setEnableAiAssistant(data.company.enable_ai_assistant);
             }
+            if (data.company.inventory_enabled !== undefined) {
+              setInventoryEnabled(data.company.inventory_enabled);
+            }
+            if (data.company.subscription && data.company.subscription.has_inventory !== undefined) {
+              setHasInventory(data.company.subscription.has_inventory);
+            }
             if (data.company.email !== undefined) {
               setEmail(data.company.email || "");
             }
@@ -100,6 +108,7 @@ export default function AdminSettingsPage() {
           backup_schedule: backupSchedule,
           enable_security_logs: enableSecurityLogs,
           enable_ai_assistant: enableAiAssistant,
+          inventory_enabled: inventoryEnabled,
         }),
       });
       const data = await response.json();
@@ -199,6 +208,39 @@ export default function AdminSettingsPage() {
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
               </label>
+            </div>
+
+            <div className={`flex justify-between items-center p-4 rounded-xl border transition-all ${
+              hasInventory 
+                ? "bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700" 
+                : "bg-amber-50/40 dark:bg-amber-950/10 border-amber-200/50 dark:border-amber-900/40"
+            }`}>
+              <div>
+                <div className="font-semibold text-slate-900 dark:text-slate-100">Enable Inventory & Stock Module</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {hasInventory 
+                    ? "Activate stock transfers, multi-location logs, and Year-End closing features." 
+                    : "Plan Upgrade Required: Subscribe to 'Parchi with Inventory' to unlock this module."}
+                </div>
+              </div>
+              {hasInventory ? (
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer"
+                    checked={inventoryEnabled} 
+                    onChange={(e) => setInventoryEnabled(e.target.checked)} 
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+              ) : (
+                <a 
+                  href="/dashboard/admin/billing" 
+                  className="px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-950/30 rounded-lg hover:underline"
+                >
+                  Upgrade
+                </a>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">

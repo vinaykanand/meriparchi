@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     const { orgcode, userid } = sessionCheck.rows[0];
 
     const body = await request.json();
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planKey, couponCode } = body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planKey, couponCode, redeemPoints } = body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !planKey) {
       return NextResponse.json({ success: false, message: "Missing required verification fields" }, { status: 400 });
@@ -114,6 +114,61 @@ export async function POST(request: Request) {
       }
     }
 
+    // Apply Referral Points if requested
+    let pointsDiscount = 0;
+    if (redeemPoints) {
+      const pointsQuery = await query(
+        `SELECT GREATEST(0,
+           (SELECT COALESCE(SUM(points_earned), 0) FROM public.payment_history WHERE referred_by = $1) - 
+           (SELECT COALESCE(SUM(points_redeemed), 0) FROM public.payment_history WHERE orgcode = $1)
+         ) AS available_points`,
+        [orgcode]
+      );
+      const availablePoints = parseFloat(pointsQuery.rows[0]?.available_points || "0");
+      if (availablePoints > 0) {
+        const maxRedeemable = Math.max(0, finalPriceRs - 1.00);
+        pointsDiscount = Math.min(availablePoints, maxRedeemable);
+        finalPriceRs = finalPriceRs - pointsDiscount;
+      }
+    }
+
+    if (pointsDiscount > 0) {
+      await logAction({
+        orgcode,
+        userid,
+        action: "REFERRAL_POINTS_REDEEMED",
+        details: {
+          pointsRedeemed: pointsDiscount,
+          finalPriceBeforePoints: finalPriceRs + pointsDiscount,
+          finalPriceAfterPoints: finalPriceRs
+        }
+      });
+    }
+
+    // Reward referrer on EVERY successful payment — 10% of amount actually paid
+    const checkReferred = await query(
+      "SELECT referred_by FROM public.company WHERE orgcode = $1",
+      [orgcode]
+    );
+    const referredBy = checkReferred.rows[0]?.referred_by; // stores referrer's orgcode
+    let rewardPoints = 0;
+    if (referredBy) {
+      rewardPoints = Math.round(finalPriceRs * 0.10 * 100) / 100;
+      if (rewardPoints > 0) {
+        // Log to audit log (informational only)
+        await logAction({
+          orgcode: referredBy,
+          userid: "system",
+          action: "REFERRAL_REWARD_CREDITED",
+          details: {
+            referredCompany: orgcode,
+            paymentAmount: finalPriceRs,
+            rewardPoints: rewardPoints
+          }
+        });
+      }
+    }
+
     // Update Company subscription in independent table
     const subscriptionRes = await query(
       "SELECT subscription_end, subscription_type FROM public.company_subscriptions WHERE orgcode = $1",
@@ -140,11 +195,11 @@ export async function POST(request: Request) {
     }
 
     await query(
-      `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_end)
-       VALUES ($1, 'monthly', $2)
+      `INSERT INTO public.company_subscriptions (orgcode, subscription_type, subscription_end, has_inventory)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (orgcode) DO UPDATE 
-       SET subscription_type = 'monthly', subscription_end = EXCLUDED.subscription_end`,
-      [orgcode, newEnd]
+       SET subscription_type = EXCLUDED.subscription_type, subscription_end = EXCLUDED.subscription_end, has_inventory = EXCLUDED.has_inventory`,
+      [orgcode, planKey, newEnd, planKey.endsWith("_inventory")]
     );
 
     // Increment coupon usage and log coupon apply if valid
@@ -208,9 +263,9 @@ export async function POST(request: Request) {
 
     // Record checkout to public.payment_history
     await query(
-      `INSERT INTO public.payment_history (orgcode, order_id, payment_id, plan_key, amount, coupon_code, invoice_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [orgcode, razorpay_order_id, razorpay_payment_id, planKey, finalPriceRs, validCouponApplied ? couponCode.trim().toUpperCase() : null, invoiceUrl]
+      `INSERT INTO public.payment_history (orgcode, order_id, payment_id, plan_key, amount, coupon_code, invoice_url, points_redeemed, referred_by, points_earned)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [orgcode, razorpay_order_id, razorpay_payment_id, planKey, finalPriceRs, validCouponApplied ? couponCode.trim().toUpperCase() : null, invoiceUrl, pointsDiscount, referredBy || null, rewardPoints]
     );
 
     // Audit Log for Payment success
