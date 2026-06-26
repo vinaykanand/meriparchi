@@ -9,6 +9,7 @@ interface InventoryItem {
   name: string;
   description?: string;
   reorder_level: string | number;
+  opening_balance?: string | number;
   current_balance: string | number;
 }
 
