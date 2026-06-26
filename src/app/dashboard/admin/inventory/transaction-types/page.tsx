@@ -199,7 +199,7 @@ export default function TransactionTypesPage() {
                 <th className="py-3 px-4">Name</th>
                 <th className="py-3 px-4 text-center">Effect</th>
                 <th className="py-3 px-4 text-center">Routing</th>
-                {session?.orgcode === 'SUPER' && <th className="py-3 px-4 text-right">Actions</th>}
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40">
@@ -233,26 +233,24 @@ export default function TransactionTypesPage() {
                     <td className="py-3.5 px-4 text-xs text-center font-mono font-semibold text-slate-500">
                       {t.from_type.toUpperCase()} → {t.to_type.toUpperCase()}
                     </td>
-                    {session?.orgcode === 'SUPER' && (
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {canManage ? (
-                            <>
-                              <button onClick={() => startEdit(t)} className="p-1.5 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 dark:hover:text-amber-400 rounded-lg text-slate-400 transition-colors inline-flex items-center gap-1.5 text-xs font-bold">
-                                <PencilSquareIcon className="w-4 h-4" /> Edit
-                              </button>
-                              <button onClick={() => handleDeleteType(t.code)} className="p-1.5 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 rounded-lg text-slate-400 transition-colors inline-flex items-center gap-1.5 text-xs font-bold">
-                                <TrashIcon className="w-4 h-4" /> Delete
-                              </button>
-                            </>
-                          ) : (
-                            <span className="p-1.5 text-slate-400 dark:text-slate-500 inline-flex items-center gap-1.5 text-xs font-semibold">
-                              <LockClosedIcon className="w-4 h-4 text-slate-400" /> Locked
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    )}
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {canManage ? (
+                          <>
+                            <button onClick={() => startEdit(t)} className="p-1.5 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 dark:hover:text-amber-400 rounded-lg text-slate-400 transition-colors inline-flex items-center gap-1.5 text-xs font-bold">
+                              <PencilSquareIcon className="w-4 h-4" /> Edit
+                            </button>
+                            <button onClick={() => handleDeleteType(t.code)} className="p-1.5 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 rounded-lg text-slate-400 transition-colors inline-flex items-center gap-1.5 text-xs font-bold">
+                              <TrashIcon className="w-4 h-4" /> Delete
+                            </button>
+                          </>
+                        ) : (
+                          <span className="p-1.5 text-slate-400 dark:text-slate-500 inline-flex items-center gap-1.5 text-xs font-semibold">
+                            <LockClosedIcon className="w-4 h-4 text-slate-400" /> Locked
+                          </span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -290,136 +288,132 @@ export default function TransactionTypesPage() {
         </div>
       )}
 
-      {session?.orgcode === 'SUPER' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Form Card */}
-          <div className="lg:col-span-1">
-            {editingType ? (
-              <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-3xl p-6 shadow-sm sticky top-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                    <PencilSquareIcon className="w-5 h-5" /> {editingType.orgcode === 'SUPER' ? "Edit Global Type" : "Edit Transaction Type"}
-                  </h3>
-                  <button onClick={cancelEdit} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {editingType.orgcode === 'SUPER' && (
-                  <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/50 rounded-xl text-xs font-semibold">
-                    ⚠️ This is a Global transaction type. Modifying it will affect all organizations using this default type.
-                  </div>
-                )}
-
-                <form onSubmit={handleUpdateType} className="flex flex-col gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Code</label>
-                    <input type="text" disabled value={editingType.code} className="w-full p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-sm text-slate-400 cursor-not-allowed" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Name</label>
-                    <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Stock Effect</label>
-                    <select value={editStockEffect} onChange={(e) => setEditStockEffect(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-sm">
-                      <option value="INWARD">Inward (+ Stock)</option>
-                      <option value="OUTWARD">Outward (- Stock)</option>
-                      <option value="TRANSFER">Transfer (Neutral)</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">From Type</label>
-                      <select value={editFromType} onChange={(e) => setEditFromType(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-sm">
-                        <option value="vendor">Vendor</option>
-                        <option value="location">Location</option>
-                        <option value="customer">Customer</option>
-                        <option value="none">None</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">To Type</label>
-                      <select value={editToType} onChange={(e) => setEditToType(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-sm">
-                        <option value="vendor">Vendor</option>
-                        <option value="location">Location</option>
-                        <option value="customer">Customer</option>
-                        <option value="none">None</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-2">
-                    <button type="submit" disabled={editSubmitting || !editName.trim()} className="flex-1 p-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors text-sm">
-                      {editSubmitting ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button type="button" onClick={cancelEdit} className="px-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors text-sm">
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm sticky top-6">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <PlusIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" /> Create Global Type
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Form Card */}
+        <div className="lg:col-span-1">
+          {editingType ? (
+            <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-3xl p-6 shadow-sm sticky top-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <PencilSquareIcon className="w-5 h-5" /> {editingType.orgcode === 'SUPER' ? "Edit Global Type" : "Edit Transaction Type"}
                 </h3>
-                <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 rounded-xl text-xs font-semibold">
-                  ℹ️ You are logged in as SUPER. Newly created transaction types will be global and accessible by all companies.
-                </div>
+                <button onClick={cancelEdit} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
 
-                <form onSubmit={handleAddType} className="flex flex-col gap-4">
+              {editingType.orgcode === 'SUPER' && (
+                <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/50 rounded-xl text-xs font-semibold">
+                  ⚠️ This is a Global transaction type. Modifying it will affect all organizations using this default type.
+                </div>
+              )}
+
+              <form onSubmit={handleUpdateType} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Code</label>
+                  <input type="text" disabled value={editingType.code} className="w-full p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-sm text-slate-400 cursor-not-allowed" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Name</label>
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Stock Effect</label>
+                  <select value={editStockEffect} onChange={(e) => setEditStockEffect(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-sm">
+                    <option value="INWARD">Inward (+ Stock)</option>
+                    <option value="OUTWARD">Outward (- Stock)</option>
+                    <option value="TRANSFER">Transfer (Neutral)</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Name</label>
-                    <input type="text" placeholder="e.g. Warehouse Transfer" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Stock Effect</label>
-                    <select value={newStockEffect} onChange={(e) => setNewStockEffect(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm">
-                      <option value="INWARD">Inward (+ Stock)</option>
-                      <option value="OUTWARD">Outward (- Stock)</option>
-                      <option value="TRANSFER">Transfer (Neutral)</option>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">From Type</label>
+                    <select value={editFromType} onChange={(e) => setEditFromType(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-sm">
+                      <option value="vendor">Vendor</option>
+                      <option value="location">Location</option>
+                      <option value="customer">Customer</option>
+                      <option value="none">None</option>
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">From Type</label>
-                      <select value={newFromType} onChange={(e) => setNewFromType(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm">
-                        <option value="vendor">Vendor</option>
-                        <option value="location">Location</option>
-                        <option value="customer">Customer</option>
-                        <option value="none">None</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">To Type</label>
-                      <select value={newToType} onChange={(e) => setNewToType(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm">
-                        <option value="vendor">Vendor</option>
-                        <option value="location">Location</option>
-                        <option value="customer">Customer</option>
-                        <option value="none">None</option>
-                      </select>
-                    </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">To Type</label>
+                    <select value={editToType} onChange={(e) => setEditToType(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-sm">
+                      <option value="vendor">Vendor</option>
+                      <option value="location">Location</option>
+                      <option value="customer">Customer</option>
+                      <option value="none">None</option>
+                    </select>
                   </div>
+                </div>
 
-                  <button type="submit" disabled={submitting || !newName.trim()} className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors text-sm disabled:opacity-50">
-                    {submitting ? "Adding..." : "Add Transaction Type"}
+                <div className="flex gap-2 pt-2">
+                  <button type="submit" disabled={editSubmitting || !editName.trim()} className="flex-1 p-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors text-sm">
+                    {editSubmitting ? "Saving..." : "Save Changes"}
                   </button>
-                </form>
+                  <button type="button" onClick={cancelEdit} className="px-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-colors text-sm">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm sticky top-6">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <PlusIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" /> {session?.orgcode === 'SUPER' ? "Create Global Type" : "Create Transaction Type"}
+              </h3>
+              <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 rounded-xl text-xs font-semibold">
+                {session?.orgcode === 'SUPER'
+                  ? "ℹ️ You are logged in as SUPER. Newly created transaction types will be global and accessible by all companies."
+                  : "ℹ️ Newly created transaction types will be specific to your organization. Global transaction types cannot be modified."}
               </div>
-            )}
-          </div>
 
-          {/* List View */}
-          <div className="lg:col-span-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
-            {renderListView()}
-          </div>
+              <form onSubmit={handleAddType} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Name</label>
+                  <input type="text" placeholder="e.g. Warehouse Transfer" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Stock Effect</label>
+                  <select value={newStockEffect} onChange={(e) => setNewStockEffect(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm">
+                    <option value="INWARD">Inward (+ Stock)</option>
+                    <option value="OUTWARD">Outward (- Stock)</option>
+                    <option value="TRANSFER">Transfer (Neutral)</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">From Type</label>
+                    <select value={newFromType} onChange={(e) => setNewFromType(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm">
+                      <option value="vendor">Vendor</option>
+                      <option value="location">Location</option>
+                      <option value="customer">Customer</option>
+                      <option value="none">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">To Type</label>
+                    <select value={newToType} onChange={(e) => setNewToType(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm">
+                      <option value="vendor">Vendor</option>
+                      <option value="location">Location</option>
+                      <option value="customer">Customer</option>
+                      <option value="none">None</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" disabled={submitting || !newName.trim()} className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors text-sm disabled:opacity-50">
+                  {submitting ? "Adding..." : "Add Transaction Type"}
+                </button>
+              </form>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="w-full bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
+
+        {/* List View */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 rounded-3xl p-6 shadow-sm flex flex-col gap-4">
           {renderListView()}
         </div>
-      )}
+      </div>
     </div>
   );
 }
