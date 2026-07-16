@@ -328,13 +328,13 @@ export default function AdminAuditPage() {
         case "LOGOUT":
           return `User logged out (IP: ${parsed.ip || "unknown"})`;
         case "CREATE_SLIP":
-          return `Created slip #${parsed.slipno} for ${parsed.name} (Amount: ₹${parseFloat(parsed.netamount || "0").toLocaleString()})`;
+          return `Created slip #${parsed.slipno} for ${parsed.name} (Amount: ₹${parseFloat(parsed.netamount || "0").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
         case "DELETE_SLIP":
-          return `Deleted slip #${parsed.slipno} (Reversed ₹${parseFloat(parsed.netamount || "0").toLocaleString()})`;
+          return `Deleted slip #${parsed.slipno} (Reversed ₹${parseFloat(parsed.netamount || "0").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
         case "LOG_PAYMENT":
-          return `Logged payment of ₹${parseFloat(parsed.amount || "0").toLocaleString()} for ${parsed.phone}`;
+          return `Logged payment of ₹${parseFloat(parsed.amount || "0").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} for ${parsed.phone}`;
         case "SUBSCRIPTION_PAYMENT":
-          return `Paid subscription invoice: ₹${parseFloat(parsed.amount || "0").toLocaleString()}`;
+          return `Paid subscription invoice: ₹${parseFloat(parsed.amount || "0").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         case "CREATE_USER":
           return `Created operator account: ${parsed.userid} (${parsed.role})`;
         case "UPDATE_USER":

@@ -319,13 +319,13 @@ export default function SuperAdminAuditPage() {
       const parsed = typeof log.details === "string" ? JSON.parse(log.details) : log.details;
       switch (log.action) {
         case "CREATE_SLIP":
-          return `Created slip for ${parsed.name || parsed.phone} (₹${parsed.totalamount})`;
+          return `Created slip for ${parsed.name || parsed.phone} (₹${parseFloat(parsed.totalamount || "0").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
         case "DELETE_SLIP":
           return `Deleted slip #${parsed.slipno} for ${parsed.name || parsed.phone}`;
         case "LOG_PAYMENT":
-          return `Recorded payment of ₹${parsed.amount} from ${parsed.phone}`;
+          return `Recorded payment of ₹${parseFloat(parsed.amount || "0").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from ${parsed.phone}`;
         case "SUBSCRIPTION_PAYMENT":
-          return `Subscription renewal: Verified payment of ₹${parsed.amount} for plan '${parsed.planKey}'${parsed.couponCode ? ` (applied coupon ${parsed.couponCode})` : ""}`;
+          return `Subscription renewal: Verified payment of ₹${parseFloat(parsed.amount || "0").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} for plan '${parsed.planKey}'${parsed.couponCode ? ` (applied coupon ${parsed.couponCode})` : ""}`;
         case "CLOSE_ACCOUNT":
           return `Closed/cleared account for ${parsed.phone}`;
         case "UPDATE_COMPANY_SETTINGS":

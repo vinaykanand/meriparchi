@@ -278,7 +278,14 @@ export async function POST(request: Request) {
           orgcode: body.orgcode,
           userid,
           action: "CREATE_SLIP",
-          details: { phone: body.phone, name: body.name, totalamount: body.totalamount, itemsCount: body.items?.length },
+          details: { 
+            phone: body.phone, 
+            name: body.name, 
+            slipno: data.slipno, 
+            totalamount: Number(body.totalamount || 0), 
+            netamount: Number(body.totalamount || 0), 
+            itemsCount: body.items?.length 
+          },
         });
       } else if (body.type === "payment") {
         await logAction({
