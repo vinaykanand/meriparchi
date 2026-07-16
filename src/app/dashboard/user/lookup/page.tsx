@@ -518,7 +518,7 @@ export default function UserLookupPage() {
                             <td className={`px-2 py-0.5 font-medium text-right text-xs ${parseFloat(s.amt) < 0 ? 'text-red-500' : 'text-slate-905 dark:text-slate-100'}`}>₹{s.amt}</td>
                           </tr>
                           {isLast && (
-                            <tr className="bg-slate-50 dark:bg-slate-800/30 group">
+                            <tr className="bg-blue-50/20 dark:bg-blue-950/20 group">
                               <td colSpan={5} className="px-2 py-1 text-right">
                                 <div className="flex items-center justify-end gap-4">
                                   <div className="flex items-center gap-2">
