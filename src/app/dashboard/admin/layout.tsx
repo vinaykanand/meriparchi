@@ -449,7 +449,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                     <button
                       type="button"
                       onClick={() => setIsInventoryOpen(!isInventoryOpen)}
-                      className="px-4 py-2.5 rounded-xl text-base font-semibold text-slate-650 dark:text-slate-405 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap flex items-center justify-between gap-3 w-full"
+                      className="px-4 py-1.5 rounded-xl text-sm font-semibold text-slate-650 dark:text-slate-405 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap flex items-center justify-between gap-3 w-full"
                     >
                       <div className="flex items-center gap-3">
                         <CubeIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -458,10 +458,10 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                       <ChevronRightIcon className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200 ${isInventoryOpen ? 'rotate-90' : ''}`} />
                     </button>
                     {isInventoryOpen && (
-                      <div className="flex flex-col gap-1 ml-4 border-l border-slate-200 dark:border-slate-800 pl-2 animate-fade-in">
+                      <div className="flex flex-col gap-0.5 ml-4 border-l border-slate-200 dark:border-slate-800 pl-2 animate-fade-in">
                         <Link
                           href="/dashboard/admin/inventory"
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                          className={`px-4 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                             ${pathname === "/dashboard/admin/inventory"
                               ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
@@ -471,7 +471,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                         </Link>
                         <Link
                           href="/dashboard/admin/inventory/reports"
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                          className={`px-4 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                             ${pathname === "/dashboard/admin/inventory/reports"
                               ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
@@ -481,7 +481,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                         </Link>
                         <Link
                           href="/dashboard/admin/inventory/reports/stock-in-hand"
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                          className={`px-4 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                             ${pathname === "/dashboard/admin/inventory/reports/stock-in-hand"
                               ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
@@ -491,7 +491,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                         </Link>
                         <Link
                           href="/dashboard/admin/inventory/transactions"
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                          className={`px-4 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                             ${pathname === "/dashboard/admin/inventory/transactions"
                               ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
@@ -501,7 +501,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                         </Link>
                         <Link
                           href="/dashboard/admin/inventory/locations"
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                          className={`px-4 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                             ${pathname === "/dashboard/admin/inventory/locations"
                               ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
@@ -511,7 +511,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                         </Link>
                         <Link
                           href="/dashboard/admin/inventory/skus"
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                          className={`px-4 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                             ${pathname === "/dashboard/admin/inventory/skus"
                               ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
@@ -521,7 +521,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                         </Link>
                         <Link
                           href="/dashboard/admin/inventory/transaction-types"
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                          className={`px-4 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                             ${pathname === "/dashboard/admin/inventory/transaction-types"
                               ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
@@ -531,7 +531,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                         </Link>
                         <Link
                           href="/dashboard/admin/inventory/close"
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                          className={`px-4 py-1 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                             ${pathname === "/dashboard/admin/inventory/close"
                               ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm"
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
@@ -551,7 +551,7 @@ function AdminDashboardContent({ children }: { children: React.ReactNode }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-4 py-2.5 rounded-xl text-base font-semibold transition-colors whitespace-nowrap flex items-center gap-3
+                  className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap flex items-center gap-3
                     ${isActive 
                       ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shadow-sm" 
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
