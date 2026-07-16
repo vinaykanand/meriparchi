@@ -35,6 +35,7 @@ export default function AdminSettingsPage() {
   const [hasInventory, setHasInventory] = useState(false);
 
   const [savingCompany, setSavingCompany] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -50,6 +51,7 @@ export default function AdminSettingsPage() {
     const fetchCompanyData = async () => {
       if (!session) return;
       try {
+        setLoading(true);
         const res = await fetch(`/api/company?orgcode=${session.orgcode}`);
         const data = await res.json();
         if (res.ok && data.success) {
@@ -83,6 +85,8 @@ export default function AdminSettingsPage() {
         }
       } catch (e) {
         console.error("Failed to load company data");
+      } finally {
+        setLoading(false);
       }
     };
     fetchCompanyData();
@@ -124,6 +128,15 @@ export default function AdminSettingsPage() {
       setSavingCompany(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col justify-center items-center py-20 gap-4">
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-500 text-sm font-medium">Loading settings...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in relative">
