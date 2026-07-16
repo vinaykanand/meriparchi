@@ -602,9 +602,10 @@ export default function AdminLookupPage() {
                                 <tr className="bg-slate-50 dark:bg-slate-800/30 group">
                                   <td colSpan={5} className="px-2 py-1 text-right">
                                     <div className="flex items-center justify-end gap-4">
-                                      <div className="flex gap-2">
-                                        <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=compact`} className="px-2 py-0.5 text-[10px] font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">🖨️ Thermal</a>
-                                        <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=a4`} className="px-2 py-0.5 text-[10px] font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded transition-colors shadow-sm flex items-center gap-1">📄 A4</a>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Print:</span>
+                                        <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=compact`} className="px-2 py-0.5 text-[10px] font-extrabold bg-blue-50 dark:bg-blue-950/40 text-blue-650 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded transition-all shadow-sm flex items-center gap-1">🖨️ Thermal</a>
+                                        <a target="_blank" rel="noopener noreferrer" href={`/print/slip?phone=${searchedLookupPhone}&slipno=${s.no}&orgcode=${session?.orgcode}&format=a4`} className="px-2 py-0.5 text-[10px] font-extrabold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-650 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-900/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded transition-all shadow-sm flex items-center gap-1">📄 A4</a>
                                       </div>
                                       <span className="text-[10px] font-bold text-slate-505 uppercase tracking-widest">
                                         Slip #{s.no} Total
