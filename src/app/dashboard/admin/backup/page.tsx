@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { useSearchParams, useRouter } from "next/navigation";
 
 interface Toast {
   id: number;
@@ -42,10 +43,25 @@ export default function AdminBackupPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [showBackupPassword, setShowBackupPassword] = useState(false);
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [backupTimer, setBackupTimer] = useState<number>(0);
   const [restoreTimer, setRestoreTimer] = useState<number>(0);
   const [restoreTimeRemaining, setRestoreTimeRemaining] = useState<number | null>(null);
   const [restoreSpeed, setRestoreSpeed] = useState<number | null>(null);
+
+  useEffect(() => {
+    const gdriveStatus = searchParams.get("gdrive");
+    if (gdriveStatus === "success") {
+      addToast("Google Drive linked successfully!", "success");
+      router.replace("/dashboard/admin/backup");
+    } else if (gdriveStatus === "error") {
+      const errorMsg = searchParams.get("message") || "Authentication failed";
+      addToast(`Google Drive linking failed: ${errorMsg}`, "error");
+      router.replace("/dashboard/admin/backup");
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     let interval: any;
