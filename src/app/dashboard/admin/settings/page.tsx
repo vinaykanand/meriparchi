@@ -140,8 +140,10 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in relative">
-      <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Company Profiles</h2>
-      <p className="text-slate-500 text-sm mt-1 mb-4">Configure organization metadata and validation rules.</p>
+      <div>
+        <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Company Profiles</h2>
+        <p className="text-slate-500 text-sm">Configure organization metadata and validation rules.</p>
+      </div>
 
       <div className="flex flex-col gap-6 max-w-[600px]">
         <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm backdrop-blur-xl">

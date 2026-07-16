@@ -98,7 +98,7 @@ export default function CloseYearPage() {
         <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
           Close Financial Year
         </h2>
-        <p className="text-slate-500 text-sm mt-1 font-semibold">
+        <p className="text-slate-500 text-sm font-semibold">
           Finalize starting stocks, close active ledgers, and open new accounts.
         </p>
       </div>

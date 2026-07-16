@@ -213,8 +213,10 @@ export default function AdminLookupPage() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in relative">
-      <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Look Up Ledger Account</h2>
-      <p className="text-slate-500 text-sm mt-1 mb-4">Retrieve customer account statements, view invoice lists, and manage accounts.</p>
+      <div>
+        <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Look Up Ledger Account</h2>
+        <p className="text-slate-500 text-sm">Retrieve customer account statements, view invoice lists, and manage accounts.</p>
+      </div>
 
       {/* Search Panel */}
       <div className="bg-white/80 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>

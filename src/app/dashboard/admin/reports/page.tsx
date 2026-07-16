@@ -188,7 +188,7 @@ function AdminReportsPageContent() {
     <div className="flex flex-col gap-6 animate-fade-in relative max-w-6xl mx-auto pb-10">
       <div>
         <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Reports & Filters</h2>
-        <p className="text-slate-500 text-sm mt-1 mb-4">Generate custom lists of customers based on their account activity.</p>
+        <p className="text-slate-500 text-sm">Generate custom lists of customers based on their account activity.</p>
       </div>
 
       <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">

@@ -202,7 +202,7 @@ export default function AdminUsersPage() {
     <div className="flex flex-col gap-6 animate-[fadeIn_0.4s_ease-out_forwards] relative">
       <div>
         <h2 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Tenant User Profiles</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">List registered operator profiles or create new dashboard sessions.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">List registered operator profiles or create new dashboard sessions.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-6 items-start">

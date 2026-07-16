@@ -162,7 +162,7 @@ export default function LocationsPage() {
         <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
           Manage Warehouse Locations
         </h2>
-        <p className="text-slate-500 text-sm mt-1 font-semibold">
+        <p className="text-slate-500 text-sm font-semibold">
           Define and edit physical locations for inventory storage.
         </p>
       </div>

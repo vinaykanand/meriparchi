@@ -434,7 +434,7 @@ export default function AdminBillingPage() {
         </div>
         <div>
           <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Billing & Subscription</h2>
-          <p className="text-slate-500 text-sm mt-1">Manage and renew your client organization plan.</p>
+          <p className="text-slate-500 text-sm">Manage and renew your client organization plan.</p>
         </div>
       </div>
 

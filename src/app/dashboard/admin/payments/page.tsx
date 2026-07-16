@@ -220,7 +220,7 @@ export default function AdminPaymentsPage() {
     <div className="flex flex-col gap-6 animate-fade-in relative max-w-6xl mx-auto pb-10">
       <div>
         <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Log Payment</h2>
-        <p className="text-slate-500 text-sm mt-1">Record cash or bank payments received from a customer independently.</p>
+        <p className="text-slate-500 text-sm">Record cash or bank payments received from a customer independently.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">

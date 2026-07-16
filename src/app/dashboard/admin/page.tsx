@@ -115,7 +115,7 @@ export default function AdminOverview() {
     <div className="flex flex-col gap-6 animate-fade-in pb-8">
       <div>
         <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Administrator Dashboard</h2>
-        <p className="text-slate-500 text-sm mt-1">Welcome back. Here is a high-level summary of organization activities.</p>
+        <p className="text-slate-500 text-sm">Welcome back. Here is a high-level summary of organization activities.</p>
       </div>
 
       {/* Row 1: KPI Widgets */}

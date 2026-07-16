@@ -188,7 +188,7 @@ export default function StockInHandReportPage() {
           <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
             Stock in Hand Report
           </h2>
-          <p className="text-slate-500 text-sm mt-1 font-semibold">
+          <p className="text-slate-500 text-sm font-semibold">
             View current stock balances, opening quantities, movements, and reorder levels across all SKUs.
           </p>
         </div>

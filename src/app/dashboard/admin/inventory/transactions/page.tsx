@@ -528,7 +528,7 @@ function PostTransactionPageContent() {
           <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
             Voucher Transaction Entry
           </h2>
-          <p className="text-slate-500 text-xs mt-0.5 font-semibold">
+          <p className="text-slate-500 text-xs font-semibold">
             Navigate using Tab key on Quantity column to append rows dynamically.
           </p>
         </div>

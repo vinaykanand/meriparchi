@@ -458,8 +458,10 @@ export default function AdminBackupPage() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in relative max-w-4xl mx-auto">
-      <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Backup & Restore settings</h2>
-      <p className="text-slate-500 text-sm mt-1 mb-4">Export ledger database locally or link Google Drive for automatic scheduled cloud backups.</p>
+      <div>
+        <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Backup & Restore settings</h2>
+        <p className="text-slate-500 text-sm">Export ledger database locally or link Google Drive for automatic scheduled cloud backups.</p>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Column: Local Backup and Restore */}

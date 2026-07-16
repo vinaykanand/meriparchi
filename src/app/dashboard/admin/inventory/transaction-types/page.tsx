@@ -272,7 +272,7 @@ export default function TransactionTypesPage() {
         <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
           Transaction Type Masters
         </h2>
-        <p className="text-slate-500 text-sm mt-1 font-semibold">
+        <p className="text-slate-500 text-sm font-semibold">
           Define custom transaction types, specify their stock behavior (Inward, Outward, Transfer), and routing rules.
         </p>
       </div>
