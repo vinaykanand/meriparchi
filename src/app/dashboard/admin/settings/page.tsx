@@ -101,10 +101,10 @@ export default function AdminSettingsPage() {
           orgname: orgname,
           enableotp: enableotp,
           isactive: isactive,
-          otpresettime: otpresettime,
+          otpresettime: otpresettime || 24,
           opentime: opentime,
           closetime: closetime,
-          audit_retention_days: auditRetentionDays,
+          audit_retention_days: auditRetentionDays || 10,
           backup_schedule: backupSchedule,
           enable_security_logs: enableSecurityLogs,
           enable_ai_assistant: enableAiAssistant,
@@ -250,8 +250,11 @@ export default function AdminSettingsPage() {
                 min="1"
                 max="24"
                 className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
-                value={otpresettime} 
-                onChange={(e) => setOtpresettime(parseInt(e.target.value) || 24)} 
+                value={otpresettime === 0 ? "" : otpresettime} 
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setOtpresettime(val === "" ? "" as any : parseInt(val) || 0);
+                }} 
               />
               <p className="text-xs text-slate-500 mt-1">Time window before unused OTPs expire (1-24 hrs).</p>
             </div>
@@ -262,8 +265,11 @@ export default function AdminSettingsPage() {
                 type="number" 
                 min="1"
                 className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
-                value={auditRetentionDays} 
-                onChange={(e) => setAuditRetentionDays(parseInt(e.target.value) || 10)} 
+                value={auditRetentionDays === 0 ? "" : auditRetentionDays} 
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAuditRetentionDays(val === "" ? "" as any : parseInt(val) || 0);
+                }} 
               />
               <p className="text-xs text-slate-500 mt-1">Number of days to retain audit logs. Older logs are automatically purged.</p>
             </div>
