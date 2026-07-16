@@ -263,8 +263,8 @@ export default function UserLookupPage() {
                           <td className="px-3 py-2 text-xs text-slate-500">{new Date(slip.date).toLocaleDateString()}</td>
                           <td className="px-3 py-2">{slip.name || "—"}</td>
                           <td className="px-3 py-2 text-xs font-mono">{slip.phone}</td>
-                          <td className="px-3 py-2 text-slate-500">₹{slip.totalamount}</td>
-                          <td className="px-3 py-2 font-semibold text-blue-600 dark:text-blue-400">₹{slip.netamount}</td>
+                          <td className="px-3 py-2 text-slate-500">₹{Number(slip.totalamount || 0).toFixed(2)}</td>
+                          <td className="px-3 py-2 font-semibold text-blue-600 dark:text-blue-400">₹{Number(slip.netamount || 0).toFixed(2)}</td>
                         </tr>
                       ))}
                       {recentSlips.length === 0 && (
