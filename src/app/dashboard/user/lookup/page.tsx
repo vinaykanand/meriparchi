@@ -509,7 +509,7 @@ export default function UserLookupPage() {
                             </td>
                             <td className="px-2 py-0.5 whitespace-normal">
                               <div className="flex flex-wrap items-baseline gap-1.5 leading-tight">
-                                <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">{s.item}</span>
+                                <span className="text-xs font-normal text-slate-900 dark:text-slate-100">{s.item}</span>
                                 {s.remarks && <span className="text-[10px] text-slate-450 dark:text-slate-400 font-normal italic">({s.remarks})</span>}
                               </div>
                             </td>
